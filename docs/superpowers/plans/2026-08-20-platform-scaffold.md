@@ -1520,13 +1520,18 @@ class ClaudeProvider:
         system_messages = [m.content for m in messages if m.role == "system"]
         conversation = [{"role": m.role, "content": m.content} for m in messages if m.role != "system"]
 
-        response = self._client.messages.create(
-            model=settings.claude_model,
-            max_tokens=1024,
-            system=system_messages[0] if system_messages else None,
-            messages=conversation,
-            tools=_to_claude_tools(tools),
-        )
+        create_kwargs: dict = {
+            "model": settings.claude_model,
+            "max_tokens": 1024,
+            "messages": conversation,
+            "tools": _to_claude_tools(tools),
+        }
+        if system_messages:
+            # The Anthropic SDK's `system` param must be omitted entirely when
+            # absent — passing `system=None` sends a literal null the API rejects.
+            create_kwargs["system"] = system_messages[0]
+
+        response = self._client.messages.create(**create_kwargs)
 
         content_text: str | None = None
         tool_calls: list[ToolCallRequest] = []
