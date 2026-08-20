@@ -1,7 +1,11 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth.models import User  # noqa: F401
 from app.auth.router import router as auth_router
+from app.core.config import settings
 from app.core.db import Base, engine
 from app.features import register_all_tools
 from app.llm.chat_router import router as chat_router
@@ -9,9 +13,22 @@ from app.shared.models import Account, Transaction  # noqa: F401
 from app.tools.router import router as tools_router
 
 register_all_tools()
-Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Finance AI Hackathon")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    yield
+
+
+app = FastAPI(title="Finance AI Hackathon", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(tools_router, prefix="/tools", tags=["tools"])
 app.include_router(chat_router, tags=["chat"])
