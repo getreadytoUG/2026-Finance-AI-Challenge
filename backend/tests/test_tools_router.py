@@ -30,3 +30,14 @@ def test_calling_tool_with_invalid_payload_returns_400(client):
     token = _signup_and_login(client, email="tools-user3@example.com")
     response = client.post("/tools/policy_matcher", json={"age": "not-a-number"}, headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 400
+
+
+def test_all_feature_tools_are_registered(client):
+    from app.tools.registry import registry
+
+    assert {s.name for s in registry.all()} == {
+        "policy_matcher",
+        "savings_planner",
+        "subscription_report",
+        "card_spending_report",
+    }
