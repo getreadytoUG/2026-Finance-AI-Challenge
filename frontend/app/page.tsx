@@ -7,7 +7,7 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    router.push("/login");
+    router.push(localStorage.getItem("token") ? "/policy" : "/login");
   }, [router]);
 
   return null;

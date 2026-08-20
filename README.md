@@ -30,8 +30,9 @@ npm install
 npm run dev
 ```
 
-- http://localhost:3000 접속 시 `/login`으로 리다이렉트됩니다.
+- http://localhost:3000 접속 시 로그인 여부에 따라 `/login` 또는 `/policy`로 리다이렉트됩니다.
 - 아직 프론트엔드에 회원가입 화면이 없으므로, 최초 계정은 `/docs`(Swagger) 또는 curl로 `POST /auth/signup`을 호출해 만들어야 합니다.
+- 로그인하면 4개 기능 탭(정책비교/저축플랜/구독료 리포트/카드소비 리포트)이 있는 화면으로 이동합니다. 각 탭은 채팅이 아니라 **폼 입력 → 결과 표시** 형태입니다.
 
 ### 3. 테스트 (백엔드)
 
@@ -50,13 +51,18 @@ backend/app/
 ├── auth/        회원가입/로그인 (JWT)
 ├── tools/       Tool 확장 프레임워크 (핵심)
 ├── features/    실제 기능들 (각 폴더 = 기능 하나)
-├── llm/         LLM 연동 (Claude/GPT) + /chat 오케스트레이션
+├── llm/         LLM 연동 (Claude/GPT) — 현재 REST 화면에서는 미사용, 추후 재활용 가능
 ├── shared/      기능 간 공유 데이터 모델
 └── main.py      앱 진입점, 라우터 등록
 
 frontend/
-├── app/         로그인·채팅 화면
-└── lib/api.ts   백엔드 API 호출 함수
+├── app/login/       로그인 화면
+├── app/(app)/       로그인 후 화면 (공통 탭 네비게이션 + 인증 가드)
+│   ├── policy/          정책비교
+│   ├── savings/         저축플랜
+│   ├── subscriptions/   구독료 리포트
+│   └── cards/           카드소비 리포트
+└── lib/api.ts       백엔드 API 호출 함수
 ```
 
 ### `backend/app/core/` — 공통 설정
@@ -88,26 +94,31 @@ frontend/
 
 `features/__init__.py` — 위 4개 `TOOL_SPEC`을 `ToolRegistry`에 등록하는 곳. 새 기능 추가 시 여기에 import 한 줄 + 리스트 한 줄만 추가합니다.
 
-### `backend/app/llm/` — LLM 연동 및 채팅 오케스트레이션
+### `backend/app/llm/` — LLM Provider 추상화 (현재 미사용, 재활용 대기)
 - `base.py` — `Message`, `LLMResponse`, `LLMProvider` 인터페이스 (Claude/GPT 공통 추상화)
 - `claude_provider.py` / `openai_provider.py` — 각각 Anthropic/OpenAI SDK로 실제 호출
 - `factory.py` — `.env`의 `LLM_PROVIDER` 값에 따라 사용할 provider를 선택
-- `chat_router.py` — `POST /chat`: 사용자 메시지를 LLM에 전달 → LLM이 Tool 호출을 요청하면 `tools/registry.py`로 실행 → 결과를 다시 LLM에 넣어 최종 답변 생성, 이 과정을 반복하는 오케스트레이션 루프
+
+원래는 `POST /chat`이 이 provider들로 LLM에게 Tool 호출을 맡기는 챗봇형 오케스트레이션이었지만, "실제 기능을 폼 입력으로 바로 실행"하는 방향으로 바뀌면서 `/chat` 엔드포인트는 제거했습니다. LLM 연동 코드 자체는 남겨뒀으니, 이후 특정 기능(`policy_matcher` 등) 내부에서 판단 보조용으로 재사용할 수 있습니다.
 
 ### `backend/app/shared/` — 기능 간 공유 데이터
 - `models.py` — `Account`(계좌), `Transaction`(거래내역) — 여러 기능이 공통으로 참조할 테이블
 
 ### `backend/app/main.py`
-FastAPI 앱 진입점. 위 라우터들(`auth`, `tools`, `chat`)을 전부 등록하고 CORS·DB 테이블 생성을 처리합니다.
+FastAPI 앱 진입점. 위 라우터들(`auth`, `tools`)을 전부 등록하고 CORS·DB 테이블 생성을 처리합니다.
 
 ### `backend/tests/`
-`backend/app/` 각 모듈에 대응하는 테스트 (auth, tools, features, llm, chat_router 등). 총 41개, `pytest -v`로 전체 실행됩니다.
+`backend/app/` 각 모듈에 대응하는 테스트 (auth, tools, features, llm 등). 총 37개, `pytest -v`로 전체 실행됩니다.
 
 ### `frontend/`
-- `app/login/page.tsx` — 로그인 화면 (로그인 성공 시 JWT를 `localStorage`에 저장)
-- `app/chat/page.tsx` — 채팅 화면 (백엔드 `/chat`을 호출해 대화)
-- `app/page.tsx` — 루트 접속 시 `/login`으로 리다이렉트
-- `lib/api.ts` — 백엔드 API 호출 함수(`login`, `sendChatMessage`) 모음
+- `app/login/page.tsx` — 로그인 화면 (로그인 성공 시 JWT를 `localStorage`에 저장, 로그인 후 `/policy`로 이동)
+- `app/(app)/layout.tsx` — 로그인 후 화면 공통 레이아웃: 탭 네비게이션 바 + 인증 가드(토큰 없으면 `/login`으로 리다이렉트) + 로그아웃 버튼
+- `app/(app)/policy/page.tsx` — 정책비교 폼 → `POST /tools/policy_matcher`
+- `app/(app)/savings/page.tsx` — 저축플랜 폼 → `POST /tools/savings_planner`
+- `app/(app)/subscriptions/page.tsx` — 구독료 리포트 폼 → `POST /tools/subscription_report`
+- `app/(app)/cards/page.tsx` — 카드소비 리포트 폼 → `POST /tools/card_spending_report`
+- `app/page.tsx` — 루트 접속 시 로그인 여부에 따라 `/policy` 또는 `/login`으로 리다이렉트
+- `lib/api.ts` — 백엔드 API 호출 함수: `login`(로그인), `callTool`(범용 `/tools/{name}` 호출 — 4개 탭이 전부 이 함수를 공유)
 
 ### `docs/superpowers/`
 - `specs/` — 설계 문서 (플랫폼 아키텍처 결정 사항)

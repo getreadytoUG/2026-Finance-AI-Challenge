@@ -13,18 +13,28 @@ export async function login(email: string, password: string): Promise<string> {
   return data.access_token as string;
 }
 
-export async function sendChatMessage(token: string, message: string): Promise<string> {
-  const res = await fetch(`${API_BASE}/chat`, {
+export async function callTool<TOutput>(
+  token: string,
+  name: string,
+  input: Record<string, unknown>
+): Promise<TOutput> {
+  const res = await fetch(`${API_BASE}/tools/${name}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify(input),
   });
   if (!res.ok) {
-    throw new Error("Chat request failed");
+    let detail = "요청이 실패했습니다.";
+    try {
+      const body = await res.json();
+      if (typeof body.detail === "string") detail = body.detail;
+    } catch {
+      // response body wasn't JSON — keep the generic message
+    }
+    throw new Error(detail);
   }
-  const data = await res.json();
-  return data.reply as string;
+  return (await res.json()) as TOutput;
 }
