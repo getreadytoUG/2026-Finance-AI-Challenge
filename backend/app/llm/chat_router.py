@@ -1,19 +1,30 @@
-from fastapi import APIRouter, Depends
+import logging
+
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
 from app.auth.models import User
 from app.auth.router import get_current_user
 from app.core.db import get_db
-from app.llm.base import LLMProvider, Message
+from app.llm.base import LLMProvider, LLMResponse, Message
 from app.llm.factory import get_provider
-from app.tools.base import ToolContext
+from app.tools.base import ToolContext, ToolSpec
 from app.tools.errors import ToolExecutionError
 from app.tools.registry import ToolRegistry, get_tool_registry
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 MAX_TOOL_ITERATIONS = 5
+
+
+def _call_provider(provider: LLMProvider, messages: list[Message], tools: list[ToolSpec]) -> LLMResponse:
+    try:
+        return provider.chat(messages, tools)
+    except Exception:
+        logger.exception("LLM provider call failed")
+        raise HTTPException(status_code=502, detail="LLM provider request failed")
 
 
 class ChatRequest(BaseModel):
@@ -40,7 +51,7 @@ def chat(
     tools = tool_registry.all()
     messages = [Message(role="user", content=request.message)]
 
-    response = provider.chat(messages, tools)
+    response = _call_provider(provider, messages, tools)
 
     iterations = 0
     while response.tool_calls and iterations < MAX_TOOL_ITERATIONS:
@@ -55,7 +66,7 @@ def chat(
                 result_text = f"Error: {e}"
             messages.append(Message(role="assistant", content=f"[calling tool {call.name}]"))
             messages.append(Message(role="user", content=f"[tool result for {call.name}] {result_text}"))
-        response = provider.chat(messages, tools)
+        response = _call_provider(provider, messages, tools)
         iterations += 1
 
     return ChatResponse(reply=response.content or "")

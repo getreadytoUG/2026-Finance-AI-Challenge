@@ -33,9 +33,14 @@ class OpenAIProvider:
         )
 
         choice = response.choices[0].message
-        tool_calls = [
-            ToolCallRequest(name=tc.function.name, arguments=json.loads(tc.function.arguments))
-            for tc in (choice.tool_calls or [])
-        ]
+        tool_calls = []
+        for tc in choice.tool_calls or []:
+            try:
+                arguments = json.loads(tc.function.arguments)
+            except json.JSONDecodeError as e:
+                raise ValueError(
+                    f"Model returned malformed JSON arguments for tool '{tc.function.name}': {e}"
+                ) from e
+            tool_calls.append(ToolCallRequest(name=tc.function.name, arguments=arguments))
 
         return LLMResponse(content=choice.content, tool_calls=tool_calls)
