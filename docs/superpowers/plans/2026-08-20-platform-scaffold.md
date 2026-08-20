@@ -1673,8 +1673,7 @@ git commit -m "feat: add LLM provider abstraction (Claude, OpenAI) with tool-sch
 ```python
 from pydantic import BaseModel
 
-from app.core.db import get_db
-from app.llm.base import LLMResponse, Message, ToolCallRequest
+from app.llm.base import LLMResponse, ToolCallRequest
 from app.llm.chat_router import get_llm_provider
 from app.main import app
 from app.tools.base import ToolContext, ToolSpec
