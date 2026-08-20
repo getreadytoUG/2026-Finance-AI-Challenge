@@ -4,6 +4,7 @@ from app.auth.models import User  # noqa: F401
 from app.auth.router import router as auth_router
 from app.core.db import Base, engine
 from app.features import register_all_tools
+from app.llm.chat_router import router as chat_router
 from app.shared.models import Account, Transaction  # noqa: F401
 from app.tools.router import router as tools_router
 
@@ -13,6 +14,7 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(title="Finance AI Hackathon")
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(tools_router, prefix="/tools", tags=["tools"])
+app.include_router(chat_router, tags=["chat"])
 
 
 @app.get("/health")
