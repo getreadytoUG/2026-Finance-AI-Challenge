@@ -6,6 +6,7 @@ pydantic-settings
 email-validator
 python-jose[cryptography]
 passlib[bcrypt]
+bcrypt<4.1
 anthropic
 openai
 pytest

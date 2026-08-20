@@ -39,9 +39,9 @@ def get_current_user(
         raise HTTPException(status_code=401, detail="Not authenticated")
     try:
         user_id = decode_access_token(token)
-    except JWTError:
+        user = db.query(User).filter(User.id == int(user_id)).first()
+    except (JWTError, ValueError):
         raise HTTPException(status_code=401, detail="Invalid token")
-    user = db.query(User).filter(User.id == int(user_id)).first()
     if user is None:
         raise HTTPException(status_code=401, detail="User not found")
     return user
