@@ -6,7 +6,8 @@ import { callTool } from "@/lib/api";
 type PolicyOption = {
   policy_name: string;
   eligible: boolean;
-  preferential_rate_percent: number;
+  benefit_description: string;
+  application_period: string;
   reference_url: string;
 };
 
@@ -89,8 +90,12 @@ export default function PolicyPage() {
                 </span>
               </div>
               <div className="result-item-row">
-                <span>우대금리</span>
-                <strong>{option.preferential_rate_percent}%</strong>
+                <span>지원 내용</span>
+                <span>{option.benefit_description}</span>
+              </div>
+              <div className="result-item-row">
+                <span>신청 기간</span>
+                <span>{option.application_period}</span>
               </div>
               <div style={{ marginTop: 12 }}>
                 <a className="link" href={option.reference_url} target="_blank" rel="noreferrer">
