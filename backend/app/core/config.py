@@ -13,9 +13,13 @@ class Settings(BaseSettings):
     llm_provider: str = "claude"
     claude_model: str = "claude-sonnet-5"
     openai_model: str = "gpt-4o"
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: str = "http://localhost:3000"
 
     model_config = {"env_file": ".env"}
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
 
 settings = Settings()

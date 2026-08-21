@@ -124,6 +124,48 @@ FastAPI 앱 진입점. 위 라우터들(`auth`, `tools`)을 전부 등록하고 
 - `specs/` — 설계 문서 (플랫폼 아키텍처 결정 사항)
 - `plans/` — 구현 계획 문서 (태스크별 작업 내역)
 
+## 배포 (Cloudtype)
+
+모노레포이므로 **백엔드와 프론트엔드를 각각 별도 서비스로** 배포합니다. 같은 GitHub 저장소를 두 번 연결하고, 하위 디렉토리만 다르게 지정하면 됩니다. (Cloudtype 대시보드에서 저장소를 선택한 뒤 "설정변경"에 서브 디렉토리 입력란이 있습니다.)
+
+### 1. 백엔드 배포
+
+1. 새 서비스 생성 → 이 저장소 선택 → 서브 디렉토리: `backend`
+2. 프레임워크: **FastAPI** 템플릿 선택
+3. 빌드 설정
+   - Install Command: `pip install -r requirements.txt`
+   - Start Command: `uvicorn app.main:app --host=0.0.0.0 --port=8000`
+   - 포트: `8000`
+4. 환경 변수 (Cloudtype 대시보드의 "환경 변수" 항목에 직접 입력 — `.env` 파일을 커밋해서 넣지 마세요)
+   - `JWT_SECRET`: 랜덤한 긴 문자열
+   - `LLM_PROVIDER`: `claude` 또는 `openai`
+   - `ANTHROPIC_API_KEY` 또는 `OPENAI_API_KEY`: 위에서 고른 provider의 키
+   - `CORS_ORIGINS`: 아직 프론트 URL을 모르므로 일단 비워두거나 아무 값(예: `http://localhost:3000`)으로 배포 — 2번 완료 후 업데이트합니다
+5. 배포되면 발급되는 URL(예: `https://xxxx.cloudtype.app`)을 기억해두세요 — 프론트엔드 설정에 필요합니다.
+
+### 2. 프론트엔드 배포
+
+1. 같은 저장소로 새 서비스 추가 → 서브 디렉토리: `frontend`
+2. 프레임워크: **Next.js** 템플릿 선택
+3. 빌드 설정
+   - Install Command: `npm install`
+   - Build Command: `npm run build`
+   - Start Command: `npm run start -- -p 3000` (또는 `next start -p 3000`)
+   - 포트: `3000`
+4. **Build Variables**(런타임 환경변수와 별도로, 빌드 시점에 주입되는 값 — `NEXT_PUBLIC_` 접두사 변수는 반드시 여기 설정해야 합니다)
+   - `NEXT_PUBLIC_API_BASE`: 1번에서 확인한 백엔드 URL (예: `https://xxxx.cloudtype.app`)
+5. 배포되면 프론트엔드 URL(예: `https://yyyy.cloudtype.app`)이 발급됩니다.
+
+### 3. CORS 연결 마무리
+
+백엔드 서비스로 돌아가서 환경 변수 `CORS_ORIGINS`를 방금 확인한 프론트엔드 URL로 업데이트하고 재배포하세요.
+예: `CORS_ORIGINS=https://yyyy.cloudtype.app`
+
+### 참고사항
+
+- SQLite 파일(`backend/app.db`)은 컨테이너 파일시스템에 저장되므로 재배포/재시작 시 초기화될 수 있습니다. 데모용으로는 문제없지만, 데이터를 유지하려면 Cloudtype의 디스크(볼륨) 기능을 별도로 연결해야 합니다.
+- 프론트엔드에 회원가입 화면이 없으므로, 최초 계정은 배포된 백엔드의 `/docs`(Swagger UI)에서 `POST /auth/signup`을 호출해 만들어야 합니다.
+
 ## 현재 범위 밖 (다음 단계)
 
 - 4개 기능의 실제 공공데이터·은행 API 연동, 실제 판단/배분 알고리즘
