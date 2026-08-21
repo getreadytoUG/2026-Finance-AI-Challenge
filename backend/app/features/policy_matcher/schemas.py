@@ -11,7 +11,8 @@ class PolicyMatchInput(BaseModel):
 class PolicyOption(BaseModel):
     policy_name: str
     eligible: bool
-    preferential_rate_percent: float
+    benefit_description: str
+    application_period: str
     reference_url: str
 
 

@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     claude_model: str = "claude-sonnet-5"
     openai_model: str = "gpt-4o"
     cors_origins: str = "http://localhost:3000"
+    youth_center_api_key: str = ""
 
     model_config = {"env_file": ".env"}
 

@@ -6,7 +6,8 @@ import { callTool } from "@/lib/api";
 type PolicyOption = {
   policy_name: string;
   eligible: boolean;
-  preferential_rate_percent: number;
+  benefit_description: string;
+  application_period: string;
   reference_url: string;
 };
 
@@ -48,7 +49,7 @@ export default function PolicyPage() {
     <>
       <div className="page-header">
         <h1>🏛️ 정책비교</h1>
-        <p>현재 상황을 입력하면 청년/신혼부부 정책의 가/불가 여부와 우대금리를 비교해드립니다.</p>
+        <p>현재 상황을 입력하면 청년/신혼부부 정책의 가/불가 여부와 지원 내용을 비교해드립니다.</p>
       </div>
 
       <div className="card">
@@ -78,28 +79,36 @@ export default function PolicyPage() {
       {error && <p className="error-text" style={{ marginTop: 16 }}>{error}</p>}
 
       {result && (
-        <div className="result-list">
-          {result.options.map((option, i) => (
-            <div key={i} className="result-item">
-              <div className="result-item-title">{option.policy_name}</div>
-              <div className="result-item-row">
-                <span>가능 여부</span>
-                <span className={`badge ${option.eligible ? "badge-success" : "badge-danger"}`}>
-                  {option.eligible ? "가능" : "불가"}
-                </span>
+        result.options.length === 0 ? (
+          <p className="error-text" style={{ marginTop: 16 }}>조건에 맞는 정책을 찾지 못했습니다.</p>
+        ) : (
+          <div className="result-list">
+            {result.options.map((option, i) => (
+              <div key={i} className="result-item">
+                <div className="result-item-title">{option.policy_name}</div>
+                <div className="result-item-row">
+                  <span>가능 여부</span>
+                  <span className={`badge ${option.eligible ? "badge-success" : "badge-danger"}`}>
+                    {option.eligible ? "가능" : "불가"}
+                  </span>
+                </div>
+                <div className="result-item-row">
+                  <span>지원 내용</span>
+                  <span>{option.benefit_description}</span>
+                </div>
+                <div className="result-item-row">
+                  <span>신청 기간</span>
+                  <span>{option.application_period}</span>
+                </div>
+                <div style={{ marginTop: 12 }}>
+                  <a className="link" href={option.reference_url} target="_blank" rel="noreferrer">
+                    자세히 보기 →
+                  </a>
+                </div>
               </div>
-              <div className="result-item-row">
-                <span>우대금리</span>
-                <strong>{option.preferential_rate_percent}%</strong>
-              </div>
-              <div style={{ marginTop: 12 }}>
-                <a className="link" href={option.reference_url} target="_blank" rel="noreferrer">
-                  자세히 보기 →
-                </a>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )
       )}
     </>
   );
