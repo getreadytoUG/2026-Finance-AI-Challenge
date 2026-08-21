@@ -133,3 +133,9 @@ def test_run_recommendation_batch_for_all_users_continues_after_one_user_errors(
     assert len(calls) == 2
     assert total == 1
     assert db_session.query(PolicyRecommendation).count() == 1
+
+
+def test_register_daily_recommendation_job_adds_job_to_scheduler():
+    recommender.register_daily_recommendation_job()
+    job_ids = {job.id for job in recommender.scheduler.get_jobs()}
+    assert "daily_policy_recommendation" in job_ids

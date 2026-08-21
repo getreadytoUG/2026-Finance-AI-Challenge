@@ -11,3 +11,4 @@ anthropic
 openai
 pytest
 httpx
+apscheduler

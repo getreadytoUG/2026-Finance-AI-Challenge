@@ -1,9 +1,11 @@
 import logging
 from datetime import datetime, timezone
 
+from apscheduler.schedulers.background import BackgroundScheduler
 from sqlalchemy.orm import Session
 
 from app.auth.models import User
+from app.core.db import SessionLocal
 from app.features.policy_matcher.matching import is_eligible
 from app.features.policy_matcher.models import PolicyRecommendation
 from app.features.policy_matcher.schemas import PolicyMatchInput
@@ -75,3 +77,24 @@ def run_recommendation_batch_for_all_users(db: Session) -> int:
             logger.exception("policy recommendation batch failed for user_id=%s", user.id)
             db.rollback()
     return total_created
+
+
+scheduler = BackgroundScheduler()
+
+
+def _run_daily_recommendation_job() -> None:
+    db = SessionLocal()
+    try:
+        run_recommendation_batch_for_all_users(db)
+    finally:
+        db.close()
+
+
+def register_daily_recommendation_job() -> None:
+    scheduler.add_job(
+        _run_daily_recommendation_job,
+        "cron",
+        hour=3,
+        id="daily_policy_recommendation",
+        replace_existing=True,
+    )

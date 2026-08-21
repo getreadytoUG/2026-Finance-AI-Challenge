@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.core.db import Base, engine
 from app.features import register_all_tools
 from app.features.policy_matcher.models import PolicyRecommendation  # noqa: F401
+from app.features.policy_matcher.recommender import register_daily_recommendation_job, scheduler
 from app.features.policy_matcher.router import router as policy_matcher_router
 from app.shared.models import Account, Transaction  # noqa: F401
 from app.tools.router import router as tools_router
@@ -19,7 +20,10 @@ register_all_tools()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    register_daily_recommendation_job()
+    scheduler.start()
     yield
+    scheduler.shutdown()
 
 
 app = FastAPI(title="Finance AI Hackathon", lifespan=lifespan)
