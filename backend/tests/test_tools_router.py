@@ -15,6 +15,7 @@ def test_calling_registered_tool_returns_its_output(client, monkeypatch):
         "fetch_policies",
         lambda query=None: [
             RawYouthPolicy(
+                policy_id="",
                 policy_name="청년 전세자금대출 (테스트)",
                 description="전세자금을 지원합니다",
                 apply_url="https://www.example.com",

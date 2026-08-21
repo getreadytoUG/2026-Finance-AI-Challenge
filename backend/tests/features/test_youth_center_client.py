@@ -10,6 +10,7 @@ from app.features.policy_matcher.youth_center_client import (
 SAMPLE_XML = """<?xml version="1.0" encoding="UTF-8"?>
 <youthPolicyList>
   <youthPolicy>
+    <plcyNo>P202601</plcyNo>
     <plcyNm>청년 월세 지원</plcyNm>
     <plcyExplnCn>월 20만원씩 최대 12개월 지원</plcyExplnCn>
     <aplyUrlAddr>https://example.com/apply/1</aplyUrlAddr>
@@ -22,6 +23,7 @@ SAMPLE_XML = """<?xml version="1.0" encoding="UTF-8"?>
     <zipCd>서울</zipCd>
   </youthPolicy>
   <youthPolicy>
+    <plcyNo></plcyNo>
     <plcyNm>신혼부부 전세임대주택</plcyNm>
     <plcyExplnCn>시세 대비 저렴한 전세임대</plcyExplnCn>
     <aplyUrlAddr>https://example.com/apply/2</aplyUrlAddr>
@@ -40,6 +42,7 @@ SAMPLE_XML = """<?xml version="1.0" encoding="UTF-8"?>
 def test_parse_youth_policy_xml_parses_full_record():
     policies = _parse_youth_policy_xml(SAMPLE_XML)
     first = policies[0]
+    assert first.policy_id == "P202601"
     assert first.policy_name == "청년 월세 지원"
     assert first.description == "월 20만원씩 최대 12개월 지원"
     assert first.apply_url == "https://example.com/apply/1"
@@ -55,6 +58,7 @@ def test_parse_youth_policy_xml_parses_full_record():
 def test_parse_youth_policy_xml_defaults_missing_fields_to_none_or_empty():
     policies = _parse_youth_policy_xml(SAMPLE_XML)
     second = policies[1]
+    assert second.policy_id == ""
     assert second.marital_status == "기혼"
     assert second.min_age is None
     assert second.max_age is None

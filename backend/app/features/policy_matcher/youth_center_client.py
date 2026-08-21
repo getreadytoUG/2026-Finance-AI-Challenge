@@ -9,6 +9,7 @@ YOUTH_CENTER_API_URL = "https://www.youthcenter.go.kr/opi/youthPlcyList.do"
 
 
 class RawYouthPolicy(BaseModel):
+    policy_id: str
     policy_name: str
     description: str
     apply_url: str
@@ -45,6 +46,7 @@ def _parse_youth_policy_xml(xml_text: str) -> list[RawYouthPolicy]:
     for item in root.iter("youthPolicy"):
         policies.append(
             RawYouthPolicy(
+                policy_id=_text(item, "plcyNo"),
                 policy_name=_text(item, "plcyNm"),
                 description=_text(item, "plcyExplnCn"),
                 apply_url=_text(item, "aplyUrlAddr"),

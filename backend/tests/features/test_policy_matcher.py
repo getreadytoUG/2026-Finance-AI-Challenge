@@ -9,6 +9,7 @@ CTX = ToolContext(user_id=1, db=None)
 
 def _policy(**overrides) -> RawYouthPolicy:
     defaults = dict(
+        policy_id="",
         policy_name="테스트 정책",
         description="지원 내용 설명",
         apply_url="https://www.youthcenter.go.kr",
