@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.core.db import Base, engine
 from app.features import register_all_tools
 from app.features.policy_matcher.models import PolicyRecommendation  # noqa: F401
+from app.features.policy_matcher.router import router as policy_matcher_router
 from app.shared.models import Account, Transaction  # noqa: F401
 from app.tools.router import router as tools_router
 
@@ -31,6 +32,7 @@ app.add_middleware(
 )
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(tools_router, prefix="/tools", tags=["tools"])
+app.include_router(policy_matcher_router, prefix="/policy_matcher", tags=["policy_matcher"])
 
 
 @app.get("/health")

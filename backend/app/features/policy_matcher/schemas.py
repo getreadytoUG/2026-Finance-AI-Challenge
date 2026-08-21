@@ -1,4 +1,6 @@
-from pydantic import BaseModel
+from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict
 
 
 class PolicyMatchInput(BaseModel):
@@ -18,3 +20,21 @@ class PolicyOption(BaseModel):
 
 class PolicyMatchOutput(BaseModel):
     options: list[PolicyOption]
+
+
+class RecommendationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    policy_name: str
+    benefit_description: str
+    application_period: str
+    reference_url: str
+    matched_at: datetime
+
+
+class RecommendationListResponse(BaseModel):
+    recommendations: list[RecommendationOut]
+
+
+class RefreshResponse(BaseModel):
+    created: int
