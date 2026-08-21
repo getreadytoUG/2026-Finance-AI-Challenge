@@ -22,6 +22,8 @@ class RawYouthPolicy(BaseModel):
 
 
 def fetch_policies(query: str | None = None, page_index: int = 1, display: int = 100) -> list[RawYouthPolicy]:
+    if not settings.youth_center_api_key:
+        raise RuntimeError("YOUTH_CENTER_API_KEY is not set — see README '온통청년 API 키 발급'")
     params = {
         "openApiVlak": settings.youth_center_api_key,
         "pageIndex": page_index,

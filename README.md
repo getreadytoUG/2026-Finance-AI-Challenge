@@ -82,15 +82,15 @@ frontend/
 - `router.py` — `POST /tools/{name}`: 등록된 아무 기능이나 이름으로 직접 호출 (디버깅/apibazzar 연동용)
 - `errors.py` — `ToolExecutionError`
 
-### `backend/app/features/` — 실제 기능들 (현재는 placeholder 로직만 있음)
+### `backend/app/features/` — 실제 기능들 (policy_matcher는 실제 데이터 연동, 나머지 3개는 placeholder 로직)
 각 폴더가 기능 하나입니다. **새 기능을 추가할 때는 이 폴더 구조를 그대로 복제**하고, `features/__init__.py`에 한 줄만 등록하면 됩니다 — `tools/` 코어나 `main.py`는 건드릴 필요가 없습니다.
 
-- `policy_matcher/` — 청년/신혼부부 정책 비교, 가/불가 및 우대금리 판단
+- `policy_matcher/` — 청년/신혼부부 정책 비교, 온통청년 API 기반 가/불가 판단
 - `savings_planner/` — 월급·목표금액 기반 저축/적금 자동 배분
 - `subscription_report/` — 구독료 사용 리포트
 - `card_spending_report/` — 카드 소비 카테고리별 리포트
 
-각 폴더 안에는 `schemas.py`(입출력 pydantic 모델)와 `tool.py`(`run(input, ctx)` 함수 + 이를 감싸는 `TOOL_SPEC`)가 있습니다. `tool.py`의 `run()` 함수 하나가 요청하신 "func_1" 형태이며, 이 안에서 판단 로직을 처리합니다. 지금은 전부 고정된 샘플 데이터를 반환하며, 실제 공공데이터/은행 API 연동은 아직 구현되지 않았습니다.
+각 폴더 안에는 `schemas.py`(입출력 pydantic 모델)와 `tool.py`(`run(input, ctx)` 함수 + 이를 감싸는 `TOOL_SPEC`)가 있습니다. `tool.py`의 `run()` 함수 하나가 요청하신 "func_1" 형태이며, 이 안에서 판단 로직을 처리합니다. policy_matcher는 온통청년 API를 실제로 호출하고, 나머지 3개는 아직 고정된 샘플 데이터를 반환합니다.
 
 `features/__init__.py` — 위 4개 `TOOL_SPEC`을 `ToolRegistry`에 등록하는 곳. 새 기능 추가 시 여기에 import 한 줄 + 리스트 한 줄만 추가합니다.
 
@@ -141,6 +141,7 @@ FastAPI 앱 진입점. 위 라우터들(`auth`, `tools`)을 전부 등록하고 
    - `LLM_PROVIDER`: `claude` 또는 `openai`
    - `ANTHROPIC_API_KEY` 또는 `OPENAI_API_KEY`: 위에서 고른 provider의 키
    - `CORS_ORIGINS`: 아직 프론트 URL을 모르므로 일단 비워두거나 아무 값(예: `http://localhost:3000`)으로 배포 — 2번 완료 후 업데이트합니다
+   - `YOUTH_CENTER_API_KEY`: 온통청년 API 키 (발급 방법은 아래 "policy_matcher — 온통청년 API 키 발급" 절 참고)
 5. 배포되면 발급되는 URL(예: `https://xxxx.cloudtype.app`)을 기억해두세요 — 프론트엔드 설정에 필요합니다.
 
 ### 2. 프론트엔드 배포
@@ -177,6 +178,6 @@ FastAPI 앱 진입점. 위 라우터들(`auth`, `tools`)을 전부 등록하고 
 
 ## 현재 범위 밖 (다음 단계)
 
-- 4개 기능의 실제 공공데이터·은행 API 연동, 실제 판단/배분 알고리즘
+- policy_matcher를 제외한 3개 기능(savings_planner, subscription_report, card_spending_report)의 실제 공공데이터·은행 API 연동, 실제 판단/배분 알고리즘
 - apibazzar.com에 기능을 block으로 등록하는 연동
 - 프론트엔드 회원가입 화면

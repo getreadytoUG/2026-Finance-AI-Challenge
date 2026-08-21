@@ -88,6 +88,21 @@ def test_fetch_policies_calls_api_with_key_and_query_and_parses_response(monkeyp
     assert policies[0].policy_name == "청년 월세 지원"
 
 
+def test_fetch_policies_raises_runtime_error_and_skips_request_when_api_key_missing(monkeypatch):
+    monkeypatch.setattr(youth_center_client.settings, "youth_center_api_key", "")
+
+    def fake_get(*args, **kwargs):
+        raise AssertionError("should not call httpx.get")
+
+    monkeypatch.setattr(youth_center_client.httpx, "get", fake_get)
+
+    try:
+        fetch_policies()
+        assert False, "expected RuntimeError"
+    except RuntimeError:
+        pass
+
+
 def test_fetch_policies_raises_on_http_error(monkeypatch):
     monkeypatch.setattr(youth_center_client.settings, "youth_center_api_key", "test-key")
 

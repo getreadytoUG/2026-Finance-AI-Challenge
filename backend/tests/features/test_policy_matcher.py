@@ -67,6 +67,12 @@ def test_run_marks_applicant_outside_region_ineligible(monkeypatch):
     assert result.options[0].eligible is False
 
 
+def test_run_marks_region_restricted_policy_ineligible_when_input_region_empty(monkeypatch):
+    monkeypatch.setattr(tool, "fetch_policies", lambda query=None: [_policy(region_code="부산")])
+    result = run(PolicyMatchInput(age=29, is_married=False, annual_income_krw=40_000_000, region=""), CTX)
+    assert result.options[0].eligible is False
+
+
 def test_run_maps_policy_fields_into_output_option(monkeypatch):
     monkeypatch.setattr(
         tool,

@@ -18,7 +18,7 @@ def _is_eligible(policy: RawYouthPolicy, input: PolicyMatchInput) -> bool:
         return False
     if policy.max_income_krw is not None and input.annual_income_krw > policy.max_income_krw:
         return False
-    if policy.region_code and policy.region_code not in input.region and input.region not in policy.region_code:
+    if policy.region_code and (not input.region or (policy.region_code not in input.region and input.region not in policy.region_code)):
         return False
     return True
 
