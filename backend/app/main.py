@@ -8,6 +8,7 @@ from app.auth.router import router as auth_router
 from app.core.config import settings
 from app.core.db import Base, engine
 from app.features import register_all_tools
+from app.features.policy_matcher.models import PolicyRecommendation  # noqa: F401
 from app.shared.models import Account, Transaction  # noqa: F401
 from app.tools.router import router as tools_router
 
