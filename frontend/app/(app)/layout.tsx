@@ -48,7 +48,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         }}
       >
         <div
-          className="page"
+          className="nav-bar"
           style={{
             display: "flex",
             alignItems: "center",
@@ -58,7 +58,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           }}
         >
           <span style={{ fontSize: 20, marginRight: 8 }}>🌱</span>
-          <nav style={{ display: "flex", gap: 4, flex: 1, flexWrap: "wrap" }}>
+          <nav style={{ display: "flex", gap: 4, flex: 1, flexWrap: "nowrap", overflowX: "auto" }}>
             {TABS.map((tab) => {
               const active = pathname === tab.href;
               return (

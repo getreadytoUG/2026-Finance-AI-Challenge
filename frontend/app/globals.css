@@ -60,6 +60,12 @@ a {
   padding: 0 20px 64px;
 }
 
+.nav-bar {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
 .page-header {
   margin-bottom: 24px;
 }
