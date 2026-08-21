@@ -79,7 +79,7 @@ def run_recommendation_batch_for_all_users(db: Session) -> int:
     return total_created
 
 
-scheduler = BackgroundScheduler()
+scheduler = BackgroundScheduler(timezone="Asia/Seoul")
 
 
 def _run_daily_recommendation_job() -> None:

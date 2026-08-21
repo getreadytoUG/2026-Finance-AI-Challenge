@@ -105,10 +105,10 @@ frontend/
 - `models.py` — `Account`(계좌), `Transaction`(거래내역) — 여러 기능이 공통으로 참조할 테이블
 
 ### `backend/app/main.py`
-FastAPI 앱 진입점. 위 라우터들(`auth`, `tools`)을 전부 등록하고 CORS·DB 테이블 생성을 처리합니다.
+FastAPI 앱 진입점. 위 라우터들(`auth`, `tools`, `policy_matcher`)을 전부 등록하고 CORS·DB 테이블 생성·APScheduler(매일 새벽 3시 정책 추천 배치) 기동/종료를 처리합니다.
 
 ### `backend/tests/`
-`backend/app/` 각 모듈에 대응하는 테스트 (auth, tools, features, llm 등). 총 37개, `pytest -v`로 전체 실행됩니다.
+`backend/app/` 각 모듈에 대응하는 테스트 (auth, tools, features, llm 등). 총 71개, `pytest -v`로 전체 실행됩니다.
 
 ### `frontend/`
 - `app/login/page.tsx` — 로그인 화면 (로그인 성공 시 JWT를 `localStorage`에 저장, 로그인 후 `/policy`로 이동)
@@ -117,8 +117,9 @@ FastAPI 앱 진입점. 위 라우터들(`auth`, `tools`)을 전부 등록하고 
 - `app/(app)/savings/page.tsx` — 저축플랜 폼 → `POST /tools/savings_planner`
 - `app/(app)/subscriptions/page.tsx` — 구독료 리포트 폼 → `POST /tools/subscription_report`
 - `app/(app)/cards/page.tsx` — 카드소비 리포트 폼 → `POST /tools/card_spending_report`
+- `app/(app)/recommendations/page.tsx` — 맞춤 추천 (프로필 미완성 시 입력 폼, 완성 시 추천 목록 + 수동 갱신 버튼)
 - `app/page.tsx` — 루트 접속 시 로그인 여부에 따라 `/policy` 또는 `/login`으로 리다이렉트
-- `lib/api.ts` — 백엔드 API 호출 함수: `login`(로그인), `callTool`(범용 `/tools/{name}` 호출 — 4개 탭이 전부 이 함수를 공유)
+- `lib/api.ts` — 백엔드 API 호출 함수: `login`(로그인), `callTool`(범용 `/tools/{name}` 호출 — 정책비교/저축플랜/구독료/카드소비 탭이 공유), `getMe`/`updateProfile`/`getRecommendations`/`refreshRecommendations`(추천 탭 전용)
 
 ### `docs/superpowers/`
 - `specs/` — 설계 문서 (플랫폼 아키텍처 결정 사항)
@@ -165,6 +166,7 @@ FastAPI 앱 진입점. 위 라우터들(`auth`, `tools`)을 전부 등록하고 
 ### 참고사항
 
 - SQLite 파일(`backend/app.db`)은 컨테이너 파일시스템에 저장되므로 재배포/재시작 시 초기화될 수 있습니다. 데모용으로는 문제없지만, 데이터를 유지하려면 Cloudtype의 디스크(볼륨) 기능을 별도로 연결해야 합니다.
+- 이 저장소를 먼저 사용해본 적이 있고 로컬에 기존 `backend/app.db` 파일이 남아있다면, `users` 테이블에 새 컬럼(age/is_married/annual_income_krw/region)이 추가되었으므로 그 파일을 삭제하고 다시 실행하세요 (`Base.metadata.create_all`은 기존 테이블에 컬럼을 추가해주지 않습니다). Cloudtype 배포는 컨테이너가 재시작되면 SQLite 파일 자체가 초기화되는 경우가 많아 보통 문제되지 않습니다.
 - 프론트엔드에 회원가입 화면이 없으므로, 최초 계정은 배포된 백엔드의 `/docs`(Swagger UI)에서 `POST /auth/signup`을 호출해 만들어야 합니다.
 
 ## policy_matcher — 온통청년 API 키 발급
@@ -175,6 +177,15 @@ FastAPI 앱 진입점. 위 라우터들(`auth`, `tools`)을 전부 등록하고 
 2. 로그인 후 마이페이지 → OPEN API 메뉴에서 인증키 발급 신청 (관리자 승인제)
 3. 승인된 키를 `backend/.env`의 `YOUTH_CENTER_API_KEY`에 입력
 4. 키가 없어도 `pytest`는 통과합니다 (API 호출을 mock으로 대체) — 실제 `/tools/policy_matcher` 호출에만 키가 필요합니다
+
+## 맞춤 추천 (매일 배치)
+
+`policy_matcher`와 같은 온통청년 API를 사용해, 프로필을 저장한 유저에게 매일 새벽 3시(한국시간)에 새로 맞는 정책이 있는지 확인해 앱 내 "추천" 탭에 쌓아줍니다.
+
+- 유저는 "추천" 탭에서 나이/혼인여부/소득/지역 프로필을 한 번 저장합니다 (`PUT /auth/profile`).
+- 배치는 백엔드 프로세스 안에 내장된 스케줄러(APScheduler)가 실행하며, 별도 Cloudtype cron 설정은 필요 없습니다.
+- **제약**: 스케줄은 프로세스 안에서만 유지됩니다 — 서버가 재시작되면(재배포, 컨테이너 재기동 등) 스케줄이 다시 등록될 뿐, 마지막 실행 시각을 기억하지 못합니다. 재시작 직후엔 다음 새벽 3시까지 배치가 돌지 않으니, 데모 중 즉시 확인하려면 "추천" 탭의 "지금 갱신" 버튼(본인 계정만 즉시 실행)을 사용하세요.
+- 이 기능도 `YOUTH_CENTER_API_KEY`를 그대로 재사용합니다 — 추가 발급 필요 없음.
 
 ## 현재 범위 밖 (다음 단계)
 

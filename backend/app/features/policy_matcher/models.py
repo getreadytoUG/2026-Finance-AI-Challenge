@@ -14,4 +14,4 @@ class PolicyRecommendation(Base):
     benefit_description = Column(String, nullable=False)
     application_period = Column(String, nullable=False)
     reference_url = Column(String, nullable=False)
-    matched_at = Column(DateTime, nullable=False)
+    matched_at = Column(DateTime(timezone=True), nullable=False)
