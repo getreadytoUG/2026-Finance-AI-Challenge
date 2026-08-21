@@ -61,6 +61,22 @@ def test_refresh_returns_zero_when_profile_incomplete(client, monkeypatch):
     assert response.json()["created"] == 0
 
 
+def test_refresh_failure_still_returns_cors_headers(client, monkeypatch):
+    def boom(query=None):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(recommender, "fetch_policies", boom)
+    token = _signup_login_with_profile(client)
+
+    response = client.post(
+        "/policy_matcher/recommendations/refresh",
+        headers={"Authorization": f"Bearer {token}", "Origin": "http://localhost:3000"},
+    )
+
+    assert response.status_code == 500
+    assert response.headers.get("access-control-allow-origin") == "http://localhost:3000"
+
+
 def test_list_returns_only_current_users_recommendations(client, monkeypatch):
     monkeypatch.setattr(recommender, "fetch_policies", lambda query=None: [_policy(policy_id="P200")])
     token_a = _signup_login_with_profile(client, email="user-a@example.com")

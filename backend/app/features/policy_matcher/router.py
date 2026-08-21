@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.auth.models import User
@@ -16,7 +16,16 @@ def refresh_my_recommendations(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    created = run_recommendation_batch_for_user(db, current_user)
+    # Raising this uncaught (like run_recommendation_batch_for_user normally
+    # does) would hit Starlette's default 500 handling, which sits outside
+    # CORSMiddleware — the browser blocks the response entirely ("Failed to
+    # fetch") instead of showing any error. Converting to HTTPException keeps
+    # it on the handled-exception path CORSMiddleware still processes, same
+    # as /tools/policy_matcher's ToolExecutionError -> HTTPException(400).
+    try:
+        created = run_recommendation_batch_for_user(db, current_user)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
     return RefreshResponse(created=created)
 
 
