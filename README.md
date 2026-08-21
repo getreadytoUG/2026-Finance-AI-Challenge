@@ -166,6 +166,15 @@ FastAPI 앱 진입점. 위 라우터들(`auth`, `tools`)을 전부 등록하고 
 - SQLite 파일(`backend/app.db`)은 컨테이너 파일시스템에 저장되므로 재배포/재시작 시 초기화될 수 있습니다. 데모용으로는 문제없지만, 데이터를 유지하려면 Cloudtype의 디스크(볼륨) 기능을 별도로 연결해야 합니다.
 - 프론트엔드에 회원가입 화면이 없으므로, 최초 계정은 배포된 백엔드의 `/docs`(Swagger UI)에서 `POST /auth/signup`을 호출해 만들어야 합니다.
 
+## policy_matcher — 온통청년 API 키 발급
+
+`policy_matcher` 기능은 온통청년(청년정책통합정보시스템) Open API를 실호출합니다. 키 없이는 이 기능이 동작하지 않습니다.
+
+1. https://www.youthcenter.go.kr 에서 회원가입
+2. 로그인 후 마이페이지 → OPEN API 메뉴에서 인증키 발급 신청 (관리자 승인제)
+3. 승인된 키를 `backend/.env`의 `YOUTH_CENTER_API_KEY`에 입력
+4. 키가 없어도 `pytest`는 통과합니다 (API 호출을 mock으로 대체) — 실제 `/tools/policy_matcher` 호출에만 키가 필요합니다
+
 ## 현재 범위 밖 (다음 단계)
 
 - 4개 기능의 실제 공공데이터·은행 API 연동, 실제 판단/배분 알고리즘
