@@ -108,7 +108,7 @@ frontend/
 FastAPI 앱 진입점. 위 라우터들(`auth`, `tools`, `policy_matcher`)을 전부 등록하고 CORS·DB 테이블 생성·APScheduler(매일 새벽 3시 정책 추천 배치) 기동/종료를 처리합니다.
 
 ### `backend/tests/`
-`backend/app/` 각 모듈에 대응하는 테스트 (auth, tools, features, llm 등). 총 71개, `pytest -v`로 전체 실행됩니다.
+`backend/app/` 각 모듈에 대응하는 테스트 (auth, tools, features, llm 등). 총 72개, `pytest -v`로 전체 실행됩니다.
 
 ### `frontend/`
 - `app/login/page.tsx` — 로그인 화면 (로그인 성공 시 JWT를 `localStorage`에 저장, 로그인 후 `/policy`로 이동)
