@@ -26,11 +26,13 @@ def run_tool(
     ctx = ToolContext(user_id=current_user.id, db=db)
     try:
         result = tool_registry.execute(name, payload, ctx)
-    except KeyError:
+    except KeyError as e:
+        print(f"[ERROR] /tools/{name} not found: {e}")
         raise HTTPException(status_code=404, detail=f"Tool '{name}' not found")
     except ValidationError as e:
+        print(f"[ERROR] /tools/{name} input validation failed: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except ToolExecutionError as e:
-        logger.exception(f"Tool '{name}' execution failed: {e.message}")
+        logger.exception(f"[ERROR] Tool '{name}' execution failed: {e.message}")
         raise HTTPException(status_code=400, detail=f"Tool '{name}' failed to execute")
     return result

@@ -18,6 +18,7 @@ def signup(payload: SignupRequest, db: Session = Depends(get_db)):
     try:
         user = service.create_user(db, payload.email, payload.password)
     except ValueError as e:
+        print(f"[ERROR] /auth/signup failed for email={payload.email!r}: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     return user
 
@@ -40,7 +41,8 @@ def get_current_user(
     try:
         user_id = decode_access_token(token)
         user = db.query(User).filter(User.id == int(user_id)).first()
-    except (JWTError, ValueError):
+    except (JWTError, ValueError) as e:
+        print(f"[ERROR] get_current_user failed to decode token: {e}")
         raise HTTPException(status_code=401, detail="Invalid token")
     if user is None:
         raise HTTPException(status_code=401, detail="User not found")

@@ -3,44 +3,49 @@ import httpx
 from app.features.policy_matcher import youth_center_client
 from app.features.policy_matcher.youth_center_client import (
     RawYouthPolicy,
-    _parse_youth_policy_xml,
+    _parse_youth_policy_json,
     fetch_policies,
 )
 
-SAMPLE_XML = """<?xml version="1.0" encoding="UTF-8"?>
-<youthPolicyList>
-  <youthPolicy>
-    <plcyNo>P202601</plcyNo>
-    <plcyNm>청년 월세 지원</plcyNm>
-    <plcyExplnCn>월 20만원씩 최대 12개월 지원</plcyExplnCn>
-    <aplyUrlAddr>https://example.com/apply/1</aplyUrlAddr>
-    <aplyYmd>20260101 ~ 20261231</aplyYmd>
-    <sprtTrgtMinAge>19</sprtTrgtMinAge>
-    <sprtTrgtMaxAge>34</sprtTrgtMaxAge>
-    <earnMinAmt></earnMinAmt>
-    <earnMaxAmt>26000000</earnMaxAmt>
-    <mrgSttsCd></mrgSttsCd>
-    <zipCd>서울</zipCd>
-  </youthPolicy>
-  <youthPolicy>
-    <plcyNo></plcyNo>
-    <plcyNm>신혼부부 전세임대주택</plcyNm>
-    <plcyExplnCn>시세 대비 저렴한 전세임대</plcyExplnCn>
-    <aplyUrlAddr>https://example.com/apply/2</aplyUrlAddr>
-    <aplyYmd></aplyYmd>
-    <sprtTrgtMinAge></sprtTrgtMinAge>
-    <sprtTrgtMaxAge></sprtTrgtMaxAge>
-    <earnMinAmt></earnMinAmt>
-    <earnMaxAmt></earnMaxAmt>
-    <mrgSttsCd>기혼</mrgSttsCd>
-    <zipCd></zipCd>
-  </youthPolicy>
-</youthPolicyList>
-"""
+SAMPLE_PAYLOAD = {
+    "resultCode": 200,
+    "resultMessage": "성공적으로 데이터를 가지고 왔습니다.",
+    "result": {
+        "pagging": {"totCount": 2, "pageNum": 1, "pageSize": 100},
+        "youthPolicyList": [
+            {
+                "plcyNo": "P202601",
+                "plcyNm": "청년 월세 지원",
+                "plcyExplnCn": "월 20만원씩 최대 12개월 지원",
+                "aplyUrlAddr": "https://example.com/apply/1",
+                "aplyYmd": "20260101 ~ 20261231",
+                "sprtTrgtMinAge": "19",
+                "sprtTrgtMaxAge": "34",
+                "earnMinAmt": "0",
+                "earnMaxAmt": "26000000",
+                "mrgSttsCd": "",
+                "zipCd": "11110,11140",
+            },
+            {
+                "plcyNo": "",
+                "plcyNm": "신혼부부 전세임대주택",
+                "plcyExplnCn": "시세 대비 저렴한 전세임대",
+                "aplyUrlAddr": "https://example.com/apply/2",
+                "aplyYmd": "",
+                "sprtTrgtMinAge": "0",
+                "sprtTrgtMaxAge": "0",
+                "earnMinAmt": "0",
+                "earnMaxAmt": "0",
+                "mrgSttsCd": "기혼",
+                "zipCd": "",
+            },
+        ],
+    },
+}
 
 
-def test_parse_youth_policy_xml_parses_full_record():
-    policies = _parse_youth_policy_xml(SAMPLE_XML)
+def test_parse_youth_policy_json_parses_full_record():
+    policies = _parse_youth_policy_json(SAMPLE_PAYLOAD)
     first = policies[0]
     assert first.policy_id == "P202601"
     assert first.policy_name == "청년 월세 지원"
@@ -52,26 +57,28 @@ def test_parse_youth_policy_xml_parses_full_record():
     assert first.min_income_krw is None
     assert first.max_income_krw == 26_000_000
     assert first.marital_status == ""
-    assert first.region_code == "서울"
+    assert first.region_code == "11110,11140"
 
 
-def test_parse_youth_policy_xml_defaults_missing_fields_to_none_or_empty():
-    policies = _parse_youth_policy_xml(SAMPLE_XML)
+def test_parse_youth_policy_json_treats_zero_sentinel_as_no_limit():
+    policies = _parse_youth_policy_json(SAMPLE_PAYLOAD)
     second = policies[1]
     assert second.policy_id == ""
     assert second.marital_status == "기혼"
     assert second.min_age is None
     assert second.max_age is None
+    assert second.min_income_krw is None
+    assert second.max_income_krw is None
     assert second.application_period == "상시"
     assert second.region_code == ""
 
 
-def test_parse_youth_policy_xml_returns_all_items():
-    policies = _parse_youth_policy_xml(SAMPLE_XML)
+def test_parse_youth_policy_json_returns_all_items():
+    policies = _parse_youth_policy_json(SAMPLE_PAYLOAD)
     assert len(policies) == 2
 
 
-def test_fetch_policies_calls_api_with_key_and_query_and_parses_response(monkeypatch):
+def test_fetch_policies_calls_api_with_key_and_parses_response(monkeypatch):
     monkeypatch.setattr(youth_center_client.settings, "youth_center_api_key", "test-key")
 
     captured = {}
@@ -79,15 +86,17 @@ def test_fetch_policies_calls_api_with_key_and_query_and_parses_response(monkeyp
     def fake_get(url, params, timeout):
         captured["url"] = url
         captured["params"] = params
-        return httpx.Response(status_code=200, text=SAMPLE_XML, request=httpx.Request("GET", url))
+        return httpx.Response(
+            status_code=200, json=SAMPLE_PAYLOAD, request=httpx.Request("GET", url)
+        )
 
     monkeypatch.setattr(youth_center_client.httpx, "get", fake_get)
 
-    policies = fetch_policies(query="서울")
+    policies = fetch_policies()
 
-    assert captured["url"] == "https://www.youthcenter.go.kr/opi/youthPlcyList.do"
-    assert captured["params"]["openApiVlak"] == "test-key"
-    assert captured["params"]["query"] == "서울"
+    assert captured["url"] == "https://www.youthcenter.go.kr/go/ythip/getPlcy"
+    assert captured["params"]["apiKeyNm"] == "test-key"
+    assert captured["params"]["rtnType"] == "json"
     assert len(policies) == 2
     assert policies[0].policy_name == "청년 월세 지원"
 

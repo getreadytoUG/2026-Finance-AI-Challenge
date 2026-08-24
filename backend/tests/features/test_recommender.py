@@ -60,7 +60,7 @@ def _policy(**overrides) -> RawYouthPolicy:
 
 def test_run_recommendation_batch_for_user_skips_incomplete_profile(db_session, monkeypatch):
     user = _make_user(db_session, email="a@example.com", age=None)
-    monkeypatch.setattr(recommender, "fetch_policies", lambda query=None: [_policy()])
+    monkeypatch.setattr(recommender, "fetch_policies", lambda: [_policy()])
     created = recommender.run_recommendation_batch_for_user(db_session, user)
     assert created == 0
     assert db_session.query(PolicyRecommendation).count() == 0
@@ -68,7 +68,7 @@ def test_run_recommendation_batch_for_user_skips_incomplete_profile(db_session, 
 
 def test_run_recommendation_batch_for_user_saves_eligible_policy(db_session, monkeypatch):
     user = _make_user(db_session, email="b@example.com")
-    monkeypatch.setattr(recommender, "fetch_policies", lambda query=None: [_policy(policy_id="P001")])
+    monkeypatch.setattr(recommender, "fetch_policies", lambda: [_policy(policy_id="P001")])
     created = recommender.run_recommendation_batch_for_user(db_session, user)
     assert created == 1
     saved = db_session.query(PolicyRecommendation).one()
@@ -79,7 +79,7 @@ def test_run_recommendation_batch_for_user_saves_eligible_policy(db_session, mon
 def test_run_recommendation_batch_for_user_skips_ineligible_policy(db_session, monkeypatch):
     user = _make_user(db_session, email="c@example.com")
     monkeypatch.setattr(
-        recommender, "fetch_policies", lambda query=None: [_policy(policy_id="P002", marital_status="기혼")]
+        recommender, "fetch_policies", lambda: [_policy(policy_id="P002", marital_status="기혼")]
     )
     created = recommender.run_recommendation_batch_for_user(db_session, user)
     assert created == 0
@@ -87,7 +87,7 @@ def test_run_recommendation_batch_for_user_skips_ineligible_policy(db_session, m
 
 def test_run_recommendation_batch_for_user_does_not_duplicate_on_second_run(db_session, monkeypatch):
     user = _make_user(db_session, email="d@example.com")
-    monkeypatch.setattr(recommender, "fetch_policies", lambda query=None: [_policy(policy_id="P003")])
+    monkeypatch.setattr(recommender, "fetch_policies", lambda: [_policy(policy_id="P003")])
     first = recommender.run_recommendation_batch_for_user(db_session, user)
     second = recommender.run_recommendation_batch_for_user(db_session, user)
     assert first == 1
@@ -98,7 +98,7 @@ def test_run_recommendation_batch_for_user_does_not_duplicate_on_second_run(db_s
 def test_run_recommendation_batch_for_user_falls_back_to_policy_name_when_id_blank(db_session, monkeypatch):
     user = _make_user(db_session, email="e@example.com")
     monkeypatch.setattr(
-        recommender, "fetch_policies", lambda query=None: [_policy(policy_id="", policy_name="이름만 있는 정책")]
+        recommender, "fetch_policies", lambda: [_policy(policy_id="", policy_name="이름만 있는 정책")]
     )
     created = recommender.run_recommendation_batch_for_user(db_session, user)
     assert created == 1
@@ -109,7 +109,7 @@ def test_run_recommendation_batch_for_user_falls_back_to_policy_name_when_id_bla
 def test_run_recommendation_batch_for_all_users_skips_users_with_incomplete_profile(db_session, monkeypatch):
     _make_user(db_session, email="f@example.com", age=None)
     complete_user = _make_user(db_session, email="g@example.com")
-    monkeypatch.setattr(recommender, "fetch_policies", lambda query=None: [_policy(policy_id="P004")])
+    monkeypatch.setattr(recommender, "fetch_policies", lambda: [_policy(policy_id="P004")])
     total = recommender.run_recommendation_batch_for_all_users(db_session)
     assert total == 1
     saved = db_session.query(PolicyRecommendation).one()
@@ -122,8 +122,8 @@ def test_run_recommendation_batch_for_all_users_continues_after_one_user_errors(
 
     calls = []
 
-    def flaky_fetch(query=None):
-        calls.append(query)
+    def flaky_fetch():
+        calls.append(None)
         if len(calls) == 1:
             raise RuntimeError("boom")
         return [_policy(policy_id="P005")]

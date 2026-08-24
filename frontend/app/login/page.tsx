@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { login } from "@/lib/api";
+import PasswordField from "@/components/PasswordField";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -55,17 +56,7 @@ export default function LoginPage() {
               required
             />
           </label>
-          <label className="field">
-            <span className="field-label">비밀번호</span>
-            <input
-              className="input"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </label>
+          <PasswordField label="비밀번호" value={password} onChange={setPassword} />
           {error && <p className="error-text">{error}</p>}
           <button className="btn" type="submit" disabled={loading}>
             {loading ? "로그인 중..." : "로그인"}

@@ -5,7 +5,7 @@ from app.tools.base import ToolContext, ToolSpec
 
 
 def run(input: PolicyMatchInput, ctx: ToolContext) -> PolicyMatchOutput:
-    policies = fetch_policies(query=input.region)
+    policies = fetch_policies()
     options = [
         PolicyOption(
             policy_name=policy.policy_name,
@@ -16,6 +16,7 @@ def run(input: PolicyMatchInput, ctx: ToolContext) -> PolicyMatchOutput:
         )
         for policy in policies
     ]
+    options.sort(key=lambda option: not option.eligible)
     return PolicyMatchOutput(options=options)
 
 

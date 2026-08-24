@@ -27,6 +27,7 @@ class ToolRegistry:
         try:
             return spec.entrypoint(parsed_input, ctx)
         except Exception as e:
+            print(f"[ERROR] tool '{name}' entrypoint raised: {e}")
             raise ToolExecutionError(name, str(e)) from e
 
 

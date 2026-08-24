@@ -33,7 +33,7 @@ def run_recommendation_batch_for_user(db: Session, user: User) -> int:
         annual_income_krw=user.annual_income_krw,
         region=user.region,
     )
-    policies = fetch_policies(query=user.region)
+    policies = fetch_policies()
 
     existing_keys = {
         row.policy_key
@@ -74,7 +74,7 @@ def run_recommendation_batch_for_all_users(db: Session) -> int:
         try:
             total_created += run_recommendation_batch_for_user(db, user)
         except Exception:
-            logger.exception("policy recommendation batch failed for user_id=%s", user.id)
+            logger.exception("[ERROR] policy recommendation batch failed for user_id=%s", user.id)
             db.rollback()
     return total_created
 

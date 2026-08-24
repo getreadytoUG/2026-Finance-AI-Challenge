@@ -25,6 +25,7 @@ def refresh_my_recommendations(
     try:
         created = run_recommendation_batch_for_user(db, current_user)
     except Exception as e:
+        print(f"[ERROR] /policy_matcher/recommendations/refresh failed for user_id={current_user.id}: {type(e).__name__}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     return RefreshResponse(created=created)
 

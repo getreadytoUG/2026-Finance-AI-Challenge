@@ -31,19 +31,19 @@ def test_tool_spec_has_expected_name_and_schemas():
 
 
 def test_run_marks_policy_without_conditions_always_eligible(monkeypatch):
-    monkeypatch.setattr(tool, "fetch_policies", lambda query=None: [_policy()])
+    monkeypatch.setattr(tool, "fetch_policies", lambda: [_policy()])
     result = run(PolicyMatchInput(age=29, is_married=False, annual_income_krw=40_000_000, region="서울"), CTX)
     assert result.options[0].eligible is True
 
 
 def test_run_marks_applicant_outside_age_range_ineligible(monkeypatch):
-    monkeypatch.setattr(tool, "fetch_policies", lambda query=None: [_policy(min_age=19, max_age=34)])
+    monkeypatch.setattr(tool, "fetch_policies", lambda: [_policy(min_age=19, max_age=34)])
     result = run(PolicyMatchInput(age=50, is_married=False, annual_income_krw=40_000_000, region="서울"), CTX)
     assert result.options[0].eligible is False
 
 
 def test_run_requires_marriage_when_policy_restricts_to_married(monkeypatch):
-    monkeypatch.setattr(tool, "fetch_policies", lambda query=None: [_policy(marital_status="기혼")])
+    monkeypatch.setattr(tool, "fetch_policies", lambda: [_policy(marital_status="기혼")])
     single = run(PolicyMatchInput(age=29, is_married=False, annual_income_krw=40_000_000, region="서울"), CTX)
     married = run(PolicyMatchInput(age=29, is_married=True, annual_income_krw=40_000_000, region="서울"), CTX)
     assert single.options[0].eligible is False
@@ -51,34 +51,56 @@ def test_run_requires_marriage_when_policy_restricts_to_married(monkeypatch):
 
 
 def test_run_marks_applicant_over_income_ceiling_ineligible(monkeypatch):
-    monkeypatch.setattr(tool, "fetch_policies", lambda query=None: [_policy(max_income_krw=30_000_000)])
+    monkeypatch.setattr(tool, "fetch_policies", lambda: [_policy(max_income_krw=30_000_000)])
     result = run(PolicyMatchInput(age=29, is_married=False, annual_income_krw=40_000_000, region="서울"), CTX)
     assert result.options[0].eligible is False
 
 
 def test_run_marks_applicant_below_income_floor_ineligible(monkeypatch):
-    monkeypatch.setattr(tool, "fetch_policies", lambda query=None: [_policy(min_income_krw=50_000_000)])
+    monkeypatch.setattr(tool, "fetch_policies", lambda: [_policy(min_income_krw=50_000_000)])
     result = run(PolicyMatchInput(age=29, is_married=False, annual_income_krw=40_000_000, region="서울"), CTX)
     assert result.options[0].eligible is False
 
 
 def test_run_marks_applicant_outside_region_ineligible(monkeypatch):
-    monkeypatch.setattr(tool, "fetch_policies", lambda query=None: [_policy(region_code="부산")])
+    monkeypatch.setattr(tool, "fetch_policies", lambda: [_policy(region_code="부산")])
     result = run(PolicyMatchInput(age=29, is_married=False, annual_income_krw=40_000_000, region="서울"), CTX)
     assert result.options[0].eligible is False
 
 
+def test_run_marks_applicant_inside_region_eligible(monkeypatch):
+    monkeypatch.setattr(tool, "fetch_policies", lambda: [_policy(region_code="11110,11140,26110")])
+    result = run(PolicyMatchInput(age=29, is_married=False, annual_income_krw=40_000_000, region="서울"), CTX)
+    assert result.options[0].eligible is True
+
+
 def test_run_marks_region_restricted_policy_ineligible_when_input_region_empty(monkeypatch):
-    monkeypatch.setattr(tool, "fetch_policies", lambda query=None: [_policy(region_code="부산")])
+    monkeypatch.setattr(tool, "fetch_policies", lambda: [_policy(region_code="부산")])
     result = run(PolicyMatchInput(age=29, is_married=False, annual_income_krw=40_000_000, region=""), CTX)
     assert result.options[0].eligible is False
+
+
+def test_run_sorts_eligible_policies_before_ineligible_ones(monkeypatch):
+    monkeypatch.setattr(
+        tool,
+        "fetch_policies",
+        lambda: [
+            _policy(policy_name="부적격 정책 A", min_age=50),
+            _policy(policy_name="적격 정책 A"),
+            _policy(policy_name="부적격 정책 B", min_age=50),
+            _policy(policy_name="적격 정책 B"),
+        ],
+    )
+    result = run(PolicyMatchInput(age=29, is_married=False, annual_income_krw=40_000_000, region="서울"), CTX)
+    names = [o.policy_name for o in result.options]
+    assert names == ["적격 정책 A", "적격 정책 B", "부적격 정책 A", "부적격 정책 B"]
 
 
 def test_run_maps_policy_fields_into_output_option(monkeypatch):
     monkeypatch.setattr(
         tool,
         "fetch_policies",
-        lambda query=None: [
+        lambda: [
             _policy(
                 policy_name="청년 월세 지원",
                 description="월 20만원 지원",

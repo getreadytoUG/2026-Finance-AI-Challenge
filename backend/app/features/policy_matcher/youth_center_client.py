@@ -1,11 +1,12 @@
-import xml.etree.ElementTree as ET
-
 import httpx
 from pydantic import BaseModel
 
 from app.core.config import settings
 
-YOUTH_CENTER_API_URL = "https://www.youthcenter.go.kr/opi/youthPlcyList.do"
+# 2026-08-24: 예전 /opi/youthPlcyList.do(XML) 엔드포인트는 실제 운영 환경에서
+# 302 -> http://www.youthcenter.go.kr:8080/ 로 리다이렉트되며 죽어있는 것을 확인했다.
+# 실제 키로 직접 호출해 검증한 현재 엔드포인트로 교체.
+YOUTH_CENTER_API_URL = "https://www.youthcenter.go.kr/go/ythip/getPlcy"
 
 
 class RawYouthPolicy(BaseModel):
@@ -22,50 +23,53 @@ class RawYouthPolicy(BaseModel):
     region_code: str
 
 
-def fetch_policies(query: str | None = None, page_index: int = 1, display: int = 100) -> list[RawYouthPolicy]:
+def fetch_policies(page_num: int = 1, page_size: int = 100) -> list[RawYouthPolicy]:
     if not settings.youth_center_api_key:
         raise RuntimeError("YOUTH_CENTER_API_KEY is not set — see README '온통청년 API 키 발급'")
     params = {
-        "openApiVlak": settings.youth_center_api_key,
-        "pageIndex": page_index,
-        "display": display,
+        "apiKeyNm": settings.youth_center_api_key,
+        "pageNum": page_num,
+        "pageSize": page_size,
+        "pageType": 1,
+        "rtnType": "json",
     }
-    if query:
-        params["query"] = query
     response = httpx.get(YOUTH_CENTER_API_URL, params=params, timeout=10.0)
     response.raise_for_status()
-    return _parse_youth_policy_xml(response.text)
+    return _parse_youth_policy_json(response.json())
 
 
-# NOTE: 아래 태그명(plcyNm, plcyExplnCn, sprtTrgtMinAge, mrgSttsCd 등)은 온통청년
-# 공식 문서에서 요청 파라미터만 확인했고 실제 응답 필드명은 검증하지 못했다.
-# 실제 API 키로 라이브 응답 샘플을 확보하면 이 함수의 _text() 호출부만 수정하면 된다.
-def _parse_youth_policy_xml(xml_text: str) -> list[RawYouthPolicy]:
-    root = ET.fromstring(xml_text)
+# 아래 필드명(plcyNm, plcyExplnCn, sprtTrgtMinAge, mrgSttsCd, zipCd 등)은 실제 API 키로
+# 라이브 응답을 받아 확인한 값이다 — 예전 XML 버전의 "미검증" 상태와 달리 실제 검증됨.
+# 다만 mrgSttsCd(혼인상태 코드, 예: "0055003")는 온통청년 공통코드 표를 확보하지 못해
+# "기혼"/"미혼" 문자열로 정규화하지 못하고 원본 코드값을 그대로 담는다 — matching.py의
+# 혼인상태 필터는 현재 이 코드값과 매치되는 경우가 없어 사실상 항상 통과(permissive)한다.
+def _parse_youth_policy_json(payload: dict) -> list[RawYouthPolicy]:
+    items = payload.get("result", {}).get("youthPolicyList", [])
     policies = []
-    for item in root.iter("youthPolicy"):
+    for item in items:
         policies.append(
             RawYouthPolicy(
-                policy_id=_text(item, "plcyNo"),
-                policy_name=_text(item, "plcyNm"),
-                description=_text(item, "plcyExplnCn"),
-                apply_url=_text(item, "aplyUrlAddr"),
-                application_period=_text(item, "aplyYmd") or "상시",
-                min_age=_int_or_none(_text(item, "sprtTrgtMinAge")),
-                max_age=_int_or_none(_text(item, "sprtTrgtMaxAge")),
-                min_income_krw=_int_or_none(_text(item, "earnMinAmt")),
-                max_income_krw=_int_or_none(_text(item, "earnMaxAmt")),
-                marital_status=_text(item, "mrgSttsCd"),
-                region_code=_text(item, "zipCd"),
+                policy_id=item.get("plcyNo") or "",
+                policy_name=item.get("plcyNm") or "",
+                description=item.get("plcyExplnCn") or "",
+                apply_url=item.get("aplyUrlAddr") or "",
+                application_period=item.get("aplyYmd") or "상시",
+                min_age=_bounded_int_or_none(item.get("sprtTrgtMinAge")),
+                max_age=_bounded_int_or_none(item.get("sprtTrgtMaxAge")),
+                min_income_krw=_bounded_int_or_none(item.get("earnMinAmt")),
+                max_income_krw=_bounded_int_or_none(item.get("earnMaxAmt")),
+                marital_status=item.get("mrgSttsCd") or "",
+                region_code=item.get("zipCd") or "",
             )
         )
     return policies
 
 
-def _text(item: ET.Element, tag: str) -> str:
-    el = item.find(tag)
-    return el.text.strip() if el is not None and el.text else ""
-
-
-def _int_or_none(value: str) -> int | None:
-    return int(value) if value.isdigit() else None
+def _bounded_int_or_none(value: str | None) -> int | None:
+    # 실측 결과 "0"은 실제 0(나이/금액)이 아니라 "제한 없음" sentinel로 쓰인다
+    # (예: sprtTrgtAgeLmtYn="Y"인데 sprtTrgtMinAge/MaxAge가 둘 다 "0"인 레코드가 다수).
+    # 0을 그대로 하한/상한으로 쓰면 사실상 모든 사용자를 걸러내므로 None(제한 없음)으로 취급한다.
+    if not value or not value.isdigit():
+        return None
+    parsed = int(value)
+    return parsed if parsed > 0 else None

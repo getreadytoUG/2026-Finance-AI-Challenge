@@ -38,6 +38,7 @@ class OpenAIProvider:
             try:
                 arguments = json.loads(tc.function.arguments)
             except json.JSONDecodeError as e:
+                print(f"[ERROR] OpenAI tool call '{tc.function.name}' returned malformed JSON arguments: {e}")
                 raise ValueError(
                     f"Model returned malformed JSON arguments for tool '{tc.function.name}': {e}"
                 ) from e
