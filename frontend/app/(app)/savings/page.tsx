@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { callTool } from "@/lib/api";
+import SubscriptionsSection from "./SubscriptionsSection";
+import CardsSection from "./CardsSection";
 
 type SavingsAllocation = {
   category: string;
@@ -13,7 +15,15 @@ type SavingsPlanOutput = {
   monthly_required_krw: number;
 };
 
-export default function SavingsPage() {
+const SUB_TABS = [
+  { key: "plan", label: "저축플랜" },
+  { key: "subscriptions", label: "구독료 리포트" },
+  { key: "cards", label: "카드소비 리포트" },
+] as const;
+
+type SubTabKey = (typeof SUB_TABS)[number]["key"];
+
+function SavingsPlanSection() {
   const [monthlyIncome, setMonthlyIncome] = useState("3000000");
   const [goalAmount, setGoalAmount] = useState("12000000");
   const [goalMonths, setGoalMonths] = useState("12");
@@ -43,11 +53,6 @@ export default function SavingsPage() {
 
   return (
     <>
-      <div className="page-header">
-        <h1>💰 저축플랜</h1>
-        <p>월급과 목표 금액을 입력하면 매달 얼마씩 저축해야 하는지 배분해드립니다.</p>
-      </div>
-
       <div className="card">
         <form onSubmit={handleSubmit}>
           <label className="field">
@@ -89,6 +94,40 @@ export default function SavingsPage() {
           </div>
         </>
       )}
+    </>
+  );
+}
+
+export default function SavingsPage() {
+  const [activeTab, setActiveTab] = useState<SubTabKey>("plan");
+
+  return (
+    <>
+      <div className="page-header">
+        <h1>💰 저축플랜</h1>
+        <p>월급과 목표 금액으로 저축 계획을 세우고, 구독료·카드소비 리포트로 절약 여지를 함께 확인하세요.</p>
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+        {SUB_TABS.map((tab) => (
+          <button
+            key={tab.key}
+            className="btn-ghost"
+            onClick={() => setActiveTab(tab.key)}
+            style={{
+              borderRadius: 999,
+              background: activeTab === tab.key ? "var(--primary-tint)" : undefined,
+              color: activeTab === tab.key ? "var(--primary)" : undefined,
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "plan" && <SavingsPlanSection />}
+      {activeTab === "subscriptions" && <SubscriptionsSection />}
+      {activeTab === "cards" && <CardsSection />}
     </>
   );
 }

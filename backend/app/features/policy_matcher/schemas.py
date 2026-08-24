@@ -12,7 +12,6 @@ class PolicyMatchInput(BaseModel):
 
 class PolicyOption(BaseModel):
     policy_name: str
-    eligible: bool
     benefit_description: str
     application_period: str
     reference_url: str

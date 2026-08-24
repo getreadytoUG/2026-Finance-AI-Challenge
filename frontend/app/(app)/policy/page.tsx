@@ -5,7 +5,6 @@ import { callTool } from "@/lib/api";
 
 type PolicyOption = {
   policy_name: string;
-  eligible: boolean;
   benefit_description: string;
   application_period: string;
   reference_url: string;
@@ -48,8 +47,8 @@ export default function PolicyPage() {
   return (
     <>
       <div className="page-header">
-        <h1>🏛️ 정책비교</h1>
-        <p>현재 상황을 입력하면 청년/신혼부부 정책의 가/불가 여부와 지원 내용을 비교해드립니다.</p>
+        <h1>🏛️ 금융 정책 추천</h1>
+        <p>현재 상황을 입력하면 금융 지원 정책 중 지금 신청 가능한 것만 모아 보여드립니다.</p>
       </div>
 
       <div className="card">
@@ -71,7 +70,7 @@ export default function PolicyPage() {
             <input className="input" type="text" value={region} onChange={(e) => setRegion(e.target.value)} />
           </label>
           <button className="btn" type="submit" disabled={loading}>
-            {loading ? "비교 중..." : "정책 비교하기"}
+            {loading ? "찾는 중..." : "금융 정책 찾기"}
           </button>
         </form>
       </div>
@@ -80,18 +79,12 @@ export default function PolicyPage() {
 
       {result && (
         result.options.length === 0 ? (
-          <p className="error-text" style={{ marginTop: 16 }}>조건에 맞는 정책을 찾지 못했습니다.</p>
+          <p className="error-text" style={{ marginTop: 16 }}>지금 신청 가능한 금융 정책을 찾지 못했습니다.</p>
         ) : (
           <div className="result-list">
             {result.options.map((option, i) => (
               <div key={i} className="result-item">
                 <div className="result-item-title">{option.policy_name}</div>
-                <div className="result-item-row">
-                  <span>가능 여부</span>
-                  <span className={`badge ${option.eligible ? "badge-success" : "badge-danger"}`}>
-                    {option.eligible ? "가능" : "불가"}
-                  </span>
-                </div>
                 <div className="result-item-row">
                   <span>지원 내용</span>
                   <span>{option.benefit_description}</span>

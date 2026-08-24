@@ -156,12 +156,13 @@ export type PolicyBrowseResponse = {
 
 export async function browsePolicies(
   token: string,
-  params: { category?: string; page?: number; pageSize?: number }
+  params: { category?: string; page?: number; pageSize?: number; includeClosed?: boolean }
 ): Promise<PolicyBrowseResponse> {
   const search = new URLSearchParams();
   if (params.category) search.set("category", params.category);
   if (params.page) search.set("page", String(params.page));
   if (params.pageSize) search.set("page_size", String(params.pageSize));
+  if (params.includeClosed) search.set("include_closed", "true");
   const qs = search.toString();
   const res = await authedFetch(`/policy_matcher/browse${qs ? `?${qs}` : ""}`, token);
   return res.json();

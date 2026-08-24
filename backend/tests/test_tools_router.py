@@ -1,4 +1,5 @@
 from app.features.policy_matcher import tool
+from app.features.policy_matcher.categories import FINANCIAL_MID_CATEGORY
 from app.features.policy_matcher.youth_center_client import RawYouthPolicy
 
 
@@ -26,6 +27,7 @@ def test_calling_registered_tool_returns_its_output(client, monkeypatch):
                 max_income_krw=None,
                 marital_status="",
                 region_code="",
+                mid_category=FINANCIAL_MID_CATEGORY,
             )
         ],
     )
@@ -36,7 +38,7 @@ def test_calling_registered_tool_returns_its_output(client, monkeypatch):
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200
-    assert response.json()["options"][0]["eligible"] is True
+    assert response.json()["options"][0]["policy_name"] == "청년 전세자금대출 (테스트)"
 
 
 def test_calling_unknown_tool_returns_404(client):

@@ -6,11 +6,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { getRecommendations } from "@/lib/api";
 
 const TABS = [
-  { href: "/policy", label: "정책비교", icon: "🏛️" },
+  { href: "/policy", label: "금융 정책 추천", icon: "🏛️" },
   { href: "/browse", label: "정책 읽기", icon: "📖" },
   { href: "/savings", label: "저축플랜", icon: "💰" },
-  { href: "/subscriptions", label: "구독료 리포트", icon: "📺" },
-  { href: "/cards", label: "카드소비 리포트", icon: "💳" },
   { href: "/recommendations", label: "추천", icon: "🔔" },
 ];
 

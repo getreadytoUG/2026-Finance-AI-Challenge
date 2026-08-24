@@ -3,20 +3,20 @@
 import { useState } from "react";
 import { callTool } from "@/lib/api";
 
-type CategorySpending = {
-  category: string;
-  amount_krw: number;
+type SubscriptionItem = {
+  service_name: string;
+  monthly_cost_krw: number;
 };
 
-type CardSpendingReportOutput = {
+type SubscriptionReportOutput = {
   month: string;
-  categories: CategorySpending[];
-  total_amount_krw: number;
+  items: SubscriptionItem[];
+  total_cost_krw: number;
 };
 
-export default function CardsPage() {
+export default function SubscriptionsSection() {
   const [month, setMonth] = useState("2026-07");
-  const [result, setResult] = useState<CardSpendingReportOutput | null>(null);
+  const [result, setResult] = useState<SubscriptionReportOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -27,7 +27,7 @@ export default function CardsPage() {
     setLoading(true);
     const token = localStorage.getItem("token") ?? "";
     try {
-      const output = await callTool<CardSpendingReportOutput>(token, "card_spending_report", { month });
+      const output = await callTool<SubscriptionReportOutput>(token, "subscription_report", { month });
       setResult(output);
     } catch (err) {
       setError(err instanceof Error ? err.message : "요청이 실패했습니다.");
@@ -38,11 +38,6 @@ export default function CardsPage() {
 
   return (
     <>
-      <div className="page-header">
-        <h1>💳 카드소비 리포트</h1>
-        <p>조회할 월을 입력하면 해당 월의 카드 사용 내역을 카테고리별로 보여드립니다.</p>
-      </div>
-
       <div className="card">
         <form onSubmit={handleSubmit}>
           <label className="field">
@@ -60,16 +55,16 @@ export default function CardsPage() {
       {result && (
         <>
           <div className="summary-banner">
-            <span>{result.month} 총 카드 사용액</span>
-            <span className="amount">{result.total_amount_krw.toLocaleString()}원</span>
+            <span>{result.month} 총 구독료</span>
+            <span className="amount">{result.total_cost_krw.toLocaleString()}원</span>
           </div>
           <div className="result-list">
-            {result.categories.map((category, i) => (
+            {result.items.map((item, i) => (
               <div key={i} className="result-item">
-                <div className="result-item-title">{category.category}</div>
+                <div className="result-item-title">{item.service_name}</div>
                 <div className="result-item-row">
-                  <span>사용액</span>
-                  <strong>{category.amount_krw.toLocaleString()}원</strong>
+                  <span>월 비용</span>
+                  <strong>{item.monthly_cost_krw.toLocaleString()}원</strong>
                 </div>
               </div>
             ))}
