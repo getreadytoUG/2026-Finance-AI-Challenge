@@ -74,15 +74,18 @@ export type ProfileInput = {
 };
 
 export type Recommendation = {
+  id: number;
   policy_name: string;
   benefit_description: string;
   application_period: string;
   reference_url: string;
   matched_at: string;
+  is_read: boolean;
 };
 
 type RecommendationListResponse = {
   recommendations: Recommendation[];
+  unread_count: number;
 };
 
 async function authedFetch(path: string, token: string, options: RequestInit = {}): Promise<Response> {
@@ -127,5 +130,46 @@ export async function getRecommendations(token: string): Promise<RecommendationL
 
 export async function refreshRecommendations(token: string): Promise<{ created: number }> {
   const res = await authedFetch("/policy_matcher/recommendations/refresh", token, { method: "POST" });
+  return res.json();
+}
+
+export async function markRecommendationRead(token: string, id: number): Promise<void> {
+  await authedFetch(`/policy_matcher/recommendations/${id}/read`, token, { method: "PATCH" });
+}
+
+export type PolicyBrowseItem = {
+  policy_name: string;
+  benefit_description: string;
+  application_period: string;
+  reference_url: string;
+  large_category: string;
+  status: string;
+  status_emoji: string;
+};
+
+export type PolicyBrowseResponse = {
+  items: PolicyBrowseItem[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
+export async function browsePolicies(
+  token: string,
+  params: { category?: string; page?: number; pageSize?: number }
+): Promise<PolicyBrowseResponse> {
+  const search = new URLSearchParams();
+  if (params.category) search.set("category", params.category);
+  if (params.page) search.set("page", String(params.page));
+  if (params.pageSize) search.set("page_size", String(params.pageSize));
+  const qs = search.toString();
+  const res = await authedFetch(`/policy_matcher/browse${qs ? `?${qs}` : ""}`, token);
+  return res.json();
+}
+
+export type PolicyCategory = { name: string; count: number };
+
+export async function getPolicyCategories(token: string): Promise<{ categories: PolicyCategory[] }> {
+  const res = await authedFetch("/policy_matcher/categories", token);
   return res.json();
 }
