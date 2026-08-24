@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { login } from "@/lib/api";
+import { signup, login } from "@/lib/api";
 
-export default function LoginPage() {
+export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -17,11 +17,12 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
     try {
+      await signup(email, password);
       const token = await login(email, password);
       localStorage.setItem("token", token);
       router.push("/policy");
-    } catch {
-      setError("이메일 또는 비밀번호가 올바르지 않습니다.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "회원가입에 실패했습니다.");
     } finally {
       setLoading(false);
     }
@@ -41,7 +42,7 @@ export default function LoginPage() {
         <div style={{ textAlign: "center", marginBottom: 28 }}>
           <div style={{ fontSize: 28, marginBottom: 8 }}>🌱</div>
           <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>청년/신혼부부 금융 도우미</h1>
-          <p style={{ color: "var(--text-muted)", fontSize: 13 }}>로그인하고 나에게 맞는 정책과 리포트를 확인하세요</p>
+          <p style={{ color: "var(--text-muted)", fontSize: 13 }}>계정을 만들고 나에게 맞는 정책과 리포트를 확인하세요</p>
         </div>
         <form onSubmit={handleSubmit}>
           <label className="field">
@@ -68,11 +69,11 @@ export default function LoginPage() {
           </label>
           {error && <p className="error-text">{error}</p>}
           <button className="btn" type="submit" disabled={loading}>
-            {loading ? "로그인 중..." : "로그인"}
+            {loading ? "가입 중..." : "회원가입"}
           </button>
         </form>
         <p style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: "var(--text-muted)" }}>
-          계정이 없으신가요? <Link className="link" href="/signup">회원가입</Link>
+          이미 계정이 있으신가요? <Link className="link" href="/login">로그인</Link>
         </p>
       </div>
     </main>

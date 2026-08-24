@@ -13,6 +13,24 @@ export async function login(email: string, password: string): Promise<string> {
   return data.access_token as string;
 }
 
+export async function signup(email: string, password: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/auth/signup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) {
+    let detail = "회원가입에 실패했습니다.";
+    try {
+      const body = await res.json();
+      if (typeof body.detail === "string") detail = body.detail;
+    } catch {
+      // response body wasn't JSON — keep the generic message
+    }
+    throw new Error(detail);
+  }
+}
+
 export async function callTool<TOutput>(
   token: string,
   name: string,
