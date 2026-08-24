@@ -20,3 +20,16 @@ def authenticate_user(db: Session, email: str, password: str) -> User | None:
     if user is None or not verify_password(password, user.hashed_password):
         return None
     return user
+
+
+# 배포마다 SQLite가 초기화되는 문제 때문에 매번 회원가입부터 다시 해야 하는 게
+# 번거로워서 만든 고정 데모 계정. 민감한 실서비스 계정이 아니라 데모 편의용이라
+# 자격증명을 그대로 코드에 둔다 — 이미 있으면 아무것도 안 한다(idempotent).
+DEMO_USER_EMAIL = "test@naver.com"
+DEMO_USER_PASSWORD = "test123!"
+
+
+def seed_demo_user(db: Session) -> None:
+    if db.query(User.id).filter(User.email == DEMO_USER_EMAIL).first() is not None:
+        return
+    create_user(db, DEMO_USER_EMAIL, DEMO_USER_PASSWORD)

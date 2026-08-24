@@ -90,3 +90,34 @@ def test_me_returns_null_profile_fields_before_update(client):
     assert body["is_married"] is None
     assert body["annual_income_krw"] is None
     assert body["region"] is None
+
+
+def test_seed_demo_user_creates_a_working_login(client, db_session):
+    from app.auth.service import DEMO_USER_EMAIL, DEMO_USER_PASSWORD, seed_demo_user
+
+    seed_demo_user(db_session)
+
+    response = client.post(
+        "/auth/login", json={"email": DEMO_USER_EMAIL, "password": DEMO_USER_PASSWORD}
+    )
+    assert response.status_code == 200
+    assert "access_token" in response.json()
+
+
+def test_seed_demo_user_is_idempotent(client, db_session):
+    from app.auth.service import seed_demo_user
+
+    seed_demo_user(db_session)
+    seed_demo_user(db_session)  # 두 번째 호출은 조용히 아무것도 안 해야 한다
+
+    response = client.get("/auth/me", headers={"Authorization": f"Bearer {_login_as_demo(client)}"})
+    assert response.status_code == 200
+
+
+def _login_as_demo(client) -> str:
+    from app.auth.service import DEMO_USER_EMAIL, DEMO_USER_PASSWORD
+
+    response = client.post(
+        "/auth/login", json={"email": DEMO_USER_EMAIL, "password": DEMO_USER_PASSWORD}
+    )
+    return response.json()["access_token"]
