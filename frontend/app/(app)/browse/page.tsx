@@ -46,10 +46,10 @@ export default function BrowsePage() {
 
   useEffect(() => {
     const token = localStorage.getItem("token") ?? "";
-    getPolicyCategories(token)
+    getPolicyCategories(token, { includeClosed })
       .then((res) => setCategories(res.categories))
       .catch(() => {});
-  }, []);
+  }, [includeClosed]);
 
   useEffect(() => {
     const token = localStorage.getItem("token") ?? "";

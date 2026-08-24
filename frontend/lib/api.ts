@@ -170,7 +170,11 @@ export async function browsePolicies(
 
 export type PolicyCategory = { name: string; count: number };
 
-export async function getPolicyCategories(token: string): Promise<{ categories: PolicyCategory[] }> {
-  const res = await authedFetch("/policy_matcher/categories", token);
+export async function getPolicyCategories(
+  token: string,
+  params: { includeClosed?: boolean } = {}
+): Promise<{ categories: PolicyCategory[] }> {
+  const qs = params.includeClosed ? "?include_closed=true" : "";
+  const res = await authedFetch(`/policy_matcher/categories${qs}`, token);
   return res.json();
 }

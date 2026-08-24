@@ -1,14 +1,16 @@
-from app.features.policy_matcher.categories import FINANCIAL_MID_CATEGORY, category_tags
+from app.features.policy_matcher.categories import FINANCIAL_LARGE_CATEGORY, category_tags
 from app.features.policy_matcher.matching import is_eligible
 from app.features.policy_matcher.schemas import PolicyMatchInput, PolicyMatchOutput, PolicyOption
-from app.features.policy_matcher.youth_center_client import fetch_policies
+from app.features.policy_matcher.youth_center_client import fetch_all_policies
 from app.tools.base import ToolContext, ToolSpec
 
 
 def run(input: PolicyMatchInput, ctx: ToolContext) -> PolicyMatchOutput:
-    policies = fetch_policies()
+    # fetch_policies()의 기본 page_size(100)로는 전체 카탈로그(~2,700여 건) 중
+    # 일부만 보게 되어 금융 카테고리 정책 상당수를 놓친다 — 전체를 가져온다.
+    policies = fetch_all_policies()
     financial_policies = [
-        policy for policy in policies if FINANCIAL_MID_CATEGORY in category_tags(policy.mid_category)
+        policy for policy in policies if FINANCIAL_LARGE_CATEGORY in category_tags(policy.large_category)
     ]
     options = [
         PolicyOption(

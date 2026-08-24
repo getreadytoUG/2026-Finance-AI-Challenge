@@ -10,7 +10,7 @@ from app.features.policy_matcher.cache import refresh_policy_cache
 from app.features.policy_matcher.matching import is_eligible
 from app.features.policy_matcher.models import PolicyRecommendation
 from app.features.policy_matcher.schemas import PolicyMatchInput
-from app.features.policy_matcher.youth_center_client import fetch_policies
+from app.features.policy_matcher.youth_center_client import fetch_all_policies
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,9 @@ def run_recommendation_batch_for_user(db: Session, user: User) -> int:
         annual_income_krw=user.annual_income_krw,
         region=user.region,
     )
-    policies = fetch_policies()
+    # fetch_policies()의 기본 page_size(100)로는 전체 카탈로그(~2,700여 건) 중
+    # 일부만 보게 되어 상당수 매칭을 놓친다 — 전체를 가져온다.
+    policies = fetch_all_policies()
 
     existing_keys = {
         row.policy_key

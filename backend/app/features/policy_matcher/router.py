@@ -144,6 +144,7 @@ def browse_policies(
 
 @router.get("/categories", response_model=PolicyCategoryListResponse)
 def list_policy_categories(
+    include_closed: bool = False,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -152,7 +153,7 @@ def list_policy_categories(
         counts: dict[str, int] = {}
         for row in db.query(CachedPolicy).all():
             status, _ = compute_policy_status(row.apply_start_ymd, row.apply_end_ymd, today)
-            if status == "만료":
+            if status == "만료" and not include_closed:
                 continue
             for tag in category_tags(row.large_category):
                 counts[tag] = counts.get(tag, 0) + 1

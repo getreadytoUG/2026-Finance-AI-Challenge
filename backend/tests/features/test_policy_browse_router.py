@@ -193,3 +193,19 @@ def test_categories_excludes_closed_and_returns_counts(client, db_session):
     response = client.get("/policy_matcher/categories", headers={"Authorization": f"Bearer {token}"})
     body = response.json()
     assert body["categories"] == [{"name": "주거", "count": 2}]
+
+
+def test_categories_includes_closed_when_include_closed_is_true(client, db_session):
+    yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y%m%d")
+    _seed_cached_policy(db_session, policy_key="P5", large_category="주거")
+    _seed_cached_policy(
+        db_session, policy_key="P6", large_category="주거",
+        apply_start_ymd="20200101", apply_end_ymd=yesterday,
+    )
+    token = _signup_login(client)
+
+    response = client.get(
+        "/policy_matcher/categories?include_closed=true", headers={"Authorization": f"Bearer {token}"}
+    )
+    body = response.json()
+    assert body["categories"] == [{"name": "주거", "count": 2}]

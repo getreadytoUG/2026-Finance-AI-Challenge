@@ -1,5 +1,5 @@
 from app.features.policy_matcher import tool
-from app.features.policy_matcher.categories import FINANCIAL_MID_CATEGORY
+from app.features.policy_matcher.categories import FINANCIAL_LARGE_CATEGORY
 from app.features.policy_matcher.youth_center_client import RawYouthPolicy
 
 
@@ -13,7 +13,7 @@ def test_calling_registered_tool_returns_its_output(client, monkeypatch):
     # Mock fetch_policies to return a test policy without restricting conditions
     monkeypatch.setattr(
         tool,
-        "fetch_policies",
+        "fetch_all_policies",
         lambda: [
             RawYouthPolicy(
                 policy_id="",
@@ -27,7 +27,7 @@ def test_calling_registered_tool_returns_its_output(client, monkeypatch):
                 max_income_krw=None,
                 marital_status="",
                 region_code="",
-                mid_category=FINANCIAL_MID_CATEGORY,
+                large_category=FINANCIAL_LARGE_CATEGORY,
             )
         ],
     )

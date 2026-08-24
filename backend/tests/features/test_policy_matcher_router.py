@@ -38,7 +38,7 @@ def test_refresh_requires_auth(client):
 
 
 def test_refresh_creates_recommendations_for_eligible_policies(client, monkeypatch):
-    monkeypatch.setattr(recommender, "fetch_policies", lambda: [_policy()])
+    monkeypatch.setattr(recommender, "fetch_all_policies", lambda: [_policy()])
     token = _signup_login_with_profile(client)
     response = client.post(
         "/policy_matcher/recommendations/refresh",
@@ -49,7 +49,7 @@ def test_refresh_creates_recommendations_for_eligible_policies(client, monkeypat
 
 
 def test_refresh_returns_zero_when_profile_incomplete(client, monkeypatch):
-    monkeypatch.setattr(recommender, "fetch_policies", lambda: [_policy()])
+    monkeypatch.setattr(recommender, "fetch_all_policies", lambda: [_policy()])
     client.post("/auth/signup", json={"email": "incomplete@example.com", "password": "secret123"})
     login = client.post("/auth/login", json={"email": "incomplete@example.com", "password": "secret123"})
     token = login.json()["access_token"]
@@ -65,7 +65,7 @@ def test_refresh_failure_still_returns_cors_headers(client, monkeypatch):
     def boom():
         raise RuntimeError("boom")
 
-    monkeypatch.setattr(recommender, "fetch_policies", boom)
+    monkeypatch.setattr(recommender, "fetch_all_policies", boom)
     token = _signup_login_with_profile(client)
 
     response = client.post(
@@ -78,7 +78,7 @@ def test_refresh_failure_still_returns_cors_headers(client, monkeypatch):
 
 
 def test_list_returns_only_current_users_recommendations(client, monkeypatch):
-    monkeypatch.setattr(recommender, "fetch_policies", lambda: [_policy(policy_id="P200")])
+    monkeypatch.setattr(recommender, "fetch_all_policies", lambda: [_policy(policy_id="P200")])
     token_a = _signup_login_with_profile(client, email="user-a@example.com")
     client.post("/policy_matcher/recommendations/refresh", headers={"Authorization": f"Bearer {token_a}"})
 
@@ -94,7 +94,7 @@ def test_list_returns_only_current_users_recommendations(client, monkeypatch):
 
 
 def test_list_includes_unread_count(client, monkeypatch):
-    monkeypatch.setattr(recommender, "fetch_policies", lambda: [_policy(policy_id="P300")])
+    monkeypatch.setattr(recommender, "fetch_all_policies", lambda: [_policy(policy_id="P300")])
     token = _signup_login_with_profile(client)
     client.post("/policy_matcher/recommendations/refresh", headers={"Authorization": f"Bearer {token}"})
 
@@ -103,7 +103,7 @@ def test_list_includes_unread_count(client, monkeypatch):
 
 
 def test_mark_recommendation_read_updates_is_read(client, monkeypatch):
-    monkeypatch.setattr(recommender, "fetch_policies", lambda: [_policy(policy_id="P301")])
+    monkeypatch.setattr(recommender, "fetch_all_policies", lambda: [_policy(policy_id="P301")])
     token = _signup_login_with_profile(client)
     client.post("/policy_matcher/recommendations/refresh", headers={"Authorization": f"Bearer {token}"})
     rec_id = client.get(
@@ -121,7 +121,7 @@ def test_mark_recommendation_read_updates_is_read(client, monkeypatch):
 
 
 def test_mark_recommendation_read_rejects_other_users_recommendation(client, monkeypatch):
-    monkeypatch.setattr(recommender, "fetch_policies", lambda: [_policy(policy_id="P302")])
+    monkeypatch.setattr(recommender, "fetch_all_policies", lambda: [_policy(policy_id="P302")])
     token_a = _signup_login_with_profile(client, email="read-a@example.com")
     client.post("/policy_matcher/recommendations/refresh", headers={"Authorization": f"Bearer {token_a}"})
     rec_id = client.get(
