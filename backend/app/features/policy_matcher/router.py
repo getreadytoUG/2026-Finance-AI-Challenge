@@ -50,7 +50,33 @@ def list_my_recommendations(
         .order_by(PolicyRecommendation.matched_at.desc())
         .all()
     )
-    return RecommendationListResponse(recommendations=[RecommendationOut.model_validate(r) for r in rows])
+    unread_count = sum(1 for row in rows if not row.is_read)
+    return RecommendationListResponse(
+        recommendations=[RecommendationOut.model_validate(r) for r in rows],
+        unread_count=unread_count,
+    )
+
+
+@router.patch("/recommendations/{recommendation_id}/read", response_model=RecommendationOut)
+def mark_recommendation_read(
+    recommendation_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    row = (
+        db.query(PolicyRecommendation)
+        .filter(
+            PolicyRecommendation.id == recommendation_id,
+            PolicyRecommendation.user_id == current_user.id,
+        )
+        .first()
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail="Recommendation not found")
+    row.is_read = True
+    db.commit()
+    db.refresh(row)
+    return RecommendationOut.model_validate(row)
 
 
 @router.get("/browse", response_model=PolicyBrowseResponse)

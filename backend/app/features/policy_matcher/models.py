@@ -15,6 +15,7 @@ class PolicyRecommendation(Base):
     application_period = Column(String, nullable=False)
     reference_url = Column(String, nullable=False)
     matched_at = Column(DateTime(timezone=True), nullable=False)
+    is_read = Column(Boolean, nullable=False, default=False)
 
 
 class CachedPolicy(Base):

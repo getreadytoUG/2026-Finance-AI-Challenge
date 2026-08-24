@@ -91,3 +91,45 @@ def test_list_returns_only_current_users_recommendations(client, monkeypatch):
     response_a = client.get("/policy_matcher/recommendations", headers={"Authorization": f"Bearer {token_a}"})
     assert len(response_a.json()["recommendations"]) == 1
     assert response_a.json()["recommendations"][0]["policy_name"] == "테스트 정책"
+
+
+def test_list_includes_unread_count(client, monkeypatch):
+    monkeypatch.setattr(recommender, "fetch_policies", lambda: [_policy(policy_id="P300")])
+    token = _signup_login_with_profile(client)
+    client.post("/policy_matcher/recommendations/refresh", headers={"Authorization": f"Bearer {token}"})
+
+    response = client.get("/policy_matcher/recommendations", headers={"Authorization": f"Bearer {token}"})
+    assert response.json()["unread_count"] == 1
+
+
+def test_mark_recommendation_read_updates_is_read(client, monkeypatch):
+    monkeypatch.setattr(recommender, "fetch_policies", lambda: [_policy(policy_id="P301")])
+    token = _signup_login_with_profile(client)
+    client.post("/policy_matcher/recommendations/refresh", headers={"Authorization": f"Bearer {token}"})
+    rec_id = client.get(
+        "/policy_matcher/recommendations", headers={"Authorization": f"Bearer {token}"}
+    ).json()["recommendations"][0]["id"]
+
+    response = client.patch(
+        f"/policy_matcher/recommendations/{rec_id}/read", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 200
+    assert response.json()["is_read"] is True
+
+    listing = client.get("/policy_matcher/recommendations", headers={"Authorization": f"Bearer {token}"})
+    assert listing.json()["unread_count"] == 0
+
+
+def test_mark_recommendation_read_rejects_other_users_recommendation(client, monkeypatch):
+    monkeypatch.setattr(recommender, "fetch_policies", lambda: [_policy(policy_id="P302")])
+    token_a = _signup_login_with_profile(client, email="read-a@example.com")
+    client.post("/policy_matcher/recommendations/refresh", headers={"Authorization": f"Bearer {token_a}"})
+    rec_id = client.get(
+        "/policy_matcher/recommendations", headers={"Authorization": f"Bearer {token_a}"}
+    ).json()["recommendations"][0]["id"]
+
+    token_b = _signup_login_with_profile(client, email="read-b@example.com")
+    response = client.patch(
+        f"/policy_matcher/recommendations/{rec_id}/read", headers={"Authorization": f"Bearer {token_b}"}
+    )
+    assert response.status_code == 404

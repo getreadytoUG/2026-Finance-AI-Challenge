@@ -25,15 +25,18 @@ class PolicyMatchOutput(BaseModel):
 class RecommendationOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    id: int
     policy_name: str
     benefit_description: str
     application_period: str
     reference_url: str
     matched_at: datetime
+    is_read: bool
 
 
 class RecommendationListResponse(BaseModel):
     recommendations: list[RecommendationOut]
+    unread_count: int
 
 
 class RefreshResponse(BaseModel):
