@@ -6,8 +6,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.auth.models import User  # noqa: F401
 from app.auth.router import router as auth_router
 from app.core.config import settings
-from app.core.db import Base, engine
+from app.core.db import Base, SessionLocal, engine
 from app.features import register_all_tools
+from app.features.policy_matcher.cache import seed_policy_cache_if_empty
 from app.features.policy_matcher.models import PolicyRecommendation  # noqa: F401
 from app.features.policy_matcher.recommender import register_daily_recommendation_job, scheduler
 from app.features.policy_matcher.router import router as policy_matcher_router
@@ -20,6 +21,11 @@ register_all_tools()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        seed_policy_cache_if_empty(db)
+    finally:
+        db.close()
     register_daily_recommendation_job()
     scheduler.start()
     yield

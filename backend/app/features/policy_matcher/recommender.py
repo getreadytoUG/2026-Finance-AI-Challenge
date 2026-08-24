@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.models import User
 from app.core.db import SessionLocal
+from app.features.policy_matcher.cache import refresh_policy_cache
 from app.features.policy_matcher.matching import is_eligible
 from app.features.policy_matcher.models import PolicyRecommendation
 from app.features.policy_matcher.schemas import PolicyMatchInput
@@ -85,6 +86,7 @@ scheduler = BackgroundScheduler(timezone="Asia/Seoul")
 def _run_daily_recommendation_job() -> None:
     db = SessionLocal()
     try:
+        refresh_policy_cache(db)
         run_recommendation_batch_for_all_users(db)
     finally:
         db.close()
