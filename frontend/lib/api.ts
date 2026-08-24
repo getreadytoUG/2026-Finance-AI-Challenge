@@ -178,3 +178,8 @@ export async function getPolicyCategories(
   const res = await authedFetch(`/policy_matcher/categories${qs}`, token);
   return res.json();
 }
+
+export async function getRegions(token: string): Promise<{ regions: string[] }> {
+  const res = await authedFetch("/policy_matcher/regions", token);
+  return res.json();
+}

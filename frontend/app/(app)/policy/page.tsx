@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { callTool } from "@/lib/api";
+import { useEffect, useState } from "react";
+import { callTool, getRegions } from "@/lib/api";
+import Pagination from "@/components/Pagination";
 
 type PolicyOption = {
   policy_name: string;
@@ -14,19 +15,32 @@ type PolicyMatchOutput = {
   options: PolicyOption[];
 };
 
+const PAGE_SIZE = 10;
+
 export default function PolicyPage() {
+  const [regions, setRegions] = useState<string[]>([]);
   const [age, setAge] = useState("29");
   const [isMarried, setIsMarried] = useState(false);
   const [income, setIncome] = useState("40000000");
-  const [region, setRegion] = useState("서울");
+  const [region, setRegion] = useState<string | null>(null);
   const [result, setResult] = useState<PolicyMatchOutput | null>(null);
+  const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    const token = localStorage.getItem("token") ?? "";
+    getRegions(token)
+      .then((res) => setRegions(res.regions))
+      .catch(() => {});
+  }, []);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!region) return;
     setError(null);
     setResult(null);
+    setPage(1);
     setLoading(true);
     const token = localStorage.getItem("token") ?? "";
     try {
@@ -43,6 +57,9 @@ export default function PolicyPage() {
       setLoading(false);
     }
   }
+
+  const totalPages = result ? Math.max(1, Math.ceil(result.options.length / PAGE_SIZE)) : 1;
+  const pageOptions = result ? result.options.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE) : [];
 
   return (
     <>
@@ -65,12 +82,28 @@ export default function PolicyPage() {
             <span className="field-label">연소득 (원)</span>
             <input className="input" type="number" value={income} onChange={(e) => setIncome(e.target.value)} />
           </label>
-          <label className="field">
-            <span className="field-label">지역</span>
-            <input className="input" type="text" value={region} onChange={(e) => setRegion(e.target.value)} />
+          <label className="field-label" style={{ display: "block" }}>
+            지역
           </label>
-          <button className="btn" type="submit" disabled={loading}>
-            {loading ? "찾는 중..." : "금융 정책 찾기"}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+            {regions.map((r) => (
+              <button
+                key={r}
+                type="button"
+                className="btn-ghost"
+                onClick={() => setRegion(r)}
+                style={{
+                  borderRadius: 999,
+                  background: region === r ? "var(--primary-tint)" : undefined,
+                  color: region === r ? "var(--primary)" : undefined,
+                }}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+          <button className="btn" type="submit" disabled={loading || !region}>
+            {loading ? "찾는 중..." : region ? "금융 정책 찾기" : "지역을 선택해주세요"}
           </button>
         </form>
       </div>
@@ -81,26 +114,29 @@ export default function PolicyPage() {
         result.options.length === 0 ? (
           <p className="error-text" style={{ marginTop: 16 }}>지금 신청 가능한 금융 정책을 찾지 못했습니다.</p>
         ) : (
-          <div className="result-list">
-            {result.options.map((option, i) => (
-              <div key={i} className="result-item">
-                <div className="result-item-title">{option.policy_name}</div>
-                <div className="result-item-row">
-                  <span>지원 내용</span>
-                  <span>{option.benefit_description}</span>
+          <>
+            <div className="result-list">
+              {pageOptions.map((option, i) => (
+                <div key={i} className="result-item">
+                  <div className="result-item-title">{option.policy_name}</div>
+                  <div className="result-item-row">
+                    <span>지원 내용</span>
+                    <span>{option.benefit_description}</span>
+                  </div>
+                  <div className="result-item-row">
+                    <span>신청 기간</span>
+                    <span>{option.application_period}</span>
+                  </div>
+                  <div style={{ marginTop: 12 }}>
+                    <a className="link" href={option.reference_url} target="_blank" rel="noreferrer">
+                      자세히 보기 →
+                    </a>
+                  </div>
                 </div>
-                <div className="result-item-row">
-                  <span>신청 기간</span>
-                  <span>{option.application_period}</span>
-                </div>
-                <div style={{ marginTop: 12 }}>
-                  <a className="link" href={option.reference_url} target="_blank" rel="noreferrer">
-                    자세히 보기 →
-                  </a>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+            <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+          </>
         )
       )}
     </>

@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { browsePolicies, getPolicyCategories } from "@/lib/api";
 import type { PolicyBrowseItem, PolicyCategory } from "@/lib/api";
+import Pagination from "@/components/Pagination";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
 
 const STATUS_COLORS: Record<string, string> = {
   임박: "var(--accent)",
@@ -37,12 +38,7 @@ export default function BrowsePage() {
   const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [pageInput, setPageInput] = useState("1");
   const [includeClosed, setIncludeClosed] = useState(false);
-
-  useEffect(() => {
-    setPageInput(String(page));
-  }, [page]);
 
   useEffect(() => {
     const token = localStorage.getItem("token") ?? "";
@@ -75,15 +71,6 @@ export default function BrowsePage() {
   }
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-
-  function commitPageInput() {
-    const parsed = Number(pageInput);
-    if (Number.isInteger(parsed) && parsed >= 1 && parsed <= totalPages) {
-      setPage(parsed);
-    } else {
-      setPageInput(String(page));
-    }
-  }
 
   return (
     <>
@@ -160,35 +147,7 @@ export default function BrowsePage() {
         ))}
       </div>
 
-      {totalPages > 1 && (
-        <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 20 }}>
-          <button className="btn-ghost" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-            이전
-          </button>
-          <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, color: "var(--text-muted)" }}>
-            <input
-              className="input"
-              type="number"
-              min={1}
-              max={totalPages}
-              value={pageInput}
-              onChange={(e) => setPageInput(e.target.value)}
-              onBlur={commitPageInput}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  commitPageInput();
-                }
-              }}
-              style={{ width: 52, textAlign: "center", padding: "4px 6px" }}
-            />
-            <span>/ {totalPages}</span>
-          </span>
-          <button className="btn-ghost" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-            다음
-          </button>
-        </div>
-      )}
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
     </>
   );
 }

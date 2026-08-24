@@ -5,6 +5,7 @@ from app.auth.models import User
 from app.auth.router import get_current_user
 from app.core.db import get_db
 from app.features.policy_matcher.categories import category_tags
+from app.features.policy_matcher.matching import REGIONS
 from app.features.policy_matcher.models import CachedPolicy, PolicyRecommendation
 from app.features.policy_matcher.recommender import run_recommendation_batch_for_user
 from app.features.policy_matcher.schemas import (
@@ -15,6 +16,7 @@ from app.features.policy_matcher.schemas import (
     RecommendationListResponse,
     RecommendationOut,
     RefreshResponse,
+    RegionListResponse,
 )
 from app.features.policy_matcher.status import STATUS_ORDER, compute_policy_status, today_kst
 
@@ -29,6 +31,11 @@ def _raise_as_http_500(endpoint: str, context: str, e: Exception) -> None:
     # path CORSMiddleware still processes.
     print(f"[ERROR] {endpoint} failed{context}: {type(e).__name__}: {e}")
     raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/regions", response_model=RegionListResponse)
+def list_regions(current_user: User = Depends(get_current_user)):
+    return RegionListResponse(regions=REGIONS)
 
 
 @router.post("/recommendations/refresh", response_model=RefreshResponse)

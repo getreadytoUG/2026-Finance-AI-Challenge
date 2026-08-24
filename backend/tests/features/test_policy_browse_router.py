@@ -209,3 +209,18 @@ def test_categories_includes_closed_when_include_closed_is_true(client, db_sessi
     )
     body = response.json()
     assert body["categories"] == [{"name": "주거", "count": 2}]
+
+
+def test_regions_requires_auth(client):
+    response = client.get("/policy_matcher/regions")
+    assert response.status_code == 401
+
+
+def test_regions_returns_the_17_canonical_region_names(client):
+    token = _signup_login(client)
+    response = client.get("/policy_matcher/regions", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200
+    regions = response.json()["regions"]
+    assert len(regions) == 17
+    assert "서울" in regions
+    assert "제주" in regions

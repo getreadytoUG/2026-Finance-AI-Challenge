@@ -66,3 +66,7 @@ class PolicyCategoryItem(BaseModel):
 
 class PolicyCategoryListResponse(BaseModel):
     categories: list[PolicyCategoryItem]
+
+
+class RegionListResponse(BaseModel):
+    regions: list[str]
