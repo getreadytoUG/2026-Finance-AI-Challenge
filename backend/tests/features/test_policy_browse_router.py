@@ -94,6 +94,16 @@ def test_browse_paginates(client, db_session):
     assert body["page"] == 1
 
 
+def test_browse_rejects_invalid_page(client, db_session):
+    _seed_cached_policy(db_session, policy_key="P8")
+    token = _signup_login(client)
+
+    response = client.get(
+        "/policy_matcher/browse?page=0", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 422
+
+
 def test_categories_excludes_closed_and_returns_counts(client, db_session):
     yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y%m%d")
     _seed_cached_policy(db_session, policy_key="P5", large_category="주거")

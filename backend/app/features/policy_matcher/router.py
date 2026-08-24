@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.auth.models import User
@@ -81,8 +81,8 @@ def mark_recommendation_read(
 
 @router.get("/browse", response_model=PolicyBrowseResponse)
 def browse_policies(
-    page: int = 1,
-    page_size: int = 20,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
     category: str | None = None,
     include_closed: bool = False,
     current_user: User = Depends(get_current_user),
