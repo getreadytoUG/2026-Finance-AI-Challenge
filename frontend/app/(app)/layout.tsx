@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { getRecommendations } from "@/lib/api";
 
 const TABS = [
   { href: "/policy", label: "정책비교", icon: "🏛️" },
@@ -15,6 +16,7 @@ const TABS = [
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -29,6 +31,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setReady(true);
   }, [router]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const token = localStorage.getItem("token") ?? "";
+    function poll() {
+      getRecommendations(token)
+        .then((res) => setUnreadCount(res.unread_count))
+        .catch(() => {});
+    }
+    poll();
+    const interval = setInterval(poll, 60000);
+    return () => clearInterval(interval);
+  }, [ready]);
 
   function handleLogout() {
     localStorage.removeItem("token");
@@ -80,6 +95,25 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 >
                   <span>{tab.icon}</span>
                   {tab.label}
+                  {tab.href === "/recommendations" && unreadCount > 0 && (
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        minWidth: 16,
+                        height: 16,
+                        padding: "0 4px",
+                        borderRadius: 999,
+                        background: "var(--danger)",
+                        color: "#fff",
+                        fontSize: 10,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {unreadCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}

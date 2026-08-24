@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getMe, getRecommendations, refreshRecommendations, updateProfile } from "@/lib/api";
+import { getMe, getRecommendations, markRecommendationRead, refreshRecommendations, updateProfile } from "@/lib/api";
 import type { Recommendation, UserProfile } from "@/lib/api";
 
 function hasCompleteProfile(profile: UserProfile | null): boolean {
@@ -76,6 +76,17 @@ export default function RecommendationsPage() {
     }
   }
 
+  async function handleItemClick(rec: Recommendation) {
+    if (rec.is_read) return;
+    const token = localStorage.getItem("token") ?? "";
+    try {
+      await markRecommendationRead(token, rec.id);
+      setRecommendations((prev) => (prev ? prev.map((r) => (r.id === rec.id ? { ...r, is_read: true } : r)) : prev));
+    } catch {
+      // 읽음 처리 실패는 조용히 무시 — 목록 자체는 이미 정상 표시되어 있다.
+    }
+  }
+
   return (
     <>
       <div className="page-header">
@@ -123,9 +134,23 @@ export default function RecommendationsPage() {
 
           {recommendations && recommendations.length > 0 && (
             <div className="result-list">
-              {recommendations.map((rec, i) => (
-                <div key={i} className="result-item">
-                  <div className="result-item-title">{rec.policy_name}</div>
+              {recommendations.map((rec) => (
+                <div key={rec.id} className="result-item" onClick={() => handleItemClick(rec)} style={{ cursor: "pointer" }}>
+                  <div className="result-item-title">
+                    {!rec.is_read && (
+                      <span
+                        style={{
+                          display: "inline-block",
+                          width: 8,
+                          height: 8,
+                          borderRadius: 999,
+                          background: "var(--danger)",
+                          marginRight: 8,
+                        }}
+                      />
+                    )}
+                    {rec.policy_name}
+                  </div>
                   <div className="result-item-row">
                     <span>지원 내용</span>
                     <span>{rec.benefit_description}</span>
