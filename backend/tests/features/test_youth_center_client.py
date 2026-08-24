@@ -25,6 +25,10 @@ SAMPLE_PAYLOAD = {
                 "earnMaxAmt": "26000000",
                 "mrgSttsCd": "",
                 "zipCd": "11110,11140",
+                "lclsfNm": "주거",
+                "mclsfNm": "전월세 및 주거급여 지원",
+                "bizPrdBgngYmd": "20260101",
+                "bizPrdEndYmd": "20261231",
             },
             {
                 "plcyNo": "",
@@ -38,6 +42,10 @@ SAMPLE_PAYLOAD = {
                 "earnMaxAmt": "0",
                 "mrgSttsCd": "기혼",
                 "zipCd": "",
+                "lclsfNm": "주거",
+                "mclsfNm": "임대주택",
+                "bizPrdBgngYmd": "        ",
+                "bizPrdEndYmd": "        ",
             },
         ],
     },
@@ -129,3 +137,40 @@ def test_fetch_policies_raises_on_http_error(monkeypatch):
         assert False, "expected httpx.HTTPStatusError"
     except httpx.HTTPStatusError:
         pass
+
+
+def test_parse_youth_policy_json_parses_category_and_period_fields():
+    policies = _parse_youth_policy_json(SAMPLE_PAYLOAD)
+    first = policies[0]
+    assert first.large_category == "주거"
+    assert first.mid_category == "전월세 및 주거급여 지원"
+    assert first.apply_start_ymd == "20260101"
+    assert first.apply_end_ymd == "20261231"
+
+
+def test_parse_youth_policy_json_treats_blank_period_as_none():
+    policies = _parse_youth_policy_json(SAMPLE_PAYLOAD)
+    second = policies[1]
+    assert second.apply_start_ymd is None
+    assert second.apply_end_ymd is None
+
+
+def test_fetch_all_policies_requests_a_large_page_size(monkeypatch):
+    from app.features.policy_matcher import youth_center_client
+
+    monkeypatch.setattr(youth_center_client.settings, "youth_center_api_key", "test-key")
+
+    captured = {}
+
+    def fake_get(url, params, timeout):
+        captured["params"] = params
+        return httpx.Response(
+            status_code=200, json=SAMPLE_PAYLOAD, request=httpx.Request("GET", url)
+        )
+
+    monkeypatch.setattr(youth_center_client.httpx, "get", fake_get)
+
+    policies = youth_center_client.fetch_all_policies()
+
+    assert captured["params"]["pageSize"] >= 3000
+    assert len(policies) == 2

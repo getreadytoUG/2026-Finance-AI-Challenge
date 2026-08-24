@@ -21,6 +21,10 @@ class RawYouthPolicy(BaseModel):
     max_income_krw: int | None
     marital_status: str
     region_code: str
+    large_category: str = ""
+    mid_category: str = ""
+    apply_start_ymd: str | None = None
+    apply_end_ymd: str | None = None
 
 
 def fetch_policies(page_num: int = 1, page_size: int = 100) -> list[RawYouthPolicy]:
@@ -60,6 +64,10 @@ def _parse_youth_policy_json(payload: dict) -> list[RawYouthPolicy]:
                 max_income_krw=_bounded_int_or_none(item.get("earnMaxAmt")),
                 marital_status=item.get("mrgSttsCd") or "",
                 region_code=item.get("zipCd") or "",
+                large_category=item.get("lclsfNm") or "",
+                mid_category=item.get("mclsfNm") or "",
+                apply_start_ymd=_ymd_or_none(item.get("bizPrdBgngYmd")),
+                apply_end_ymd=_ymd_or_none(item.get("bizPrdEndYmd")),
             )
         )
     return policies
@@ -73,3 +81,18 @@ def _bounded_int_or_none(value: str | None) -> int | None:
         return None
     parsed = int(value)
     return parsed if parsed > 0 else None
+
+
+def _ymd_or_none(value: str | None) -> str | None:
+    # bizPrdBgngYmd/bizPrdEndYmd는 상시/연중 정책이면 공백 8칸("        ")으로 온다.
+    if not value:
+        return None
+    stripped = value.strip()
+    return stripped if len(stripped) == 8 and stripped.isdigit() else None
+
+
+def fetch_all_policies() -> list[RawYouthPolicy]:
+    # 실측 결과(2026-08-24) pageSize를 크게 주면 한 번의 요청으로 전체(~2,728건)를
+    # 가져올 수 있었다 — 페이지네이션 루프가 필요 없다. totCount가 이 상한을
+    # 넘어서면 초과분이 누락되므로 여유 있게 잡는다.
+    return fetch_policies(page_num=1, page_size=5000)
