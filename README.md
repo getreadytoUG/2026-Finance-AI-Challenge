@@ -31,7 +31,7 @@ npm run dev
 ```
 
 - http://localhost:3000 접속 시 로그인 여부에 따라 `/login` 또는 `/policy`로 리다이렉트됩니다.
-- 아직 프론트엔드에 회원가입 화면이 없으므로, 최초 계정은 `/docs`(Swagger) 또는 curl로 `POST /auth/signup`을 호출해 만들어야 합니다.
+- 로그인 화면의 "회원가입" 링크로 계정을 만들 수 있습니다 (`/signup`, 이메일·비밀번호만 입력하면 가입과 동시에 자동 로그인됩니다).
 - 로그인하면 4개 기능 탭(정책비교/저축플랜/구독료 리포트/카드소비 리포트)이 있는 화면으로 이동합니다. 각 탭은 채팅이 아니라 **폼 입력 → 결과 표시** 형태입니다.
 
 ### 3. 테스트 (백엔드)
@@ -57,6 +57,7 @@ backend/app/
 
 frontend/
 ├── app/login/       로그인 화면
+├── app/signup/      회원가입 화면
 ├── app/(app)/       로그인 후 화면 (공통 탭 네비게이션 + 인증 가드)
 │   ├── policy/          정책비교
 │   ├── savings/         저축플랜
@@ -112,6 +113,7 @@ FastAPI 앱 진입점. 위 라우터들(`auth`, `tools`, `policy_matcher`)을 �
 
 ### `frontend/`
 - `app/login/page.tsx` — 로그인 화면 (로그인 성공 시 JWT를 `localStorage`에 저장, 로그인 후 `/policy`로 이동)
+- `app/signup/page.tsx` — 회원가입 화면 (이메일·비밀번호만 입력, 가입 성공 시 자동 로그인 후 `/policy`로 이동. 중복 이메일/이메일 형식 오류는 백엔드가 반환하는 메시지를 그대로 표시 — 프론트엔드 자체 검증은 아직 없음)
 - `app/(app)/layout.tsx` — 로그인 후 화면 공통 레이아웃: 탭 네비게이션 바 + 인증 가드(토큰 없으면 `/login`으로 리다이렉트) + 로그아웃 버튼
 - `app/(app)/policy/page.tsx` — 정책비교 폼 → `POST /tools/policy_matcher`
 - `app/(app)/savings/page.tsx` — 저축플랜 폼 → `POST /tools/savings_planner`
@@ -119,7 +121,7 @@ FastAPI 앱 진입점. 위 라우터들(`auth`, `tools`, `policy_matcher`)을 �
 - `app/(app)/cards/page.tsx` — 카드소비 리포트 폼 → `POST /tools/card_spending_report`
 - `app/(app)/recommendations/page.tsx` — 맞춤 추천 (프로필 미완성 시 입력 폼, 완성 시 추천 목록 + 수동 갱신 버튼)
 - `app/page.tsx` — 루트 접속 시 로그인 여부에 따라 `/policy` 또는 `/login`으로 리다이렉트
-- `lib/api.ts` — 백엔드 API 호출 함수: `login`(로그인), `callTool`(범용 `/tools/{name}` 호출 — 정책비교/저축플랜/구독료/카드소비 탭이 공유), `getMe`/`updateProfile`/`getRecommendations`/`refreshRecommendations`(추천 탭 전용)
+- `lib/api.ts` — 백엔드 API 호출 함수: `login`/`signup`(로그인/회원가입), `callTool`(범용 `/tools/{name}` 호출 — 정책비교/저축플랜/구독료/카드소비 탭이 공유), `getMe`/`updateProfile`/`getRecommendations`/`refreshRecommendations`(추천 탭 전용)
 
 ### `docs/superpowers/`
 - `specs/` — 설계 문서 (플랫폼 아키텍처 결정 사항)
@@ -167,7 +169,7 @@ FastAPI 앱 진입점. 위 라우터들(`auth`, `tools`, `policy_matcher`)을 �
 
 - SQLite 파일(`backend/app.db`)은 컨테이너 파일시스템에 저장되므로 재배포/재시작 시 초기화될 수 있습니다. 데모용으로는 문제없지만, 데이터를 유지하려면 Cloudtype의 디스크(볼륨) 기능을 별도로 연결해야 합니다.
 - 이 저장소를 먼저 사용해본 적이 있고 로컬에 기존 `backend/app.db` 파일이 남아있다면, `users` 테이블에 새 컬럼(age/is_married/annual_income_krw/region)이 추가되었으므로 그 파일을 삭제하고 다시 실행하세요 (`Base.metadata.create_all`은 기존 테이블에 컬럼을 추가해주지 않습니다). Cloudtype 배포는 컨테이너가 재시작되면 SQLite 파일 자체가 초기화되는 경우가 많아 보통 문제되지 않습니다.
-- 프론트엔드에 회원가입 화면이 없으므로, 최초 계정은 배포된 백엔드의 `/docs`(Swagger UI)에서 `POST /auth/signup`을 호출해 만들어야 합니다.
+- 배포된 프론트엔드의 `/signup`에서 계정을 만들 수 있습니다. SQLite가 재배포/재시작 시 초기화되므로, 재배포 후에는 기존 계정도 다시 만들어야 합니다.
 
 ## policy_matcher — 온통청년 API 키 발급
 
@@ -191,4 +193,4 @@ FastAPI 앱 진입점. 위 라우터들(`auth`, `tools`, `policy_matcher`)을 �
 
 - policy_matcher를 제외한 3개 기능(savings_planner, subscription_report, card_spending_report)의 실제 공공데이터·은행 API 연동, 실제 판단/배분 알고리즘
 - apibazzar.com에 기능을 block으로 등록하는 연동
-- 프론트엔드 회원가입 화면
+- 회원가입 폼의 이메일 형식·중복 검사 등 프론트엔드 자체 유효성 검사 (현재는 백엔드 에러 메시지를 그대로 노출)
