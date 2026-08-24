@@ -1,0 +1,54 @@
+name: Deploy backend to Cloudtype
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy-backend.yml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Connect deploy key
+        uses: cloudtype-github-actions/connect@v1
+        with:
+          token: ${{ secrets.CLOUDTYPE_TOKEN }}
+          ghtoken: ${{ secrets.GHP_TOKEN }}
+      - name: Deploy
+        uses: cloudtype-github-actions/deploy@v1
+        with:
+          token: ${{ secrets.CLOUDTYPE_TOKEN }}
+          project: junpyocoin/2026-finance-ai
+          stage: main
+          yaml: >
+            name: finance-ai-challenge
+
+            app: python@3.12
+
+            options:
+              ports: "8000"
+              start: uvicorn app.main:app --host=0.0.0.0 --port=8000
+              install: pip install -r requirements.txt
+              env:
+                - name: JWT_SECRET
+                  value: ${{ secrets.JWT_SECRET }}
+                - name: LLM_PROVIDER
+                  value: claude
+                - name: CLAUDE_MODEL
+                  value: claude-sonnet-5
+                - name: OPENAI_MODEL
+                  value: gpt-4o
+                - name: CORS_ORIGINS
+                  value: https://port-next-finance-ai-challenge-front-mt6h85e80eba0f7f.sel3.cloudtype.app
+                - name: YOUTH_CENTER_API_KEY
+                  value: ${{ secrets.YOUTH_CENTER_API_KEY }}
+              buildenv: []
+            context:
+              git:
+                url: git@github.com:${{ github.repository }}.git
+                ref: ${{ github.ref }}
