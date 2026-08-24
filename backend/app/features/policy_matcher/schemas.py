@@ -38,3 +38,29 @@ class RecommendationListResponse(BaseModel):
 
 class RefreshResponse(BaseModel):
     created: int
+
+
+class PolicyBrowseItem(BaseModel):
+    policy_name: str
+    benefit_description: str
+    application_period: str
+    reference_url: str
+    large_category: str
+    status: str
+    status_emoji: str
+
+
+class PolicyBrowseResponse(BaseModel):
+    items: list[PolicyBrowseItem]
+    total: int
+    page: int
+    page_size: int
+
+
+class PolicyCategoryItem(BaseModel):
+    name: str
+    count: int
+
+
+class PolicyCategoryListResponse(BaseModel):
+    categories: list[PolicyCategoryItem]
