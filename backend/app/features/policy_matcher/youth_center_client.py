@@ -51,6 +51,7 @@ def _parse_youth_policy_json(payload: dict) -> list[RawYouthPolicy]:
     items = payload.get("result", {}).get("youthPolicyList", [])
     policies = []
     for item in items:
+        apply_start_ymd, apply_end_ymd = _split_apply_period(item.get("aplyYmd") or "")
         policies.append(
             RawYouthPolicy(
                 policy_id=item.get("plcyNo") or "",
@@ -66,8 +67,8 @@ def _parse_youth_policy_json(payload: dict) -> list[RawYouthPolicy]:
                 region_code=item.get("zipCd") or "",
                 large_category=item.get("lclsfNm") or "",
                 mid_category=item.get("mclsfNm") or "",
-                apply_start_ymd=_ymd_or_none(item.get("bizPrdBgngYmd")),
-                apply_end_ymd=_ymd_or_none(item.get("bizPrdEndYmd")),
+                apply_start_ymd=apply_start_ymd,
+                apply_end_ymd=apply_end_ymd,
             )
         )
     return policies
@@ -83,12 +84,21 @@ def _bounded_int_or_none(value: str | None) -> int | None:
     return parsed if parsed > 0 else None
 
 
-def _ymd_or_none(value: str | None) -> str | None:
-    # bizPrdBgngYmd/bizPrdEndYmd는 상시/연중 정책이면 공백 8칸("        ")으로 온다.
-    if not value:
-        return None
-    stripped = value.strip()
-    return stripped if len(stripped) == 8 and stripped.isdigit() else None
+def _split_apply_period(aply_ymd: str) -> tuple[str | None, str | None]:
+    # 상태 배지(임박/여유/상시/예정/만료)는 "신청기간"(aplyYmd) 기준으로 계산해야
+    # 한다. bizPrdBgngYmd/bizPrdEndYmd는 "사업기간"(정책 전체 운영기간)이라 신청
+    # 마감일과 다른 경우가 흔해서 — 실측 사례로, 신청기간은 이미 끝났는데
+    # (aplyYmd="20260501 ~ 20260619") 사업기간은 한참 남아있어서(~20270630)
+    # bizPrd* 기준으로 계산하면 "여유"로 잘못 표시됐다. aplyYmd가 "YYYYMMDD ~
+    # YYYYMMDD" 형식이 아니면(빈 문자열 등 — 상시/연중) (None, None)을 반환한다.
+    if "~" not in aply_ymd:
+        return None, None
+    start_raw, _, end_raw = aply_ymd.partition("~")
+    start = start_raw.strip()
+    end = end_raw.strip()
+    if len(start) == 8 and start.isdigit() and len(end) == 8 and end.isdigit():
+        return start, end
+    return None, None
 
 
 def fetch_all_policies() -> list[RawYouthPolicy]:

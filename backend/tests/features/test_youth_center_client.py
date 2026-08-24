@@ -155,6 +155,28 @@ def test_parse_youth_policy_json_treats_blank_period_as_none():
     assert second.apply_end_ymd is None
 
 
+def test_parse_youth_policy_json_uses_aplyYmd_not_bizPrd_for_status_dates():
+    # 실측 버그: 신청기간(aplyYmd)은 이미 끝났는데 사업기간(bizPrdBgngYmd/EndYmd)은
+    # 한참 남아있는 정책이 실제로 있었다 — apply_start/end_ymd는 반드시 aplyYmd에서
+    # 파싱해야 하고, bizPrd* 값을 쓰면 안 된다.
+    payload = {
+        "result": {
+            "youthPolicyList": [
+                {
+                    "plcyNo": "P999",
+                    "plcyNm": "신청기간과 사업기간이 다른 정책",
+                    "aplyYmd": "20260501 ~ 20260619",
+                    "bizPrdBgngYmd": "20260701",
+                    "bizPrdEndYmd": "20270630",
+                }
+            ]
+        }
+    }
+    policy = _parse_youth_policy_json(payload)[0]
+    assert policy.apply_start_ymd == "20260501"
+    assert policy.apply_end_ymd == "20260619"
+
+
 def test_fetch_all_policies_requests_a_large_page_size(monkeypatch):
     from app.features.policy_matcher import youth_center_client
 
