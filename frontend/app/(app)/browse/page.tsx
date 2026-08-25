@@ -92,34 +92,6 @@ export default function BrowsePage() {
         <p>조건 입력 없이 전체 정책을 카테고리별로 둘러보세요.</p>
       </div>
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
-        <button
-          className="btn-ghost"
-          onClick={() => handleSelectCategory(null)}
-          style={{
-            borderRadius: 999,
-            background: selectedCategory === null ? "var(--primary-tint)" : undefined,
-            color: selectedCategory === null ? "var(--primary)" : undefined,
-          }}
-        >
-          전체
-        </button>
-        {categories.map((c) => (
-          <button
-            key={c.name}
-            className="btn-ghost"
-            onClick={() => handleSelectCategory(c.name)}
-            style={{
-              borderRadius: 999,
-              background: selectedCategory === c.name ? "var(--primary-tint)" : undefined,
-              color: selectedCategory === c.name ? "var(--primary)" : undefined,
-            }}
-          >
-            {c.name} ({c.count})
-          </button>
-        ))}
-      </div>
-
       <span className="field-label" style={{ display: "block" }}>
         지역
       </span>
@@ -147,6 +119,34 @@ export default function BrowsePage() {
             }}
           >
             {r}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
+        <button
+          className="btn-ghost"
+          onClick={() => handleSelectCategory(null)}
+          style={{
+            borderRadius: 999,
+            background: selectedCategory === null ? "var(--primary-tint)" : undefined,
+            color: selectedCategory === null ? "var(--primary)" : undefined,
+          }}
+        >
+          전체
+        </button>
+        {categories.map((c) => (
+          <button
+            key={c.name}
+            className="btn-ghost"
+            onClick={() => handleSelectCategory(c.name)}
+            style={{
+              borderRadius: 999,
+              background: selectedCategory === c.name ? "var(--primary-tint)" : undefined,
+              color: selectedCategory === c.name ? "var(--primary)" : undefined,
+            }}
+          >
+            {c.name} ({c.count})
           </button>
         ))}
       </div>
