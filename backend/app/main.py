@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -49,4 +50,5 @@ app.include_router(policy_chat_router, prefix="/policy_chat", tags=["policy_chat
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    db_url = urlsplit(settings.database_url)
+    return {"status": "ok", "db_scheme": db_url.scheme, "db_host": db_url.hostname}
