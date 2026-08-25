@@ -20,6 +20,8 @@ class PolicyChatSearchOption(BaseModel):
     application_period: str
     reference_url: str
     is_newlywed_policy: bool
+    status: str
+    status_emoji: str
 
 
 class PolicyChatSearchOutput(BaseModel):

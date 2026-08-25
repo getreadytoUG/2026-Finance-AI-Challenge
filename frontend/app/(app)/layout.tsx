@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { getRecommendations, isTokenExpired } from "@/lib/api";
+import ChatWidget from "@/components/ChatWidget";
 
 const TABS = [
   { href: "/policy", label: "금융 정책 추천", icon: "🏛️" },
@@ -135,9 +136,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </button>
         </div>
       </header>
-      <div className={pathname === "/policy" ? "page page-wide" : "page"} style={{ paddingTop: 32 }}>
+      <div className="page" style={{ paddingTop: 32 }}>
         {children}
       </div>
+      <ChatWidget />
     </div>
   );
 }

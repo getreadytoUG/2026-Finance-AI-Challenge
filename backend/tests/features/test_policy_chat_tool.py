@@ -90,6 +90,23 @@ def test_run_sorts_newlywed_policies_first_when_married(monkeypatch):
     assert names == ["신혼부부 전세자금 대출", "일반 대출"]
 
 
+def test_run_excludes_expired_policy(monkeypatch):
+    monkeypatch.setattr(
+        tool,
+        "fetch_all_policies",
+        lambda: [_policy(policy_name="마감된 정책", apply_start_ymd="20200101", apply_end_ymd="20200201")],
+    )
+    result = run(PolicyChatSearchInput(), CTX)
+    assert result.options == []
+
+
+def test_run_includes_status_and_emoji_on_options(monkeypatch):
+    monkeypatch.setattr(tool, "fetch_all_policies", lambda: [_policy()])
+    result = run(PolicyChatSearchInput(), CTX)
+    assert result.options[0].status == "상시"
+    assert result.options[0].status_emoji == "🟢"
+
+
 def test_run_caps_results_at_max(monkeypatch):
     monkeypatch.setattr(
         tool, "fetch_all_policies", lambda: [_policy(policy_id=str(i), policy_name=f"정책{i}") for i in range(20)]

@@ -60,25 +60,6 @@ a {
   padding: 0 20px 64px;
 }
 
-/* 챗봇처럼 두 컬럼이 나란히 필요한 페이지 전용 — 기본 .page(720px)는 그대로 두고
-   이 클래스가 붙은 페이지에서만 폭을 넓힌다. */
-.page-wide {
-  max-width: 1100px;
-}
-
-.two-column {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-  align-items: start;
-}
-
-@media (max-width: 860px) {
-  .two-column {
-    grid-template-columns: 1fr;
-  }
-}
-
 .nav-bar {
   width: 100%;
   max-width: 1200px;
@@ -291,7 +272,79 @@ a {
 .chat-panel {
   display: flex;
   flex-direction: column;
-  height: 640px;
+  height: 520px;
+  max-height: calc(100vh - 140px);
+}
+
+.chat-widget-launcher {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 50;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #ffffff;
+  border: none;
+  box-shadow: var(--shadow);
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.chat-widget-launcher:hover {
+  transform: scale(1.08);
+  background: var(--primary-dark);
+}
+
+.chat-widget-tooltip {
+  position: fixed;
+  bottom: 34px;
+  right: 90px;
+  z-index: 50;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  box-shadow: var(--shadow);
+  opacity: 0;
+  transform: translateX(6px);
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  white-space: nowrap;
+}
+
+.chat-widget-launcher:hover + .chat-widget-tooltip {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.chat-widget-panel {
+  position: fixed;
+  bottom: 92px;
+  right: 24px;
+  z-index: 50;
+  width: 380px;
+  max-width: calc(100vw - 48px);
+  animation: chat-widget-in 0.18s ease-out;
+}
+
+@keyframes chat-widget-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .chat-message-list {
@@ -299,30 +352,53 @@ a {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
   padding-right: 4px;
 }
 
+.chat-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  animation: chat-bubble-in 0.18s ease-out;
+}
+
+.chat-row-user {
+  flex-direction: row-reverse;
+}
+
+.chat-avatar {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--primary-tint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+}
+
 .chat-bubble {
-  max-width: 85%;
+  max-width: 100%;
   padding: 10px 14px;
-  border-radius: var(--radius-sm);
+  border-radius: 16px;
   font-size: 14px;
   line-height: 1.5;
   white-space: pre-wrap;
 }
 
 .chat-bubble-user {
-  align-self: flex-end;
   background: var(--primary);
   color: #ffffff;
+  border-bottom-right-radius: 4px;
 }
 
 .chat-bubble-assistant {
-  align-self: flex-start;
   background: var(--bg);
   color: var(--text);
   border: 1px solid var(--border);
+  border-bottom-left-radius: 4px;
 }
 
 .chat-policy-card {
@@ -330,4 +406,52 @@ a {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 10px 12px;
+  animation: chat-bubble-in 0.18s ease-out;
+}
+
+.chat-typing {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 14px;
+}
+
+.chat-typing span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  animation: chat-typing-bounce 1s infinite ease-in-out;
+}
+
+.chat-typing span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.chat-typing span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes chat-typing-bounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+@keyframes chat-bubble-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

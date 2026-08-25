@@ -1,6 +1,7 @@
 from app.features.policy_chat.schemas import PolicyChatSearchInput, PolicyChatSearchOption, PolicyChatSearchOutput
 from app.features.policy_matcher.categories import FINANCIAL_LARGE_CATEGORY, category_tags
 from app.features.policy_matcher.matching import is_newlywed_policy, region_matches
+from app.features.policy_matcher.status import compute_policy_status, today_kst
 from app.features.policy_matcher.youth_center_client import RawYouthPolicy, fetch_all_policies
 from app.tools.base import ToolContext, ToolSpec
 
@@ -37,25 +38,36 @@ def _matches(policy: RawYouthPolicy, input: PolicyChatSearchInput) -> bool:
 
 
 def run(input: PolicyChatSearchInput, ctx: ToolContext) -> PolicyChatSearchOutput:
+    today = today_kst()
     policies = fetch_all_policies()
     financial_policies = [
         policy for policy in policies if FINANCIAL_LARGE_CATEGORY in category_tags(policy.large_category)
     ]
     matched = [policy for policy in financial_policies if _matches(policy, input)]
+    # 마감된 정책을 챗봇이 추천하면 혼란만 준다 — "정책 읽기" 탭 기본값과 동일하게 제외.
+    matched = [
+        policy
+        for policy in matched
+        if compute_policy_status(policy.apply_start_ymd, policy.apply_end_ymd, today)[0] != "만료"
+    ]
     if input.is_married:
         matched.sort(key=lambda policy: not is_newlywed_policy(policy))
     matched = matched[:MAX_RESULTS]
 
-    options = [
-        PolicyChatSearchOption(
-            policy_name=policy.policy_name,
-            benefit_description=policy.description,
-            application_period=policy.application_period,
-            reference_url=policy.apply_url,
-            is_newlywed_policy=is_newlywed_policy(policy),
+    options = []
+    for policy in matched:
+        status, status_emoji = compute_policy_status(policy.apply_start_ymd, policy.apply_end_ymd, today)
+        options.append(
+            PolicyChatSearchOption(
+                policy_name=policy.policy_name,
+                benefit_description=policy.description,
+                application_period=policy.application_period,
+                reference_url=policy.apply_url,
+                is_newlywed_policy=is_newlywed_policy(policy),
+                status=status,
+                status_emoji=status_emoji,
+            )
         )
-        for policy in matched
-    ]
     return PolicyChatSearchOutput(options=options)
 
 

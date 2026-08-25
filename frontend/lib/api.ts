@@ -232,6 +232,8 @@ export type PolicyChatOption = {
   application_period: string;
   reference_url: string;
   is_newlywed_policy: boolean;
+  status: string;
+  status_emoji: string;
 };
 
 export type PolicyChatMessage = { role: "user" | "assistant"; content: string };
