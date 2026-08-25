@@ -48,12 +48,34 @@ def authenticate_user(db: Session, email: str, password: str) -> User | None:
 
 # 배포마다 SQLite가 초기화되는 문제 때문에 매번 회원가입부터 다시 해야 하는 게
 # 번거로워서 만든 고정 데모 계정. 민감한 실서비스 계정이 아니라 데모 편의용이라
-# 자격증명을 그대로 코드에 둔다 — 이미 있으면 아무것도 안 한다(idempotent).
+# 자격증명을 그대로 코드에 둔다.
 DEMO_USER_EMAIL = "test@naver.com"
 DEMO_USER_PASSWORD = "test123!"
+DEMO_USER_AGE = 29
+DEMO_USER_IS_MARRIED = False
+DEMO_USER_ANNUAL_INCOME_KRW = 48_000_000
+DEMO_USER_REGION = "서울"
 
 
 def seed_demo_user(db: Session) -> None:
-    if db.query(User.id).filter(User.email == DEMO_USER_EMAIL).first() is not None:
+    user = db.query(User).filter(User.email == DEMO_USER_EMAIL).first()
+    if user is None:
+        user = create_user(
+            db,
+            DEMO_USER_EMAIL,
+            DEMO_USER_PASSWORD,
+            age=DEMO_USER_AGE,
+            is_married=DEMO_USER_IS_MARRIED,
+            annual_income_krw=DEMO_USER_ANNUAL_INCOME_KRW,
+            region=DEMO_USER_REGION,
+        )
         return
-    create_user(db, DEMO_USER_EMAIL, DEMO_USER_PASSWORD)
+    # 이미 있는 데모 계정이라도(예: 이 프로필 필드가 생기기 전에 만들어진 계정)
+    # 기본 프로필이 비어있으면 채워 넣는다 — 재배포로 새로 만들어질 때뿐 아니라
+    # 이미 떠 있는 인스턴스에서도 항상 이 프로필로 로그인되게 하기 위함.
+    if user.age is None:
+        user.age = DEMO_USER_AGE
+        user.is_married = DEMO_USER_IS_MARRIED
+        user.annual_income_krw = DEMO_USER_ANNUAL_INCOME_KRW
+        user.region = DEMO_USER_REGION
+        db.commit()
