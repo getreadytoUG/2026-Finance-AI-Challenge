@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { getRecommendations } from "@/lib/api";
+import { getRecommendations, isTokenExpired } from "@/lib/api";
 
 const TABS = [
   { href: "/policy", label: "금융 정책 추천", icon: "🏛️" },
@@ -19,7 +19,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    if (!localStorage.getItem("token")) {
+    const token = localStorage.getItem("token");
+    if (!token || isTokenExpired(token)) {
+      localStorage.removeItem("token");
       router.push("/login");
       return;
     }

@@ -44,6 +44,9 @@ export async function callTool<TOutput>(
     },
     body: JSON.stringify(input),
   });
+  if (res.status === 401) {
+    handleUnauthorized();
+  }
   if (!res.ok) {
     let detail = "요청이 실패했습니다.";
     try {
@@ -88,6 +91,23 @@ type RecommendationListResponse = {
   unread_count: number;
 };
 
+export function isTokenExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    if (typeof payload.exp !== "number") return false;
+    return Date.now() >= payload.exp * 1000;
+  } catch {
+    return true;
+  }
+}
+
+function handleUnauthorized() {
+  localStorage.removeItem("token");
+  if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+    window.location.href = "/login";
+  }
+}
+
 async function authedFetch(path: string, token: string, options: RequestInit = {}): Promise<Response> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
@@ -97,6 +117,9 @@ async function authedFetch(path: string, token: string, options: RequestInit = {
       ...options.headers,
     },
   });
+  if (res.status === 401) {
+    handleUnauthorized();
+  }
   if (!res.ok) {
     let detail = "요청이 실패했습니다.";
     try {
