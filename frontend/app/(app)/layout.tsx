@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { getRecommendations } from "@/lib/api";
+import { getRecommendations, isTokenExpired } from "@/lib/api";
+import ChatWidget from "@/components/ChatWidget";
 
 const TABS = [
   { href: "/policy", label: "금융 정책 추천", icon: "🏛️" },
@@ -19,7 +20,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    if (!localStorage.getItem("token")) {
+    const token = localStorage.getItem("token");
+    if (!token || isTokenExpired(token)) {
+      localStorage.removeItem("token");
       router.push("/login");
       return;
     }
@@ -116,6 +119,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               );
             })}
           </nav>
+          <Link
+            href="/profile"
+            className="btn-ghost"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              borderRadius: "var(--radius-sm)",
+              color: pathname === "/profile" ? "var(--primary)" : undefined,
+            }}
+          >
+            내 정보
+          </Link>
           <button className="btn btn-ghost" onClick={handleLogout}>
             로그아웃
           </button>
@@ -124,6 +139,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="page" style={{ paddingTop: 32 }}>
         {children}
       </div>
+      <ChatWidget />
     </div>
   );
 }

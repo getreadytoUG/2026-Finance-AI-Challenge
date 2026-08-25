@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { callTool, getRegions } from "@/lib/api";
+import { callTool, getMe, getRegions } from "@/lib/api";
 import Pagination from "@/components/Pagination";
+import { krwToManwon, manwonToKrw } from "@/lib/profileOptions";
 
 type PolicyOption = {
   policy_name: string;
   benefit_description: string;
   application_period: string;
   reference_url: string;
+  is_newlywed_policy: boolean;
 };
 
 type PolicyMatchOutput = {
@@ -21,7 +23,8 @@ export default function PolicyPage() {
   const [regions, setRegions] = useState<string[]>([]);
   const [age, setAge] = useState("29");
   const [isMarried, setIsMarried] = useState(false);
-  const [income, setIncome] = useState("40000000");
+  const [income, setIncome] = useState("4000");
+  const [spouseIncome, setSpouseIncome] = useState("");
   const [region, setRegion] = useState<string | null>(null);
   const [result, setResult] = useState<PolicyMatchOutput | null>(null);
   const [page, setPage] = useState(1);
@@ -32,6 +35,16 @@ export default function PolicyPage() {
     const token = localStorage.getItem("token") ?? "";
     getRegions(token)
       .then((res) => setRegions(res.regions))
+      .catch(() => {});
+    // 내 정보에 저장된 값이 있으면 초기값으로 채워준다 — 이후 자유롭게 바꿔서 조회할 수 있다.
+    getMe(token)
+      .then((me) => {
+        if (me.age != null) setAge(String(me.age));
+        if (me.is_married != null) setIsMarried(me.is_married);
+        if (me.annual_income_krw != null) setIncome(String(krwToManwon(me.annual_income_krw)));
+        if (me.region != null) setRegion(me.region);
+        if (me.spouse_annual_income_krw != null) setSpouseIncome(String(krwToManwon(me.spouse_annual_income_krw)));
+      })
       .catch(() => {});
   }, []);
 
@@ -47,7 +60,8 @@ export default function PolicyPage() {
       const output = await callTool<PolicyMatchOutput>(token, "policy_matcher", {
         age: Number(age),
         is_married: isMarried,
-        annual_income_krw: Number(income),
+        annual_income_krw: manwonToKrw(Number(income)),
+        spouse_annual_income_krw: isMarried && spouseIncome ? manwonToKrw(Number(spouseIncome)) : null,
         region,
       });
       setResult(output);
@@ -79,9 +93,21 @@ export default function PolicyPage() {
             기혼
           </label>
           <label className="field">
-            <span className="field-label">연소득 (원)</span>
+            <span className="field-label">연소득 (만원)</span>
             <input className="input" type="number" value={income} onChange={(e) => setIncome(e.target.value)} />
           </label>
+          {isMarried && (
+            <label className="field">
+              <span className="field-label">배우자 연소득 (만원, 선택)</span>
+              <input
+                className="input"
+                type="number"
+                value={spouseIncome}
+                onChange={(e) => setSpouseIncome(e.target.value)}
+                placeholder="입력하면 가구소득(본인+배우자) 합산 기준으로 조회해요"
+              />
+            </label>
+          )}
           <label className="field-label" style={{ display: "block" }}>
             지역
           </label>
@@ -118,7 +144,14 @@ export default function PolicyPage() {
             <div className="result-list">
               {pageOptions.map((option, i) => (
                 <div key={i} className="result-item">
-                  <div className="result-item-title">{option.policy_name}</div>
+                  <div className="result-item-title">
+                    {option.is_newlywed_policy && (
+                      <span className="badge badge-success" style={{ marginRight: 8 }}>
+                        💍 신혼부부
+                      </span>
+                    )}
+                    {option.policy_name}
+                  </div>
                   <div className="result-item-row">
                     <span>지원 내용</span>
                     <span>{option.benefit_description}</span>

@@ -119,6 +119,62 @@ def test_run_includes_financial_policy_tagged_with_multiple_large_categories(mon
     assert result.options[0].policy_name == "복합 태그 정책"
 
 
+def test_run_sorts_newlywed_policies_first_when_married(monkeypatch):
+    monkeypatch.setattr(
+        tool,
+        "fetch_all_policies",
+        lambda: [
+            _policy(policy_name="일반 청년 대출"),
+            _policy(policy_name="신혼부부 전세자금 대출"),
+            _policy(policy_name="또 다른 일반 정책"),
+        ],
+    )
+    result = run(PolicyMatchInput(age=29, is_married=True, annual_income_krw=40_000_000, region="서울"), CTX)
+    names = [o.policy_name for o in result.options]
+    assert names == ["신혼부부 전세자금 대출", "일반 청년 대출", "또 다른 일반 정책"]
+
+
+def test_run_does_not_reorder_when_not_married(monkeypatch):
+    monkeypatch.setattr(
+        tool,
+        "fetch_all_policies",
+        lambda: [
+            _policy(policy_name="일반 청년 대출"),
+            _policy(policy_name="신혼부부 전세자금 대출"),
+        ],
+    )
+    result = run(PolicyMatchInput(age=29, is_married=False, annual_income_krw=40_000_000, region="서울"), CTX)
+    names = [o.policy_name for o in result.options]
+    assert names == ["일반 청년 대출", "신혼부부 전세자금 대출"]
+
+
+def test_run_marks_is_newlywed_policy_flag_on_options(monkeypatch):
+    monkeypatch.setattr(
+        tool,
+        "fetch_all_policies",
+        lambda: [_policy(policy_name="신혼부부 전세자금 대출"), _policy(policy_name="일반 청년 대출")],
+    )
+    result = run(PolicyMatchInput(age=29, is_married=True, annual_income_krw=40_000_000, region="서울"), CTX)
+    flags = {o.policy_name: o.is_newlywed_policy for o in result.options}
+    assert flags["신혼부부 전세자금 대출"] is True
+    assert flags["일반 청년 대출"] is False
+
+
+def test_run_uses_combined_household_income_when_spouse_income_given(monkeypatch):
+    monkeypatch.setattr(tool, "fetch_all_policies", lambda: [_policy(max_income_krw=50_000_000)])
+    result = run(
+        PolicyMatchInput(
+            age=29,
+            is_married=True,
+            annual_income_krw=40_000_000,
+            region="서울",
+            spouse_annual_income_krw=20_000_000,
+        ),
+        CTX,
+    )
+    assert result.options == []
+
+
 def test_run_maps_policy_fields_into_output_option(monkeypatch):
     monkeypatch.setattr(
         tool,

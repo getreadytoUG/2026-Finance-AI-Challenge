@@ -16,7 +16,19 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 @router.post("/signup", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 def signup(payload: SignupRequest, db: Session = Depends(get_db)):
     try:
-        user = service.create_user(db, payload.email, payload.password)
+        user = service.create_user(
+            db,
+            payload.email,
+            payload.password,
+            age=payload.age,
+            is_married=payload.is_married,
+            annual_income_krw=payload.annual_income_krw,
+            region=payload.region,
+            occupation=payload.occupation,
+            spouse_age=payload.spouse_age,
+            spouse_annual_income_krw=payload.spouse_annual_income_krw,
+            spouse_occupation=payload.spouse_occupation,
+        )
     except ValueError as e:
         print(f"[ERROR] /auth/signup failed for email={payload.email!r}: {e}")
         raise HTTPException(status_code=400, detail=str(e))
@@ -64,6 +76,10 @@ def update_profile(
     current_user.is_married = payload.is_married
     current_user.annual_income_krw = payload.annual_income_krw
     current_user.region = payload.region
+    current_user.occupation = payload.occupation
+    current_user.spouse_age = payload.spouse_age
+    current_user.spouse_annual_income_krw = payload.spouse_annual_income_krw
+    current_user.spouse_occupation = payload.spouse_occupation
     db.commit()
     db.refresh(current_user)
     return current_user

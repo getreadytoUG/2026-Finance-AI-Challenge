@@ -4,7 +4,18 @@ from app.features.policy_matcher.youth_center_client import RawYouthPolicy
 
 
 def _signup_and_login(client, email="tools-user@example.com"):
-    client.post("/auth/signup", json={"email": email, "password": "secret123"})
+    client.post(
+        "/auth/signup",
+        json={
+            "email": email,
+            "password": "secret123",
+            "age": 29,
+            "is_married": False,
+            "annual_income_krw": 40_000_000,
+            "region": "서울",
+            "occupation": "employee",
+        },
+    )
     login = client.post("/auth/login", json={"email": email, "password": "secret123"})
     return login.json()["access_token"]
 
@@ -63,6 +74,7 @@ def test_all_feature_tools_are_registered(client):
 
     assert {s.name for s in registry.all()} == {
         "policy_matcher",
+        "policy_chat_search",
         "savings_planner",
         "subscription_report",
         "card_spending_report",

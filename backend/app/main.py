@@ -9,6 +9,7 @@ from app.auth.service import seed_demo_user
 from app.core.config import settings
 from app.core.db import Base, SessionLocal, engine
 from app.features import register_all_tools
+from app.features.policy_chat.router import router as policy_chat_router
 from app.features.policy_matcher.cache import seed_policy_cache_if_empty
 from app.features.policy_matcher.models import PolicyRecommendation  # noqa: F401
 from app.features.policy_matcher.recommender import register_daily_recommendation_job, scheduler
@@ -45,6 +46,7 @@ app.add_middleware(
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(tools_router, prefix="/tools", tags=["tools"])
 app.include_router(policy_matcher_router, prefix="/policy_matcher", tags=["policy_matcher"])
+app.include_router(policy_chat_router, prefix="/policy_chat", tags=["policy_chat"])
 
 
 @app.get("/health")

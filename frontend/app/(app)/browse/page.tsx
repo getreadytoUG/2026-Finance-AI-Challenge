@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { browsePolicies, getPolicyCategories } from "@/lib/api";
 import type { PolicyBrowseItem, PolicyCategory } from "@/lib/api";
 import Pagination from "@/components/Pagination";
+import { REGIONS } from "@/lib/profileOptions";
 
 const PAGE_SIZE = 10;
 
@@ -33,6 +34,7 @@ function StatusDot({ status }: { status: string }) {
 export default function BrowsePage() {
   const [categories, setCategories] = useState<PolicyCategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const [items, setItems] = useState<PolicyBrowseItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -42,26 +44,37 @@ export default function BrowsePage() {
 
   useEffect(() => {
     const token = localStorage.getItem("token") ?? "";
-    getPolicyCategories(token, { includeClosed })
+    getPolicyCategories(token, { region: selectedRegion ?? undefined, includeClosed })
       .then((res) => setCategories(res.categories))
       .catch(() => {});
-  }, [includeClosed]);
+  }, [selectedRegion, includeClosed]);
 
   useEffect(() => {
     const token = localStorage.getItem("token") ?? "";
     setLoading(true);
     setError(null);
-    browsePolicies(token, { category: selectedCategory ?? undefined, page, pageSize: PAGE_SIZE, includeClosed })
+    browsePolicies(token, {
+      category: selectedCategory ?? undefined,
+      region: selectedRegion ?? undefined,
+      page,
+      pageSize: PAGE_SIZE,
+      includeClosed,
+    })
       .then((res) => {
         setItems(res.items);
         setTotal(res.total);
       })
       .catch((err) => setError(err instanceof Error ? err.message : "정책을 불러오지 못했습니다."))
       .finally(() => setLoading(false));
-  }, [selectedCategory, page, includeClosed]);
+  }, [selectedCategory, selectedRegion, page, includeClosed]);
 
   function handleSelectCategory(name: string | null) {
     setSelectedCategory(name);
+    setPage(1);
+  }
+
+  function handleSelectRegion(name: string | null) {
+    setSelectedRegion(name);
     setPage(1);
   }
 
@@ -77,6 +90,37 @@ export default function BrowsePage() {
       <div className="page-header">
         <h1>📖 정책 읽기</h1>
         <p>조건 입력 없이 전체 정책을 카테고리별로 둘러보세요.</p>
+      </div>
+
+      <span className="field-label" style={{ display: "block" }}>
+        지역
+      </span>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
+        <button
+          className="btn-ghost"
+          onClick={() => handleSelectRegion(null)}
+          style={{
+            borderRadius: 999,
+            background: selectedRegion === null ? "var(--primary-tint)" : undefined,
+            color: selectedRegion === null ? "var(--primary)" : undefined,
+          }}
+        >
+          전체
+        </button>
+        {REGIONS.map((r) => (
+          <button
+            key={r}
+            className="btn-ghost"
+            onClick={() => handleSelectRegion(r)}
+            style={{
+              borderRadius: 999,
+              background: selectedRegion === r ? "var(--primary-tint)" : undefined,
+              color: selectedRegion === r ? "var(--primary)" : undefined,
+            }}
+          >
+            {r}
+          </button>
+        ))}
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>

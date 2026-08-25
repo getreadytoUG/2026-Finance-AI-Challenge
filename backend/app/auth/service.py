@@ -4,11 +4,35 @@ from app.auth.models import User
 from app.core.security import hash_password, verify_password
 
 
-def create_user(db: Session, email: str, password: str) -> User:
+def create_user(
+    db: Session,
+    email: str,
+    password: str,
+    *,
+    age: int | None = None,
+    is_married: bool | None = None,
+    annual_income_krw: int | None = None,
+    region: str | None = None,
+    occupation: str | None = None,
+    spouse_age: int | None = None,
+    spouse_annual_income_krw: int | None = None,
+    spouse_occupation: str | None = None,
+) -> User:
     existing = db.query(User).filter(User.email == email).first()
     if existing is not None:
         raise ValueError("Email already registered")
-    user = User(email=email, hashed_password=hash_password(password))
+    user = User(
+        email=email,
+        hashed_password=hash_password(password),
+        age=age,
+        is_married=is_married,
+        annual_income_krw=annual_income_krw,
+        region=region,
+        occupation=occupation,
+        spouse_age=spouse_age,
+        spouse_annual_income_krw=spouse_annual_income_krw,
+        spouse_occupation=spouse_occupation,
+    )
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -24,12 +48,51 @@ def authenticate_user(db: Session, email: str, password: str) -> User | None:
 
 # 배포마다 SQLite가 초기화되는 문제 때문에 매번 회원가입부터 다시 해야 하는 게
 # 번거로워서 만든 고정 데모 계정. 민감한 실서비스 계정이 아니라 데모 편의용이라
-# 자격증명을 그대로 코드에 둔다 — 이미 있으면 아무것도 안 한다(idempotent).
+# 자격증명을 그대로 코드에 둔다.
 DEMO_USER_EMAIL = "test@naver.com"
 DEMO_USER_PASSWORD = "test123!"
+DEMO_USER_AGE = 29
+DEMO_USER_IS_MARRIED = False
+DEMO_USER_ANNUAL_INCOME_KRW = 48_000_000
+DEMO_USER_REGION = "서울"
+DEMO_USER_OCCUPATION = "employee"
 
 
 def seed_demo_user(db: Session) -> None:
-    if db.query(User.id).filter(User.email == DEMO_USER_EMAIL).first() is not None:
+    user = db.query(User).filter(User.email == DEMO_USER_EMAIL).first()
+    if user is None:
+        user = create_user(
+            db,
+            DEMO_USER_EMAIL,
+            DEMO_USER_PASSWORD,
+            age=DEMO_USER_AGE,
+            is_married=DEMO_USER_IS_MARRIED,
+            annual_income_krw=DEMO_USER_ANNUAL_INCOME_KRW,
+            region=DEMO_USER_REGION,
+            occupation=DEMO_USER_OCCUPATION,
+        )
         return
-    create_user(db, DEMO_USER_EMAIL, DEMO_USER_PASSWORD)
+    # 이미 있는 데모 계정이라도, 아직 안 채워진 필드는 채워 넣는다 — 재배포로 새로
+    # 만들어질 때뿐 아니라 이미 떠 있는 인스턴스에서도, 그리고 이 필드들이 하나씩
+    # 추가되던 과거 시점에 만들어진 계정에서도 항상 이 기본 프로필로 로그인되게
+    # 하기 위함. 필드별로 개별 확인하는 이유는, 사람이 "내 정보"에서 일부 값만
+    # 손으로 고친 계정이라도 나머지 빈 필드는 여전히 채워줘야 하기 때문이다 — 값이
+    # 이미 있는 필드는 절대 덮어쓰지 않는다.
+    changed = False
+    if user.age is None:
+        user.age = DEMO_USER_AGE
+        changed = True
+    if user.is_married is None:
+        user.is_married = DEMO_USER_IS_MARRIED
+        changed = True
+    if user.annual_income_krw is None:
+        user.annual_income_krw = DEMO_USER_ANNUAL_INCOME_KRW
+        changed = True
+    if user.region is None:
+        user.region = DEMO_USER_REGION
+        changed = True
+    if user.occupation is None:
+        user.occupation = DEMO_USER_OCCUPATION
+        changed = True
+    if changed:
+        db.commit()

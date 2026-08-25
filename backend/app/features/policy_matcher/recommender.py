@@ -7,7 +7,11 @@ from sqlalchemy.orm import Session
 from app.auth.models import User
 from app.core.db import SessionLocal
 from app.features.policy_matcher.cache import refresh_policy_cache
-from app.features.policy_matcher.matching import is_eligible
+from app.features.policy_matcher.matching import (
+    has_specific_eligibility_condition,
+    is_eligible,
+    is_likely_template_region_code,
+)
 from app.features.policy_matcher.models import PolicyRecommendation
 from app.features.policy_matcher.schemas import PolicyMatchInput
 from app.features.policy_matcher.youth_center_client import fetch_all_policies
@@ -33,6 +37,7 @@ def run_recommendation_batch_for_user(db: Session, user: User) -> int:
         is_married=user.is_married,
         annual_income_krw=user.annual_income_krw,
         region=user.region,
+        spouse_annual_income_krw=user.spouse_annual_income_krw,
     )
     # fetch_policies()의 기본 page_size(100)로는 전체 카탈로그(~2,700여 건) 중
     # 일부만 보게 되어 상당수 매칭을 놓친다 — 전체를 가져온다.
@@ -46,6 +51,10 @@ def run_recommendation_batch_for_user(db: Session, user: User) -> int:
     created = 0
     for policy in policies:
         if not is_eligible(policy, match_input):
+            continue
+        if not has_specific_eligibility_condition(policy):
+            continue
+        if is_likely_template_region_code(policy):
             continue
         policy_key = policy.policy_id or policy.policy_name
         if policy_key in existing_keys:

@@ -1,17 +1,24 @@
+from app.auth.service import create_user
+from app.core.security import create_access_token
 from app.features.policy_matcher import recommender
 from app.features.policy_matcher.youth_center_client import RawYouthPolicy
 
 
 def _signup_login_with_profile(client, email="router-user@example.com"):
-    client.post("/auth/signup", json={"email": email, "password": "secret123"})
-    login = client.post("/auth/login", json={"email": email, "password": "secret123"})
-    token = login.json()["access_token"]
-    client.put(
-        "/auth/profile",
-        json={"age": 29, "is_married": False, "annual_income_krw": 40_000_000, "region": "서울"},
-        headers={"Authorization": f"Bearer {token}"},
+    client.post(
+        "/auth/signup",
+        json={
+            "email": email,
+            "password": "secret123",
+            "age": 29,
+            "is_married": False,
+            "annual_income_krw": 40_000_000,
+            "region": "서울",
+            "occupation": "employee",
+        },
     )
-    return token
+    login = client.post("/auth/login", json={"email": email, "password": "secret123"})
+    return login.json()["access_token"]
 
 
 def _policy(**overrides) -> RawYouthPolicy:
@@ -21,8 +28,8 @@ def _policy(**overrides) -> RawYouthPolicy:
         description="지원 내용",
         apply_url="https://example.com",
         application_period="상시",
-        min_age=None,
-        max_age=None,
+        min_age=19,
+        max_age=39,
         min_income_krw=None,
         max_income_krw=None,
         marital_status="",
@@ -48,11 +55,12 @@ def test_refresh_creates_recommendations_for_eligible_policies(client, monkeypat
     assert response.json()["created"] == 1
 
 
-def test_refresh_returns_zero_when_profile_incomplete(client, monkeypatch):
+def test_refresh_returns_zero_when_profile_incomplete(client, db_session, monkeypatch):
     monkeypatch.setattr(recommender, "fetch_all_policies", lambda: [_policy()])
-    client.post("/auth/signup", json={"email": "incomplete@example.com", "password": "secret123"})
-    login = client.post("/auth/login", json={"email": "incomplete@example.com", "password": "secret123"})
-    token = login.json()["access_token"]
+    # 신규 회원가입은 이제 프로필을 항상 같이 받으므로, "프로필 미입력" 상태는
+    # (데모 계정처럼) signup 스키마를 거치지 않은 유저로만 재현할 수 있다.
+    user = create_user(db_session, "incomplete@example.com", "secret123")
+    token = create_access_token(subject=str(user.id))
     response = client.post(
         "/policy_matcher/recommendations/refresh",
         headers={"Authorization": f"Bearer {token}"},
