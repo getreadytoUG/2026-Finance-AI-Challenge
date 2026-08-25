@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signup, login } from "@/lib/api";
 import PasswordField from "@/components/PasswordField";
-import { OCCUPATION_OPTIONS, REGIONS, type OccupationType } from "@/lib/profileOptions";
+import { OCCUPATION_OPTIONS, REGIONS, manwonToKrw, type OccupationType } from "@/lib/profileOptions";
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
@@ -33,11 +33,11 @@ export default function SignupPage() {
         password,
         age: Number(age),
         is_married: isMarried,
-        annual_income_krw: Number(income),
+        annual_income_krw: manwonToKrw(Number(income)),
         region,
         occupation,
         spouse_age: isMarried && spouseAge ? Number(spouseAge) : null,
-        spouse_annual_income_krw: isMarried && spouseIncome ? Number(spouseIncome) : null,
+        spouse_annual_income_krw: isMarried && spouseIncome ? manwonToKrw(Number(spouseIncome)) : null,
         spouse_occupation: isMarried && spouseOccupation ? spouseOccupation : null,
       });
       const token = await login(email, password);
@@ -93,12 +93,12 @@ export default function SignupPage() {
             />
           </label>
           <label className="field">
-            <span className="field-label">연소득 (원)</span>
+            <span className="field-label">연소득 (만원)</span>
             <input
               className="input"
               type="number"
               min={0}
-              placeholder="40000000"
+              placeholder="4000"
               value={income}
               onChange={(e) => setIncome(e.target.value)}
               required
@@ -176,7 +176,7 @@ export default function SignupPage() {
                 />
               </label>
               <label className="field">
-                <span className="field-label">배우자 연소득 (원)</span>
+                <span className="field-label">배우자 연소득 (만원)</span>
                 <input
                   className="input"
                   type="number"

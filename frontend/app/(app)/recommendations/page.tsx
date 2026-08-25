@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { getMe, getRecommendations, markRecommendationRead, refreshRecommendations, updateProfile } from "@/lib/api";
 import type { Recommendation, UserProfile } from "@/lib/api";
-import { OCCUPATION_OPTIONS, type OccupationType } from "@/lib/profileOptions";
+import { OCCUPATION_OPTIONS, manwonToKrw, type OccupationType } from "@/lib/profileOptions";
 
 function hasCompleteProfile(profile: UserProfile | null): boolean {
   return (
@@ -20,7 +20,7 @@ export default function RecommendationsPage() {
   const [recommendations, setRecommendations] = useState<Recommendation[] | null>(null);
   const [age, setAge] = useState("29");
   const [isMarried, setIsMarried] = useState(false);
-  const [income, setIncome] = useState("40000000");
+  const [income, setIncome] = useState("4000");
   const [region, setRegion] = useState("서울");
   const [occupation, setOccupation] = useState<OccupationType>("employee");
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +52,7 @@ export default function RecommendationsPage() {
       await updateProfile(token, {
         age: Number(age),
         is_married: isMarried,
-        annual_income_krw: Number(income),
+        annual_income_krw: manwonToKrw(Number(income)),
         region,
         occupation,
       });
@@ -111,7 +111,7 @@ export default function RecommendationsPage() {
               기혼
             </label>
             <label className="field">
-              <span className="field-label">연소득 (원)</span>
+              <span className="field-label">연소득 (만원)</span>
               <input className="input" type="number" value={income} onChange={(e) => setIncome(e.target.value)} />
             </label>
             <label className="field">

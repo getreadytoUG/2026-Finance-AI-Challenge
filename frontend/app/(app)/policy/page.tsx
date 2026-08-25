@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { callTool, getRegions } from "@/lib/api";
+import { callTool, getMe, getRegions } from "@/lib/api";
 import Pagination from "@/components/Pagination";
+import { krwToManwon, manwonToKrw } from "@/lib/profileOptions";
 
 type PolicyOption = {
   policy_name: string;
@@ -21,7 +22,7 @@ export default function PolicyPage() {
   const [regions, setRegions] = useState<string[]>([]);
   const [age, setAge] = useState("29");
   const [isMarried, setIsMarried] = useState(false);
-  const [income, setIncome] = useState("40000000");
+  const [income, setIncome] = useState("4000");
   const [region, setRegion] = useState<string | null>(null);
   const [result, setResult] = useState<PolicyMatchOutput | null>(null);
   const [page, setPage] = useState(1);
@@ -32,6 +33,15 @@ export default function PolicyPage() {
     const token = localStorage.getItem("token") ?? "";
     getRegions(token)
       .then((res) => setRegions(res.regions))
+      .catch(() => {});
+    // 내 정보에 저장된 값이 있으면 초기값으로 채워준다 — 이후 자유롭게 바꿔서 조회할 수 있다.
+    getMe(token)
+      .then((me) => {
+        if (me.age != null) setAge(String(me.age));
+        if (me.is_married != null) setIsMarried(me.is_married);
+        if (me.annual_income_krw != null) setIncome(String(krwToManwon(me.annual_income_krw)));
+        if (me.region != null) setRegion(me.region);
+      })
       .catch(() => {});
   }, []);
 
@@ -47,7 +57,7 @@ export default function PolicyPage() {
       const output = await callTool<PolicyMatchOutput>(token, "policy_matcher", {
         age: Number(age),
         is_married: isMarried,
-        annual_income_krw: Number(income),
+        annual_income_krw: manwonToKrw(Number(income)),
         region,
       });
       setResult(output);
@@ -79,7 +89,7 @@ export default function PolicyPage() {
             기혼
           </label>
           <label className="field">
-            <span className="field-label">연소득 (원)</span>
+            <span className="field-label">연소득 (만원)</span>
             <input className="input" type="number" value={income} onChange={(e) => setIncome(e.target.value)} />
           </label>
           <label className="field-label" style={{ display: "block" }}>

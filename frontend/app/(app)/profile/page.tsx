@@ -3,7 +3,14 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getMe, updateProfile, type UserProfile } from "@/lib/api";
-import { OCCUPATION_OPTIONS, REGIONS, occupationLabel, type OccupationType } from "@/lib/profileOptions";
+import {
+  OCCUPATION_OPTIONS,
+  REGIONS,
+  krwToManwon,
+  manwonToKrw,
+  occupationLabel,
+  type OccupationType,
+} from "@/lib/profileOptions";
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -37,12 +44,14 @@ export default function ProfilePage() {
 
   function fillFormFrom(me: UserProfile) {
     setAge(me.age?.toString() ?? "");
-    setIncome(me.annual_income_krw?.toString() ?? "");
+    setIncome(me.annual_income_krw != null ? String(krwToManwon(me.annual_income_krw)) : "");
     setOccupation(me.occupation ?? "");
     setRegion(me.region ?? null);
     setIsMarried(me.is_married ?? false);
     setSpouseAge(me.spouse_age?.toString() ?? "");
-    setSpouseIncome(me.spouse_annual_income_krw?.toString() ?? "");
+    setSpouseIncome(
+      me.spouse_annual_income_krw != null ? String(krwToManwon(me.spouse_annual_income_krw)) : ""
+    );
     setSpouseOccupation(me.spouse_occupation ?? "");
   }
 
@@ -63,11 +72,11 @@ export default function ProfilePage() {
       const updated = await updateProfile(token, {
         age: Number(age),
         is_married: isMarried,
-        annual_income_krw: Number(income),
+        annual_income_krw: manwonToKrw(Number(income)),
         region,
         occupation,
         spouse_age: isMarried && spouseAge ? Number(spouseAge) : null,
-        spouse_annual_income_krw: isMarried && spouseIncome ? Number(spouseIncome) : null,
+        spouse_annual_income_krw: isMarried && spouseIncome ? manwonToKrw(Number(spouseIncome)) : null,
         spouse_occupation: isMarried && spouseOccupation ? spouseOccupation : null,
       });
       setProfile(updated);
@@ -105,7 +114,7 @@ export default function ProfilePage() {
           <InfoRow label="나이" value={profile.age != null ? `${profile.age}세` : "-"} />
           <InfoRow
             label="연소득"
-            value={profile.annual_income_krw != null ? `${profile.annual_income_krw.toLocaleString()}원` : "-"}
+            value={profile.annual_income_krw != null ? `${krwToManwon(profile.annual_income_krw).toLocaleString()}만원` : "-"}
           />
           <InfoRow label="직업 구분" value={occupationLabel(profile.occupation)} />
           <InfoRow label="지역" value={profile.region ?? "-"} />
@@ -117,7 +126,7 @@ export default function ProfilePage() {
                 label="배우자 연소득"
                 value={
                   profile.spouse_annual_income_krw != null
-                    ? `${profile.spouse_annual_income_krw.toLocaleString()}원`
+                    ? `${krwToManwon(profile.spouse_annual_income_krw).toLocaleString()}만원`
                     : "-"
                 }
               />
@@ -138,7 +147,7 @@ export default function ProfilePage() {
               <input className="input" type="number" min={0} value={age} onChange={(e) => setAge(e.target.value)} required />
             </label>
             <label className="field">
-              <span className="field-label">연소득 (원)</span>
+              <span className="field-label">연소득 (만원)</span>
               <input
                 className="input"
                 type="number"
@@ -220,7 +229,7 @@ export default function ProfilePage() {
                   />
                 </label>
                 <label className="field">
-                  <span className="field-label">배우자 연소득 (원)</span>
+                  <span className="field-label">배우자 연소득 (만원)</span>
                   <input
                     className="input"
                     type="number"
