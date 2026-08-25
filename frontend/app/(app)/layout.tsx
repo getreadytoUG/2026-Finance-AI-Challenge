@@ -118,6 +118,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               );
             })}
           </nav>
+          <Link
+            href="/profile"
+            className="btn-ghost"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              borderRadius: "var(--radius-sm)",
+              color: pathname === "/profile" ? "var(--primary)" : undefined,
+            }}
+          >
+            내 정보
+          </Link>
           <button className="btn btn-ghost" onClick={handleLogout}>
             로그아웃
           </button>

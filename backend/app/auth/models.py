@@ -13,3 +13,7 @@ class User(Base):
     is_married = Column(Boolean, nullable=True)
     annual_income_krw = Column(Integer, nullable=True)
     region = Column(String, nullable=True)
+    occupation = Column(String, nullable=True)
+    spouse_age = Column(Integer, nullable=True)
+    spouse_annual_income_krw = Column(Integer, nullable=True)
+    spouse_occupation = Column(String, nullable=True)

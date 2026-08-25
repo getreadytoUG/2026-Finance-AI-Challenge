@@ -1,3 +1,5 @@
+import type { OccupationType } from "@/lib/profileOptions";
+
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
 
 export async function login(email: string, password: string): Promise<string> {
@@ -13,11 +15,16 @@ export async function login(email: string, password: string): Promise<string> {
   return data.access_token as string;
 }
 
-export async function signup(email: string, password: string): Promise<void> {
+export type SignupInput = ProfileInput & {
+  email: string;
+  password: string;
+};
+
+export async function signup(payload: SignupInput): Promise<void> {
   const res = await fetch(`${API_BASE}/auth/signup`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify(payload),
   });
   if (!res.ok) {
     let detail = "회원가입에 실패했습니다.";
@@ -67,6 +74,10 @@ export type UserProfile = {
   is_married: boolean | null;
   annual_income_krw: number | null;
   region: string | null;
+  occupation: OccupationType | null;
+  spouse_age: number | null;
+  spouse_annual_income_krw: number | null;
+  spouse_occupation: OccupationType | null;
 };
 
 export type ProfileInput = {
@@ -74,6 +85,10 @@ export type ProfileInput = {
   is_married: boolean;
   annual_income_krw: number;
   region: string;
+  occupation: OccupationType;
+  spouse_age?: number | null;
+  spouse_annual_income_krw?: number | null;
+  spouse_occupation?: OccupationType | null;
 };
 
 export type Recommendation = {

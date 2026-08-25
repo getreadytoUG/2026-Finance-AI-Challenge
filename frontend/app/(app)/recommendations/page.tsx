@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getMe, getRecommendations, markRecommendationRead, refreshRecommendations, updateProfile } from "@/lib/api";
 import type { Recommendation, UserProfile } from "@/lib/api";
+import { OCCUPATION_OPTIONS, type OccupationType } from "@/lib/profileOptions";
 
 function hasCompleteProfile(profile: UserProfile | null): boolean {
   return (
@@ -21,6 +22,7 @@ export default function RecommendationsPage() {
   const [isMarried, setIsMarried] = useState(false);
   const [income, setIncome] = useState("40000000");
   const [region, setRegion] = useState("서울");
+  const [occupation, setOccupation] = useState<OccupationType>("employee");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -52,6 +54,7 @@ export default function RecommendationsPage() {
         is_married: isMarried,
         annual_income_krw: Number(income),
         region,
+        occupation,
       });
       await loadProfileAndRecommendations();
     } catch (err) {
@@ -115,6 +118,26 @@ export default function RecommendationsPage() {
               <span className="field-label">지역</span>
               <input className="input" type="text" value={region} onChange={(e) => setRegion(e.target.value)} />
             </label>
+            <span className="field-label" style={{ display: "block" }}>
+              직업 구분
+            </span>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+              {OCCUPATION_OPTIONS.map((o) => (
+                <button
+                  key={o.value}
+                  type="button"
+                  className="btn-ghost"
+                  onClick={() => setOccupation(o.value)}
+                  style={{
+                    borderRadius: 999,
+                    background: occupation === o.value ? "var(--primary-tint)" : undefined,
+                    color: occupation === o.value ? "var(--primary)" : undefined,
+                  }}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
             <button className="btn" type="submit" disabled={loading}>
               {loading ? "저장 중..." : "프로필 저장하고 추천 받기"}
             </button>
