@@ -5,7 +5,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth.models import User  # noqa: F401
 from app.auth.router import router as auth_router
-from app.auth.service import seed_demo_user
 from app.core.config import settings
 from app.core.db import Base, SessionLocal, engine
 from app.features import register_all_tools
@@ -25,7 +24,6 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        seed_demo_user(db)
         seed_policy_cache_if_empty(db)
     finally:
         db.close()

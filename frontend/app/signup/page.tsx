@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { signup, login } from "@/lib/api";
+import { signup, login, checkEmailAvailable } from "@/lib/api";
 import PasswordField from "@/components/PasswordField";
 import { OCCUPATION_OPTIONS, REGIONS, manwonToKrw, type OccupationType } from "@/lib/profileOptions";
 
@@ -20,11 +20,24 @@ export default function SignupPage() {
   const [spouseOccupation, setSpouseOccupation] = useState<OccupationType | "">("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [emailCheckStatus, setEmailCheckStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
   const router = useRouter();
+
+  async function handleCheckEmail() {
+    if (!email) return;
+    setEmailCheckStatus("checking");
+    try {
+      const available = await checkEmailAvailable(email);
+      setEmailCheckStatus(available ? "available" : "taken");
+    } catch {
+      setEmailCheckStatus("idle");
+      setError("이메일 확인에 실패했습니다. 다시 시도해주세요.");
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!region || !occupation) return;
+    if (!region || !occupation || emailCheckStatus !== "available") return;
     setError(null);
     setLoading(true);
     try {
@@ -69,14 +82,38 @@ export default function SignupPage() {
         <form onSubmit={handleSubmit}>
           <label className="field">
             <span className="field-label">이메일</span>
-            <input
-              className="input"
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                className="input"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setEmailCheckStatus("idle");
+                }}
+                required
+                style={{ flex: 1 }}
+              />
+              <button
+                type="button"
+                className="btn-ghost"
+                onClick={handleCheckEmail}
+                disabled={!email || emailCheckStatus === "checking"}
+              >
+                {emailCheckStatus === "checking" ? "확인 중..." : "중복확인"}
+              </button>
+            </div>
+            {emailCheckStatus === "taken" && (
+              <p className="error-text" style={{ marginTop: 6, marginBottom: 0 }}>
+                이미 가입된 계정입니다.
+              </p>
+            )}
+            {emailCheckStatus === "available" && (
+              <p style={{ marginTop: 6, marginBottom: 0, fontSize: 13, color: "var(--success)" }}>
+                사용 가능한 이메일입니다.
+              </p>
+            )}
           </label>
           <PasswordField label="비밀번호" value={password} onChange={setPassword} />
 
@@ -209,7 +246,11 @@ export default function SignupPage() {
           )}
 
           {error && <p className="error-text">{error}</p>}
-          <button className="btn" type="submit" disabled={loading || !region || !occupation}>
+          <button
+            className="btn"
+            type="submit"
+            disabled={loading || !region || !occupation || emailCheckStatus !== "available"}
+          >
             {loading ? "가입 중..." : "회원가입"}
           </button>
         </form>

@@ -5,12 +5,24 @@ from sqlalchemy.orm import Session
 
 from app.auth import service
 from app.auth.models import User
-from app.auth.schemas import LoginRequest, ProfileUpdateRequest, SignupRequest, TokenResponse, UserOut
+from app.auth.schemas import (
+    EmailAvailabilityOut,
+    LoginRequest,
+    ProfileUpdateRequest,
+    SignupRequest,
+    TokenResponse,
+    UserOut,
+)
 from app.core.db import get_db
 from app.core.security import create_access_token, decode_access_token
 
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
+
+
+@router.get("/check-email", response_model=EmailAvailabilityOut)
+def check_email(email: str, db: Session = Depends(get_db)):
+    return EmailAvailabilityOut(available=not service.email_exists(db, email))
 
 
 @router.post("/signup", response_model=UserOut, status_code=status.HTTP_201_CREATED)

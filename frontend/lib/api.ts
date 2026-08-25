@@ -15,6 +15,15 @@ export async function login(email: string, password: string): Promise<string> {
   return data.access_token as string;
 }
 
+export async function checkEmailAvailable(email: string): Promise<boolean> {
+  const res = await fetch(`${API_BASE}/auth/check-email?email=${encodeURIComponent(email)}`);
+  if (!res.ok) {
+    throw new Error("이메일 확인에 실패했습니다.");
+  }
+  const data = await res.json();
+  return data.available as boolean;
+}
+
 export type SignupInput = ProfileInput & {
   email: string;
   password: string;

@@ -25,6 +25,10 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class EmailAvailabilityOut(BaseModel):
+    available: bool
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"

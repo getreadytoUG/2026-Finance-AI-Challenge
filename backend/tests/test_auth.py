@@ -57,6 +57,19 @@ def test_signup_missing_required_profile_field_returns_422(client):
     assert response.status_code == 422
 
 
+def test_check_email_available_for_unregistered_email(client):
+    response = client.get("/auth/check-email", params={"email": "new@example.com"})
+    assert response.status_code == 200
+    assert response.json() == {"available": True}
+
+
+def test_check_email_unavailable_for_registered_email(client):
+    client.post("/auth/signup", json=_signup_payload("taken@example.com"))
+    response = client.get("/auth/check-email", params={"email": "taken@example.com"})
+    assert response.status_code == 200
+    assert response.json() == {"available": False}
+
+
 def test_signup_duplicate_email_returns_400(client):
     client.post("/auth/signup", json=_signup_payload("dup@example.com"))
     response = client.post("/auth/signup", json=_signup_payload("dup@example.com"))
@@ -194,103 +207,3 @@ def test_me_reflects_profile_after_update(client):
     assert response.json()["region"] == "부산"
 
 
-def test_seed_demo_user_creates_a_working_login(client, db_session):
-    from app.auth.service import DEMO_USER_EMAIL, DEMO_USER_PASSWORD, seed_demo_user
-
-    seed_demo_user(db_session)
-
-    response = client.post(
-        "/auth/login", json={"email": DEMO_USER_EMAIL, "password": DEMO_USER_PASSWORD}
-    )
-    assert response.status_code == 200
-    assert "access_token" in response.json()
-
-
-def test_seed_demo_user_is_idempotent(client, db_session):
-    from app.auth.service import seed_demo_user
-
-    seed_demo_user(db_session)
-    seed_demo_user(db_session)  # 두 번째 호출은 조용히 아무것도 안 해야 한다
-
-    response = client.get("/auth/me", headers={"Authorization": f"Bearer {_login_as_demo(client)}"})
-    assert response.status_code == 200
-
-
-def test_seed_demo_user_has_fixed_default_profile(client, db_session):
-    from app.auth.service import seed_demo_user
-
-    seed_demo_user(db_session)
-
-    response = client.get("/auth/me", headers={"Authorization": f"Bearer {_login_as_demo(client)}"})
-    body = response.json()
-    assert body["age"] == 29
-    assert body["is_married"] is False
-    assert body["annual_income_krw"] == 48_000_000
-    assert body["region"] == "서울"
-    assert body["occupation"] == "employee"
-
-
-def test_seed_demo_user_backfills_profile_on_pre_existing_account_without_one(client, db_session):
-    # 이 프로필 기본값이 생기기 전에 만들어진 데모 계정(프로필 필드 전부 null)도
-    # seed_demo_user를 다시 돌리면 기본 프로필이 채워져야 한다 — 매 배포마다 새로
-    # 만들어지는 경우뿐 아니라 이미 떠 있는 인스턴스에서도 동일하게 적용되도록.
-    from app.auth.service import DEMO_USER_EMAIL, DEMO_USER_PASSWORD, create_user, seed_demo_user
-
-    create_user(db_session, DEMO_USER_EMAIL, DEMO_USER_PASSWORD)
-
-    seed_demo_user(db_session)
-
-    response = client.get("/auth/me", headers={"Authorization": f"Bearer {_login_as_demo(client)}"})
-    body = response.json()
-    assert body["age"] == 29
-    assert body["is_married"] is False
-    assert body["annual_income_krw"] == 48_000_000
-    assert body["region"] == "서울"
-    assert body["occupation"] == "employee"
-
-
-def test_seed_demo_user_backfills_only_the_still_empty_fields(client, db_session):
-    # occupation처럼 나중에 추가된 필드는, 그 이전에 age 등 다른 필드가 이미
-    # 채워진 데모 계정에서도 별도로 채워져야 한다.
-    from app.auth.service import DEMO_USER_EMAIL, DEMO_USER_PASSWORD, create_user, seed_demo_user
-
-    create_user(db_session, DEMO_USER_EMAIL, DEMO_USER_PASSWORD, age=29, is_married=False, annual_income_krw=48_000_000, region="서울")
-
-    seed_demo_user(db_session)
-
-    response = client.get("/auth/me", headers={"Authorization": f"Bearer {_login_as_demo(client)}"})
-    assert response.json()["occupation"] == "employee"
-
-
-def test_seed_demo_user_does_not_overwrite_manually_edited_profile(client, db_session):
-    from app.auth.service import seed_demo_user
-
-    seed_demo_user(db_session)
-    token = _login_as_demo(client)
-    client.put(
-        "/auth/profile",
-        json={
-            "age": 40,
-            "is_married": True,
-            "annual_income_krw": 60_000_000,
-            "region": "부산",
-            "occupation": "self_employed",
-        },
-        headers={"Authorization": f"Bearer {token}"},
-    )
-
-    seed_demo_user(db_session)  # 재실행돼도 사람이 고쳐둔 값을 덮어쓰면 안 된다
-
-    response = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
-    body = response.json()
-    assert body["age"] == 40
-    assert body["region"] == "부산"
-
-
-def _login_as_demo(client) -> str:
-    from app.auth.service import DEMO_USER_EMAIL, DEMO_USER_PASSWORD
-
-    response = client.post(
-        "/auth/login", json={"email": DEMO_USER_EMAIL, "password": DEMO_USER_PASSWORD}
-    )
-    return response.json()["access_token"]
