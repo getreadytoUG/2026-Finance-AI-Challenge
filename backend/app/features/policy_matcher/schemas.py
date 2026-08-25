@@ -8,6 +8,9 @@ class PolicyMatchInput(BaseModel):
     is_married: bool
     annual_income_krw: int
     region: str
+    # 소득 조건은 가구소득 기준인 정책이 많아, 배우자 소득이 있으면 합산해서
+    # 심사한다(matching.is_eligible 참고).
+    spouse_annual_income_krw: int | None = None
 
 
 class PolicyOption(BaseModel):
@@ -15,6 +18,7 @@ class PolicyOption(BaseModel):
     benefit_description: str
     application_period: str
     reference_url: str
+    is_newlywed_policy: bool = False
 
 
 class PolicyMatchOutput(BaseModel):

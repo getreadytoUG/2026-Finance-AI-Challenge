@@ -55,11 +55,35 @@ def is_eligible(policy: RawYouthPolicy, input: PolicyMatchInput) -> bool:
         return False
     if policy.marital_status == "미혼" and input.is_married:
         return False
-    if policy.min_income_krw is not None and input.annual_income_krw < policy.min_income_krw:
+    # 소득 요건은 개인이 아니라 가구소득 기준인 정책이 많으므로, 배우자 소득이
+    # 있으면 합산한 가구소득으로 심사한다.
+    household_income = input.annual_income_krw + (input.spouse_annual_income_krw or 0)
+    if policy.min_income_krw is not None and household_income < policy.min_income_krw:
         return False
-    if policy.max_income_krw is not None and input.annual_income_krw > policy.max_income_krw:
+    if policy.max_income_krw is not None and household_income > policy.max_income_krw:
         return False
     if policy.region_code:
         if not input.region or not _region_matches(policy.region_code, input.region):
             return False
     return True
+
+
+# 온통청년 API에는 "신혼부부 대상" 여부를 담는 구조화된 필드가 없다 — 실제 응답의
+# 전체 필드를 조사해본 결과(2026-08):
+#   - plcyKywdNm(정책 키워드명)은 대출/주거지원/보조금 같은 "혜택 종류" 태그이지
+#     대상(신혼부부 등) 태그가 아니다. "신혼부부"가 들어간 정책 69건 중 이 필드에
+#     "신혼부부"가 찍힌 건 0건.
+#   - mrgSttsCd(혼인상태코드)는 전체 정책의 97%(2,655/2,728)가 "0055003" 하나로
+#     쏠려 있고 그 안엔 국가근로장학금처럼 혼인과 무관한 정책도 섞여 있다 — "제한
+#     없음" sentinel일 뿐 혼인상태 분류값이 아니다(위 is_eligible 주석 참고).
+# 그래서 정책명/설명 텍스트에 신혼부부 관련 키워드가 들어있는지로 판별한다. "결혼"
+# 단독 키워드는 오탐이 많아(미혼남녀 만남 프로그램, 결혼이민여성 취업지원 등) 뺐다.
+# fetch_all_policies()가 매 요청마다 API를 다시 불러오므로, 이 판별도 매 요청 시점의
+# 최신 데이터에 대해 다시 계산된다 — 나중에 새 정책이 추가되어도 이름/설명에 아래
+# 키워드가 있으면 별도 코드 수정 없이 자동으로 잡힌다.
+NEWLYWED_KEYWORDS = ("신혼", "청년부부", "예비부부")
+
+
+def is_newlywed_policy(policy: RawYouthPolicy) -> bool:
+    haystack = policy.policy_name + policy.description
+    return any(keyword in haystack for keyword in NEWLYWED_KEYWORDS)

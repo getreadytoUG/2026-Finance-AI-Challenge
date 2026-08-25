@@ -10,6 +10,7 @@ type PolicyOption = {
   benefit_description: string;
   application_period: string;
   reference_url: string;
+  is_newlywed_policy: boolean;
 };
 
 type PolicyMatchOutput = {
@@ -23,6 +24,7 @@ export default function PolicyPage() {
   const [age, setAge] = useState("29");
   const [isMarried, setIsMarried] = useState(false);
   const [income, setIncome] = useState("4000");
+  const [spouseIncome, setSpouseIncome] = useState("");
   const [region, setRegion] = useState<string | null>(null);
   const [result, setResult] = useState<PolicyMatchOutput | null>(null);
   const [page, setPage] = useState(1);
@@ -41,6 +43,7 @@ export default function PolicyPage() {
         if (me.is_married != null) setIsMarried(me.is_married);
         if (me.annual_income_krw != null) setIncome(String(krwToManwon(me.annual_income_krw)));
         if (me.region != null) setRegion(me.region);
+        if (me.spouse_annual_income_krw != null) setSpouseIncome(String(krwToManwon(me.spouse_annual_income_krw)));
       })
       .catch(() => {});
   }, []);
@@ -58,6 +61,7 @@ export default function PolicyPage() {
         age: Number(age),
         is_married: isMarried,
         annual_income_krw: manwonToKrw(Number(income)),
+        spouse_annual_income_krw: isMarried && spouseIncome ? manwonToKrw(Number(spouseIncome)) : null,
         region,
       });
       setResult(output);
@@ -92,6 +96,18 @@ export default function PolicyPage() {
             <span className="field-label">연소득 (만원)</span>
             <input className="input" type="number" value={income} onChange={(e) => setIncome(e.target.value)} />
           </label>
+          {isMarried && (
+            <label className="field">
+              <span className="field-label">배우자 연소득 (만원, 선택)</span>
+              <input
+                className="input"
+                type="number"
+                value={spouseIncome}
+                onChange={(e) => setSpouseIncome(e.target.value)}
+                placeholder="입력하면 가구소득(본인+배우자) 합산 기준으로 조회해요"
+              />
+            </label>
+          )}
           <label className="field-label" style={{ display: "block" }}>
             지역
           </label>
@@ -128,7 +144,14 @@ export default function PolicyPage() {
             <div className="result-list">
               {pageOptions.map((option, i) => (
                 <div key={i} className="result-item">
-                  <div className="result-item-title">{option.policy_name}</div>
+                  <div className="result-item-title">
+                    {option.is_newlywed_policy && (
+                      <span className="badge badge-success" style={{ marginRight: 8 }}>
+                        💍 신혼부부
+                      </span>
+                    )}
+                    {option.policy_name}
+                  </div>
                   <div className="result-item-row">
                     <span>지원 내용</span>
                     <span>{option.benefit_description}</span>
