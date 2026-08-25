@@ -5,7 +5,7 @@ from app.auth.models import User
 from app.auth.router import get_current_user
 from app.core.db import get_db
 from app.features.policy_matcher.categories import category_tags
-from app.features.policy_matcher.matching import REGIONS
+from app.features.policy_matcher.matching import REGIONS, region_matches
 from app.features.policy_matcher.models import CachedPolicy, PolicyRecommendation
 from app.features.policy_matcher.recommender import run_recommendation_batch_for_user
 from app.features.policy_matcher.schemas import (
@@ -105,6 +105,7 @@ def browse_policies(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     category: str | None = None,
+    region: str | None = None,
     include_closed: bool = False,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -116,6 +117,10 @@ def browse_policies(
         for row in db.query(CachedPolicy).all():
             tags = category_tags(row.large_category)
             if category and category not in tags:
+                continue
+            # region_code가 비어있는 정책은 전국 대상이라 지역 필터로 걸러내지 않는다
+            # (policy_matcher의 is_eligible과 동일한 fail-open 규칙, matching.py 참고).
+            if region and row.region_code and not region_matches(row.region_code, region):
                 continue
             status, emoji = compute_policy_status(row.apply_start_ymd, row.apply_end_ymd, today)
             if status == "만료" and not include_closed:
@@ -151,6 +156,7 @@ def browse_policies(
 
 @router.get("/categories", response_model=PolicyCategoryListResponse)
 def list_policy_categories(
+    region: str | None = None,
     include_closed: bool = False,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -159,6 +165,8 @@ def list_policy_categories(
         today = today_kst()
         counts: dict[str, int] = {}
         for row in db.query(CachedPolicy).all():
+            if region and row.region_code and not region_matches(row.region_code, region):
+                continue
             status, _ = compute_policy_status(row.apply_start_ymd, row.apply_end_ymd, today)
             if status == "만료" and not include_closed:
                 continue

@@ -194,10 +194,11 @@ export type PolicyBrowseResponse = {
 
 export async function browsePolicies(
   token: string,
-  params: { category?: string; page?: number; pageSize?: number; includeClosed?: boolean }
+  params: { category?: string; region?: string; page?: number; pageSize?: number; includeClosed?: boolean }
 ): Promise<PolicyBrowseResponse> {
   const search = new URLSearchParams();
   if (params.category) search.set("category", params.category);
+  if (params.region) search.set("region", params.region);
   if (params.page) search.set("page", String(params.page));
   if (params.pageSize) search.set("page_size", String(params.pageSize));
   if (params.includeClosed) search.set("include_closed", "true");
@@ -210,10 +211,13 @@ export type PolicyCategory = { name: string; count: number };
 
 export async function getPolicyCategories(
   token: string,
-  params: { includeClosed?: boolean } = {}
+  params: { region?: string; includeClosed?: boolean } = {}
 ): Promise<{ categories: PolicyCategory[] }> {
-  const qs = params.includeClosed ? "?include_closed=true" : "";
-  const res = await authedFetch(`/policy_matcher/categories${qs}`, token);
+  const search = new URLSearchParams();
+  if (params.region) search.set("region", params.region);
+  if (params.includeClosed) search.set("include_closed", "true");
+  const qs = search.toString();
+  const res = await authedFetch(`/policy_matcher/categories${qs ? `?${qs}` : ""}`, token);
   return res.json();
 }
 

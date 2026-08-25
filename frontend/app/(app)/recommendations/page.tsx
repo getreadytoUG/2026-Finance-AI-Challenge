@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { getMe, getRecommendations, markRecommendationRead, refreshRecommendations, updateProfile } from "@/lib/api";
 import type { Recommendation, UserProfile } from "@/lib/api";
 import { OCCUPATION_OPTIONS, manwonToKrw, type OccupationType } from "@/lib/profileOptions";
+import Pagination from "@/components/Pagination";
+
+const PAGE_SIZE = 10;
 
 function hasCompleteProfile(profile: UserProfile | null): boolean {
   return (
@@ -25,6 +28,7 @@ export default function RecommendationsPage() {
   const [occupation, setOccupation] = useState<OccupationType>("employee");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
 
   async function loadProfileAndRecommendations() {
     const token = localStorage.getItem("token") ?? "";
@@ -72,6 +76,7 @@ export default function RecommendationsPage() {
       await refreshRecommendations(token);
       const list = await getRecommendations(token);
       setRecommendations(list.recommendations);
+      setPage(1);
     } catch (err) {
       setError(err instanceof Error ? err.message : "추천 갱신에 실패했습니다.");
     } finally {
@@ -156,40 +161,47 @@ export default function RecommendationsPage() {
           )}
 
           {recommendations && recommendations.length > 0 && (
-            <div className="result-list">
-              {recommendations.map((rec) => (
-                <div key={rec.id} className="result-item" onClick={() => handleItemClick(rec)} style={{ cursor: "pointer" }}>
-                  <div className="result-item-title">
-                    {!rec.is_read && (
-                      <span
-                        style={{
-                          display: "inline-block",
-                          width: 8,
-                          height: 8,
-                          borderRadius: 999,
-                          background: "var(--danger)",
-                          marginRight: 8,
-                        }}
-                      />
-                    )}
-                    {rec.policy_name}
+            <>
+              <div className="result-list">
+                {recommendations.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((rec) => (
+                  <div key={rec.id} className="result-item" onClick={() => handleItemClick(rec)} style={{ cursor: "pointer" }}>
+                    <div className="result-item-title">
+                      {!rec.is_read && (
+                        <span
+                          style={{
+                            display: "inline-block",
+                            width: 8,
+                            height: 8,
+                            borderRadius: 999,
+                            background: "var(--danger)",
+                            marginRight: 8,
+                          }}
+                        />
+                      )}
+                      {rec.policy_name}
+                    </div>
+                    <div className="result-item-row">
+                      <span>지원 내용</span>
+                      <span>{rec.benefit_description}</span>
+                    </div>
+                    <div className="result-item-row">
+                      <span>신청 기간</span>
+                      <span>{rec.application_period}</span>
+                    </div>
+                    <div style={{ marginTop: 12 }}>
+                      <a className="link" href={rec.reference_url} target="_blank" rel="noreferrer">
+                        자세히 보기 →
+                      </a>
+                    </div>
                   </div>
-                  <div className="result-item-row">
-                    <span>지원 내용</span>
-                    <span>{rec.benefit_description}</span>
-                  </div>
-                  <div className="result-item-row">
-                    <span>신청 기간</span>
-                    <span>{rec.application_period}</span>
-                  </div>
-                  <div style={{ marginTop: 12 }}>
-                    <a className="link" href={rec.reference_url} target="_blank" rel="noreferrer">
-                      자세히 보기 →
-                    </a>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+              <Pagination
+                page={page}
+                totalPages={Math.max(1, Math.ceil(recommendations.length / PAGE_SIZE))}
+                onPageChange={setPage}
+              />
+            </>
           )}
         </>
       )}

@@ -91,6 +91,39 @@ def test_browse_filters_by_category(client, db_session):
     assert body["items"][0]["policy_name"] == "금융 정책"
 
 
+def test_browse_filters_by_region(client, db_session):
+    _seed_cached_policy(db_session, policy_key="P20", policy_name="서울 정책", region_code="11110,11140")
+    _seed_cached_policy(db_session, policy_key="P21", policy_name="부산 정책", region_code="26110")
+    token = _signup_login(client)
+
+    response = client.get("/policy_matcher/browse?region=부산", headers={"Authorization": f"Bearer {token}"})
+    body = response.json()
+    assert body["total"] == 1
+    assert body["items"][0]["policy_name"] == "부산 정책"
+
+
+def test_browse_includes_nationwide_policy_regardless_of_region_filter(client, db_session):
+    _seed_cached_policy(db_session, policy_key="P22", policy_name="전국 정책", region_code="")
+    _seed_cached_policy(db_session, policy_key="P23", policy_name="서울 정책", region_code="11110")
+    token = _signup_login(client)
+
+    response = client.get("/policy_matcher/browse?region=부산", headers={"Authorization": f"Bearer {token}"})
+    names = {item["policy_name"] for item in response.json()["items"]}
+    assert names == {"전국 정책"}
+
+
+def test_categories_filters_by_region(client, db_session):
+    _seed_cached_policy(db_session, policy_key="P24", large_category="주거", region_code="11110")
+    _seed_cached_policy(db_session, policy_key="P25", large_category="금융", region_code="26110")
+    token = _signup_login(client)
+
+    response = client.get(
+        "/policy_matcher/categories?region=서울", headers={"Authorization": f"Bearer {token}"}
+    )
+    body = {c["name"]: c["count"] for c in response.json()["categories"]}
+    assert body == {"주거": 1}
+
+
 def test_browse_paginates(client, db_session):
     for i in range(3):
         _seed_cached_policy(db_session, policy_key=f"P{i}", policy_name=f"정책{i}")

@@ -34,7 +34,7 @@ _REGION_PREFIXES: dict[str, str] = {
 }
 
 
-def _region_matches(policy_region_code: str, input_region: str) -> bool:
+def region_matches(policy_region_code: str, input_region: str) -> bool:
     prefix = _REGION_PREFIXES.get(input_region.strip())
     if prefix is None:
         # 매핑에 없는 표기("서울 강남구" 등)는 잘못 걸러내는 것보다 노출하는 쪽이
@@ -63,7 +63,7 @@ def is_eligible(policy: RawYouthPolicy, input: PolicyMatchInput) -> bool:
     if policy.max_income_krw is not None and household_income > policy.max_income_krw:
         return False
     if policy.region_code:
-        if not input.region or not _region_matches(policy.region_code, input.region):
+        if not input.region or not region_matches(policy.region_code, input.region):
             return False
     return True
 
