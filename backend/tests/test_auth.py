@@ -92,6 +92,32 @@ def test_protected_route_returns_current_user_with_valid_token(client):
     assert response.json()["email"] == "d@example.com"
 
 
+def test_token_issued_before_a_restart_is_rejected_after_restart(client, monkeypatch):
+    # 재배포/재시작으로 서버 프로세스가 새로 뜨면 BOOT_ID가 바뀌고, 그 전에
+    # 발급된 토큰은 전부 무효 처리되어 강제 로그아웃돼야 한다(재로그인은 가능).
+    from app.core import security
+
+    client.post("/auth/signup", json=_signup_payload("restart-test@example.com"))
+    login = client.post(
+        "/auth/login", json={"email": "restart-test@example.com", "password": "secret123"}
+    )
+    token = login.json()["access_token"]
+
+    monkeypatch.setattr(security, "BOOT_ID", "simulated-new-deploy-boot-id")
+
+    stale_response = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert stale_response.status_code == 401
+
+    relogin = client.post(
+        "/auth/login", json={"email": "restart-test@example.com", "password": "secret123"}
+    )
+    assert relogin.status_code == 200
+    fresh_response = client.get(
+        "/auth/me", headers={"Authorization": f"Bearer {relogin.json()['access_token']}"}
+    )
+    assert fresh_response.status_code == 200
+
+
 def _profile_payload(**overrides) -> dict:
     payload = {
         "age": 29,
@@ -201,6 +227,7 @@ def test_seed_demo_user_has_fixed_default_profile(client, db_session):
     assert body["is_married"] is False
     assert body["annual_income_krw"] == 48_000_000
     assert body["region"] == "서울"
+    assert body["occupation"] == "employee"
 
 
 def test_seed_demo_user_backfills_profile_on_pre_existing_account_without_one(client, db_session):
@@ -219,6 +246,20 @@ def test_seed_demo_user_backfills_profile_on_pre_existing_account_without_one(cl
     assert body["is_married"] is False
     assert body["annual_income_krw"] == 48_000_000
     assert body["region"] == "서울"
+    assert body["occupation"] == "employee"
+
+
+def test_seed_demo_user_backfills_only_the_still_empty_fields(client, db_session):
+    # occupation처럼 나중에 추가된 필드는, 그 이전에 age 등 다른 필드가 이미
+    # 채워진 데모 계정에서도 별도로 채워져야 한다.
+    from app.auth.service import DEMO_USER_EMAIL, DEMO_USER_PASSWORD, create_user, seed_demo_user
+
+    create_user(db_session, DEMO_USER_EMAIL, DEMO_USER_PASSWORD, age=29, is_married=False, annual_income_krw=48_000_000, region="서울")
+
+    seed_demo_user(db_session)
+
+    response = client.get("/auth/me", headers={"Authorization": f"Bearer {_login_as_demo(client)}"})
+    assert response.json()["occupation"] == "employee"
 
 
 def test_seed_demo_user_does_not_overwrite_manually_edited_profile(client, db_session):
