@@ -278,7 +278,7 @@ a {
 
 .chat-widget-launcher {
   position: fixed;
-  bottom: 24px;
+  bottom: 84px;
   right: 24px;
   z-index: 50;
   width: 56px;
@@ -303,7 +303,7 @@ a {
 
 .chat-widget-tooltip {
   position: fixed;
-  bottom: 34px;
+  bottom: 94px;
   right: 90px;
   z-index: 50;
   background: var(--surface);
@@ -328,7 +328,7 @@ a {
 
 .chat-widget-panel {
   position: fixed;
-  bottom: 92px;
+  bottom: 152px;
   right: 24px;
   z-index: 50;
   width: 380px;
