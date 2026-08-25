@@ -111,6 +111,36 @@ def test_run_recommendation_batch_for_user_keeps_policy_with_only_income_conditi
     assert created == 1
 
 
+def test_run_recommendation_batch_for_user_skips_policy_with_template_region_code(db_session, monkeypatch):
+    # 나이 조건은 있어도(has_specific_eligibility_condition 통과), region_code가
+    # 17개 시도 중 15개 이상을 커버하는 "복붙 템플릿" 패턴이면 실제로는 특정
+    # 지역(예: 울산) 전용인데 지역 필드만 전국형으로 잘못 찍힌 레코드일 가능성이
+    # 높다 — 사용자의 지역(서울)과 우연히 겹치더라도 제외해야 한다.
+    fifteen_provinces = ",".join(
+        f"{p}110"
+        for p in ("11", "26", "27", "28", "29", "30", "31", "36", "41", "51", "43", "44", "52", "46", "47")
+    )
+    user = _make_user(db_session, email="template-region@example.com", region="서울")
+    monkeypatch.setattr(
+        recommender,
+        "fetch_all_policies",
+        lambda: [_policy(policy_id="P903", region_code=fifteen_provinces)],
+    )
+    created = recommender.run_recommendation_batch_for_user(db_session, user)
+    assert created == 0
+
+
+def test_run_recommendation_batch_for_user_keeps_policy_with_genuinely_narrow_region(db_session, monkeypatch):
+    user = _make_user(db_session, email="narrow-region@example.com", region="서울")
+    monkeypatch.setattr(
+        recommender,
+        "fetch_all_policies",
+        lambda: [_policy(policy_id="P904", region_code="11110,11140")],
+    )
+    created = recommender.run_recommendation_batch_for_user(db_session, user)
+    assert created == 1
+
+
 def test_run_recommendation_batch_for_user_uses_combined_household_income(db_session, monkeypatch):
     user = _make_user(
         db_session,

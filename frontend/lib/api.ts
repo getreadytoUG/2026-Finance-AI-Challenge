@@ -225,3 +225,24 @@ export async function getRegions(token: string): Promise<{ regions: string[] }> 
   const res = await authedFetch("/policy_matcher/regions", token);
   return res.json();
 }
+
+export type PolicyChatOption = {
+  policy_name: string;
+  benefit_description: string;
+  application_period: string;
+  reference_url: string;
+  is_newlywed_policy: boolean;
+};
+
+export type PolicyChatMessage = { role: "user" | "assistant"; content: string };
+
+export async function sendPolicyChatMessage(
+  token: string,
+  messages: PolicyChatMessage[]
+): Promise<{ reply: string; policies: PolicyChatOption[] }> {
+  const res = await authedFetch("/policy_chat/message", token, {
+    method: "POST",
+    body: JSON.stringify({ messages }),
+  });
+  return res.json();
+}

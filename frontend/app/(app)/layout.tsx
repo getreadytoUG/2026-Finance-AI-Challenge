@@ -135,7 +135,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </button>
         </div>
       </header>
-      <div className="page" style={{ paddingTop: 32 }}>
+      <div className={pathname === "/policy" ? "page page-wide" : "page"} style={{ paddingTop: 32 }}>
         {children}
       </div>
     </div>

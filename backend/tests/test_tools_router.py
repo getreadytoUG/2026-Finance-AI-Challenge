@@ -74,6 +74,7 @@ def test_all_feature_tools_are_registered(client):
 
     assert {s.name for s in registry.all()} == {
         "policy_matcher",
+        "policy_chat_search",
         "savings_planner",
         "subscription_report",
         "card_spending_report",

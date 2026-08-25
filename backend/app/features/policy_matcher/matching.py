@@ -60,6 +60,32 @@ def has_specific_eligibility_condition(policy: RawYouthPolicy) -> bool:
     )
 
 
+_ALL_PROVINCE_PREFIXES = frozenset(_REGION_PREFIXES.values())
+
+
+def _distinct_province_count(region_code: str) -> int:
+    codes = [c.strip()[:2] for c in region_code.split(",") if c.strip()]
+    return len(set(codes) & _ALL_PROVINCE_PREFIXES)
+
+
+# 실측 결과(2026-08) zipCd가 채워진 정책 2,728건 중 417건이 정확히 17개 시도 중
+# 15개를 커버하는 값으로 뭉쳐 있다 — 그 사이(2~14개)는 8건뿐이라 자연스러운
+# 다지역 정책(예: "대구 경북 청년 아카데미" 2개 시도, "고립은둔청년 지원 시범사업"
+# 4개 시도)과 뚜렷이 구분된다. 실제로 "울산 동구 청년의 날 기념행사 운영"처럼
+# 제목은 특정 구 단위인데 zipCd는 이 15개 시도 패턴으로 찍힌 사례를 확인했다 —
+# 진짜 전국 대상 정책은 보통 zipCd를 아예 비워두므로(397건, is_eligible의
+# fail-open으로 이미 통과) 이 패턴은 실제 지역 조건이 아니라 지역 필드를 복붙한
+# 템플릿/기본값일 뿐이다. 나이·소득의 "0/0" sentinel과 같은 부류의 데이터 결함이라
+# has_specific_eligibility_condition과 같은 방식으로 "맞춤 추천"에서만 걸러낸다.
+_NATIONWIDE_TEMPLATE_PROVINCE_THRESHOLD = 15
+
+
+def is_likely_template_region_code(policy: RawYouthPolicy) -> bool:
+    if not policy.region_code:
+        return False
+    return _distinct_province_count(policy.region_code) >= _NATIONWIDE_TEMPLATE_PROVINCE_THRESHOLD
+
+
 def is_eligible(policy: RawYouthPolicy, input: PolicyMatchInput) -> bool:
     if policy.min_age is not None and input.age < policy.min_age:
         return False

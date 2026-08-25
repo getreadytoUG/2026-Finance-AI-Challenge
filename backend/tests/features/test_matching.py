@@ -1,4 +1,9 @@
-from app.features.policy_matcher.matching import has_specific_eligibility_condition, is_eligible, is_newlywed_policy
+from app.features.policy_matcher.matching import (
+    has_specific_eligibility_condition,
+    is_eligible,
+    is_likely_template_region_code,
+    is_newlywed_policy,
+)
 from app.features.policy_matcher.schemas import PolicyMatchInput
 from app.features.policy_matcher.youth_center_client import RawYouthPolicy
 
@@ -90,6 +95,23 @@ def test_has_specific_eligibility_condition_is_true_when_any_one_field_is_set():
     assert has_specific_eligibility_condition(_policy(max_age=39)) is True
     assert has_specific_eligibility_condition(_policy(min_income_krw=1)) is True
     assert has_specific_eligibility_condition(_policy(max_income_krw=1)) is True
+
+
+_15_PROVINCE_CODES = ",".join(
+    f"{p}110" for p in ("11", "26", "27", "28", "29", "30", "31", "36", "41", "51", "43", "44", "52", "46", "47")
+)  # 17개 시도 중 15개
+
+
+def test_is_likely_template_region_code_is_false_for_empty_region_code():
+    assert is_likely_template_region_code(_policy(region_code="")) is False
+
+
+def test_is_likely_template_region_code_is_false_for_a_single_region():
+    assert is_likely_template_region_code(_policy(region_code="11110,11140")) is False
+
+
+def test_is_likely_template_region_code_is_true_when_15_or_more_provinces_are_covered():
+    assert is_likely_template_region_code(_policy(region_code=_15_PROVINCE_CODES)) is True
 
 
 def test_is_newlywed_policy_matches_keyword_in_name_or_description():

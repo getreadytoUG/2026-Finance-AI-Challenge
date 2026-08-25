@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { callTool, getMe, getRegions } from "@/lib/api";
 import Pagination from "@/components/Pagination";
+import PolicyChat from "@/components/PolicyChat";
 import { krwToManwon, manwonToKrw } from "@/lib/profileOptions";
 
 type PolicyOption = {
@@ -82,96 +83,102 @@ export default function PolicyPage() {
         <p>현재 상황을 입력하면 금융 지원 정책 중 지금 신청 가능한 것만 모아 보여드립니다.</p>
       </div>
 
-      <div className="card">
-        <form onSubmit={handleSubmit}>
-          <label className="field">
-            <span className="field-label">나이</span>
-            <input className="input" type="number" value={age} onChange={(e) => setAge(e.target.value)} />
-          </label>
-          <label className="checkbox-field">
-            <input type="checkbox" checked={isMarried} onChange={(e) => setIsMarried(e.target.checked)} />
-            기혼
-          </label>
-          <label className="field">
-            <span className="field-label">연소득 (만원)</span>
-            <input className="input" type="number" value={income} onChange={(e) => setIncome(e.target.value)} />
-          </label>
-          {isMarried && (
-            <label className="field">
-              <span className="field-label">배우자 연소득 (만원, 선택)</span>
-              <input
-                className="input"
-                type="number"
-                value={spouseIncome}
-                onChange={(e) => setSpouseIncome(e.target.value)}
-                placeholder="입력하면 가구소득(본인+배우자) 합산 기준으로 조회해요"
-              />
-            </label>
-          )}
-          <label className="field-label" style={{ display: "block" }}>
-            지역
-          </label>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
-            {regions.map((r) => (
-              <button
-                key={r}
-                type="button"
-                className="btn-ghost"
-                onClick={() => setRegion(r)}
-                style={{
-                  borderRadius: 999,
-                  background: region === r ? "var(--primary-tint)" : undefined,
-                  color: region === r ? "var(--primary)" : undefined,
-                }}
-              >
-                {r}
+      <div className="two-column">
+        <div>
+          <div className="card">
+            <form onSubmit={handleSubmit}>
+              <label className="field">
+                <span className="field-label">나이</span>
+                <input className="input" type="number" value={age} onChange={(e) => setAge(e.target.value)} />
+              </label>
+              <label className="checkbox-field">
+                <input type="checkbox" checked={isMarried} onChange={(e) => setIsMarried(e.target.checked)} />
+                기혼
+              </label>
+              <label className="field">
+                <span className="field-label">연소득 (만원)</span>
+                <input className="input" type="number" value={income} onChange={(e) => setIncome(e.target.value)} />
+              </label>
+              {isMarried && (
+                <label className="field">
+                  <span className="field-label">배우자 연소득 (만원, 선택)</span>
+                  <input
+                    className="input"
+                    type="number"
+                    value={spouseIncome}
+                    onChange={(e) => setSpouseIncome(e.target.value)}
+                    placeholder="입력하면 가구소득(본인+배우자) 합산 기준으로 조회해요"
+                  />
+                </label>
+              )}
+              <label className="field-label" style={{ display: "block" }}>
+                지역
+              </label>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+                {regions.map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    className="btn-ghost"
+                    onClick={() => setRegion(r)}
+                    style={{
+                      borderRadius: 999,
+                      background: region === r ? "var(--primary-tint)" : undefined,
+                      color: region === r ? "var(--primary)" : undefined,
+                    }}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+              <button className="btn" type="submit" disabled={loading || !region}>
+                {loading ? "찾는 중..." : region ? "금융 정책 찾기" : "지역을 선택해주세요"}
               </button>
-            ))}
+            </form>
           </div>
-          <button className="btn" type="submit" disabled={loading || !region}>
-            {loading ? "찾는 중..." : region ? "금융 정책 찾기" : "지역을 선택해주세요"}
-          </button>
-        </form>
-      </div>
 
-      {error && <p className="error-text" style={{ marginTop: 16 }}>{error}</p>}
+          {error && <p className="error-text" style={{ marginTop: 16 }}>{error}</p>}
 
-      {result && (
-        result.options.length === 0 ? (
-          <p className="error-text" style={{ marginTop: 16 }}>지금 신청 가능한 금융 정책을 찾지 못했습니다.</p>
-        ) : (
-          <>
-            <div className="result-list">
-              {pageOptions.map((option, i) => (
-                <div key={i} className="result-item">
-                  <div className="result-item-title">
-                    {option.is_newlywed_policy && (
-                      <span className="badge badge-success" style={{ marginRight: 8 }}>
-                        💍 신혼부부
-                      </span>
-                    )}
-                    {option.policy_name}
-                  </div>
-                  <div className="result-item-row">
-                    <span>지원 내용</span>
-                    <span>{option.benefit_description}</span>
-                  </div>
-                  <div className="result-item-row">
-                    <span>신청 기간</span>
-                    <span>{option.application_period}</span>
-                  </div>
-                  <div style={{ marginTop: 12 }}>
-                    <a className="link" href={option.reference_url} target="_blank" rel="noreferrer">
-                      자세히 보기 →
-                    </a>
-                  </div>
+          {result && (
+            result.options.length === 0 ? (
+              <p className="error-text" style={{ marginTop: 16 }}>지금 신청 가능한 금융 정책을 찾지 못했습니다.</p>
+            ) : (
+              <>
+                <div className="result-list">
+                  {pageOptions.map((option, i) => (
+                    <div key={i} className="result-item">
+                      <div className="result-item-title">
+                        {option.is_newlywed_policy && (
+                          <span className="badge badge-success" style={{ marginRight: 8 }}>
+                            💍 신혼부부
+                          </span>
+                        )}
+                        {option.policy_name}
+                      </div>
+                      <div className="result-item-row">
+                        <span>지원 내용</span>
+                        <span>{option.benefit_description}</span>
+                      </div>
+                      <div className="result-item-row">
+                        <span>신청 기간</span>
+                        <span>{option.application_period}</span>
+                      </div>
+                      <div style={{ marginTop: 12 }}>
+                        <a className="link" href={option.reference_url} target="_blank" rel="noreferrer">
+                          자세히 보기 →
+                        </a>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
-          </>
-        )
-      )}
+                <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+              </>
+            )
+          )}
+        </div>
+
+        <PolicyChat />
+      </div>
     </>
   );
 }
