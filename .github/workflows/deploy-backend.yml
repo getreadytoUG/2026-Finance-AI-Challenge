@@ -37,6 +37,8 @@ jobs:
               env:
                 - name: JWT_SECRET
                   value: ${{ secrets.JWT_SECRET }}
+                - name: DATABASE_URL
+                  value: ${{ secrets.DATABASE_URL }}
                 - name: LLM_PROVIDER
                   value: claude
                 - name: CLAUDE_MODEL
