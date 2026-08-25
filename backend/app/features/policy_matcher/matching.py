@@ -44,6 +44,22 @@ def region_matches(policy_region_code: str, input_region: str) -> bool:
     return any(code.startswith(prefix) for code in codes)
 
 
+# 온통청년 API는 나이 무제한을 "0/0"(sprtTrgtMinAge=0, sprtTrgtMaxAge=0) sentinel로
+# 표현하는 레코드가 많고(_bounded_int_or_none 참고), 소득 조건도 "학자금 지원구간"
+# 같은 별도 등급 체계를 earnEtcCn 자유텍스트로만 주는 경우 earnMinAmt/earnMaxAmt가
+# 똑같이 0/0으로 찍힌다 — 결과적으로 min_age/max_age/min_income_krw/max_income_krw가
+# 전부 None이 되어 "국가장학금"처럼 사실상 프로필과 무관하게 아무나 통과하는 정책이
+# "맞춤 추천"에 계속 섞여 들어온다. 나이·소득 중 하나라도 구조화된 조건이 있는
+# 정책만 추천 대상으로 좁혀 이런 "조건 없음" 레코드를 알림에서 제외한다(사용자 요청,
+# 2026-08-25). policy_matcher 검색/정책 읽기 탭에는 적용하지 않는다 — 사용자가 직접
+# 조건을 넣어 조회하는 흐름이라 "조건 없음" 정책도 결과에 포함되는 게 자연스럽다.
+def has_specific_eligibility_condition(policy: RawYouthPolicy) -> bool:
+    return any(
+        value is not None
+        for value in (policy.min_age, policy.max_age, policy.min_income_krw, policy.max_income_krw)
+    )
+
+
 def is_eligible(policy: RawYouthPolicy, input: PolicyMatchInput) -> bool:
     if policy.min_age is not None and input.age < policy.min_age:
         return False

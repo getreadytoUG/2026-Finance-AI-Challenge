@@ -1,4 +1,4 @@
-from app.features.policy_matcher.matching import is_eligible, is_newlywed_policy
+from app.features.policy_matcher.matching import has_specific_eligibility_condition, is_eligible, is_newlywed_policy
 from app.features.policy_matcher.schemas import PolicyMatchInput
 from app.features.policy_matcher.youth_center_client import RawYouthPolicy
 
@@ -79,6 +79,17 @@ def test_income_floor_uses_combined_household_income_when_spouse_income_given():
         )
         is True
     )
+
+
+def test_has_specific_eligibility_condition_is_false_when_all_four_fields_are_none():
+    assert has_specific_eligibility_condition(_policy()) is False
+
+
+def test_has_specific_eligibility_condition_is_true_when_any_one_field_is_set():
+    assert has_specific_eligibility_condition(_policy(min_age=19)) is True
+    assert has_specific_eligibility_condition(_policy(max_age=39)) is True
+    assert has_specific_eligibility_condition(_policy(min_income_krw=1)) is True
+    assert has_specific_eligibility_condition(_policy(max_income_krw=1)) is True
 
 
 def test_is_newlywed_policy_matches_keyword_in_name_or_description():
