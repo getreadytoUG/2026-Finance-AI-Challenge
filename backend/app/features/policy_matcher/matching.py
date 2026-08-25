@@ -1,5 +1,5 @@
+from app.features.policy_matcher.models import CachedPolicy
 from app.features.policy_matcher.schemas import PolicyMatchInput
-from app.features.policy_matcher.youth_center_client import RawYouthPolicy
 
 # 온통청년 API의 zipCd는 법정동코드 콤마목록(예: "11110,11140,...")이고, 앞 2자리가
 # 시도 코드다. 사용자는 자유 텍스트로 지역을 입력하므로, 흔히 쓰는 표기를 이 2자리
@@ -53,7 +53,7 @@ def region_matches(policy_region_code: str, input_region: str) -> bool:
 # 정책만 추천 대상으로 좁혀 이런 "조건 없음" 레코드를 알림에서 제외한다(사용자 요청,
 # 2026-08-25). policy_matcher 검색/정책 읽기 탭에는 적용하지 않는다 — 사용자가 직접
 # 조건을 넣어 조회하는 흐름이라 "조건 없음" 정책도 결과에 포함되는 게 자연스럽다.
-def has_specific_eligibility_condition(policy: RawYouthPolicy) -> bool:
+def has_specific_eligibility_condition(policy: CachedPolicy) -> bool:
     return any(
         value is not None
         for value in (policy.min_age, policy.max_age, policy.min_income_krw, policy.max_income_krw)
@@ -80,13 +80,13 @@ def _distinct_province_count(region_code: str) -> int:
 _NATIONWIDE_TEMPLATE_PROVINCE_THRESHOLD = 15
 
 
-def is_likely_template_region_code(policy: RawYouthPolicy) -> bool:
+def is_likely_template_region_code(policy: CachedPolicy) -> bool:
     if not policy.region_code:
         return False
     return _distinct_province_count(policy.region_code) >= _NATIONWIDE_TEMPLATE_PROVINCE_THRESHOLD
 
 
-def is_eligible(policy: RawYouthPolicy, input: PolicyMatchInput) -> bool:
+def is_eligible(policy: CachedPolicy, input: PolicyMatchInput) -> bool:
     if policy.min_age is not None and input.age < policy.min_age:
         return False
     if policy.max_age is not None and input.age > policy.max_age:
@@ -120,12 +120,11 @@ def is_eligible(policy: RawYouthPolicy, input: PolicyMatchInput) -> bool:
 #     없음" sentinel일 뿐 혼인상태 분류값이 아니다(위 is_eligible 주석 참고).
 # 그래서 정책명/설명 텍스트에 신혼부부 관련 키워드가 들어있는지로 판별한다. "결혼"
 # 단독 키워드는 오탐이 많아(미혼남녀 만남 프로그램, 결혼이민여성 취업지원 등) 뺐다.
-# fetch_all_policies()가 매 요청마다 API를 다시 불러오므로, 이 판별도 매 요청 시점의
-# 최신 데이터에 대해 다시 계산된다 — 나중에 새 정책이 추가되어도 이름/설명에 아래
-# 키워드가 있으면 별도 코드 수정 없이 자동으로 잡힌다.
+# CachedPolicy는 배치가 주기적으로 갱신하므로, 새 정책이 캐시에 들어오면 이름/설명에
+# 아래 키워드가 있는지 그때그때 다시 계산된다 — 별도 코드 수정 필요 없이 자동으로 잡힌다.
 NEWLYWED_KEYWORDS = ("신혼", "청년부부", "예비부부")
 
 
-def is_newlywed_policy(policy: RawYouthPolicy) -> bool:
+def is_newlywed_policy(policy: CachedPolicy) -> bool:
     haystack = policy.policy_name + policy.description
     return any(keyword in haystack for keyword in NEWLYWED_KEYWORDS)

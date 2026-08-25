@@ -1,7 +1,8 @@
+from datetime import datetime, timezone
+
 from app.features.policy_chat import router as policy_chat_router
-from app.features.policy_chat import tool as policy_chat_tool
 from app.features.policy_matcher.categories import FINANCIAL_LARGE_CATEGORY
-from app.features.policy_matcher.youth_center_client import RawYouthPolicy
+from app.features.policy_matcher.models import CachedPolicy
 from app.llm.base import LLMResponse, ToolCallRequest
 
 
@@ -21,13 +22,15 @@ def _signup_login(client, email="chat-user@example.com", **overrides):
     return login.json()["access_token"]
 
 
-def _policy(**overrides) -> RawYouthPolicy:
+def _seed_policy(db_session, **overrides) -> CachedPolicy:
     defaults = dict(
-        policy_id="",
+        policy_key="chat-p1",
         policy_name="테스트 정책",
         description="지원 내용 설명",
         apply_url="https://www.youthcenter.go.kr",
         application_period="상시",
+        apply_start_ymd=None,
+        apply_end_ymd=None,
         min_age=None,
         max_age=None,
         min_income_krw=None,
@@ -35,9 +38,14 @@ def _policy(**overrides) -> RawYouthPolicy:
         marital_status="",
         region_code="",
         large_category=FINANCIAL_LARGE_CATEGORY,
+        mid_category="",
+        refreshed_at=datetime.now(timezone.utc),
     )
     defaults.update(overrides)
-    return RawYouthPolicy(**defaults)
+    row = CachedPolicy(**defaults)
+    db_session.add(row)
+    db_session.commit()
+    return row
 
 
 class _FakeProvider:
@@ -74,9 +82,9 @@ def test_message_returns_direct_reply_when_model_does_not_call_tool(client, monk
     assert len(fake.calls) == 1  # tool_call이 없으면 2차 호출을 하지 않는다
 
 
-def test_message_executes_tool_and_returns_policies(client, monkeypatch):
+def test_message_executes_tool_and_returns_policies(client, db_session, monkeypatch):
     token = _signup_login(client)
-    monkeypatch.setattr(policy_chat_tool, "fetch_all_policies", lambda: [_policy(policy_name="전세자금 대출")])
+    _seed_policy(db_session, policy_name="전세자금 대출")
 
     fake = _FakeProvider(
         [
@@ -102,9 +110,9 @@ def test_message_executes_tool_and_returns_policies(client, monkeypatch):
     assert len(fake.calls) == 2
 
 
-def test_message_fills_in_missing_args_from_user_profile(client, monkeypatch):
+def test_message_fills_in_missing_args_from_user_profile(client, db_session, monkeypatch):
     token = _signup_login(client, email="profile-fill@example.com", age=33, region="부산")
-    monkeypatch.setattr(policy_chat_tool, "fetch_all_policies", lambda: [_policy(region_code="26110")])
+    _seed_policy(db_session, region_code="26110")
 
     fake = _FakeProvider(
         [

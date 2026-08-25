@@ -1,6 +1,7 @@
-from app.features.policy_matcher import tool
+from datetime import datetime, timezone
+
 from app.features.policy_matcher.categories import FINANCIAL_LARGE_CATEGORY
-from app.features.policy_matcher.youth_center_client import RawYouthPolicy
+from app.features.policy_matcher.models import CachedPolicy
 
 
 def _signup_and_login(client, email="tools-user@example.com"):
@@ -20,28 +21,23 @@ def _signup_and_login(client, email="tools-user@example.com"):
     return login.json()["access_token"]
 
 
-def test_calling_registered_tool_returns_its_output(client, monkeypatch):
-    # Mock fetch_policies to return a test policy without restricting conditions
-    monkeypatch.setattr(
-        tool,
-        "fetch_all_policies",
-        lambda: [
-            RawYouthPolicy(
-                policy_id="",
-                policy_name="청년 전세자금대출 (테스트)",
-                description="전세자금을 지원합니다",
-                apply_url="https://www.example.com",
-                application_period="상시",
-                min_age=None,
-                max_age=None,
-                min_income_krw=None,
-                max_income_krw=None,
-                marital_status="",
-                region_code="",
-                large_category=FINANCIAL_LARGE_CATEGORY,
-            )
-        ],
+def test_calling_registered_tool_returns_its_output(client, db_session):
+    # Seed a cached policy without restricting conditions
+    db_session.add(
+        CachedPolicy(
+            policy_key="test-1",
+            policy_name="청년 전세자금대출 (테스트)",
+            description="전세자금을 지원합니다",
+            apply_url="https://www.example.com",
+            application_period="상시",
+            large_category=FINANCIAL_LARGE_CATEGORY,
+            mid_category="주거",
+            marital_status="",
+            region_code="",
+            refreshed_at=datetime.now(timezone.utc),
+        )
     )
+    db_session.commit()
     token = _signup_and_login(client)
     response = client.post(
         "/tools/policy_matcher",

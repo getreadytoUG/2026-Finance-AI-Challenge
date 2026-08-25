@@ -54,6 +54,13 @@ def test_refresh_policy_cache_inserts_new_rows(db_session, monkeypatch):
     assert row.large_category == "주거"
 
 
+def test_refresh_policy_cache_falls_back_to_policy_name_when_id_blank(db_session, monkeypatch):
+    monkeypatch.setattr(cache, "fetch_all_policies", lambda: [_policy(policy_id="", policy_name="이름만 있는 정책")])
+    cache.refresh_policy_cache(db_session)
+    row = db_session.query(CachedPolicy).one()
+    assert row.policy_key == "이름만 있는 정책"
+
+
 def test_refresh_policy_cache_updates_existing_row_instead_of_duplicating(db_session, monkeypatch):
     monkeypatch.setattr(cache, "fetch_all_policies", lambda: [_policy(policy_name="이름1")])
     cache.refresh_policy_cache(db_session)

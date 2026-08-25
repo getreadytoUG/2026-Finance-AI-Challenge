@@ -1,8 +1,8 @@
 from app.features.policy_chat.schemas import PolicyChatSearchInput, PolicyChatSearchOption, PolicyChatSearchOutput
 from app.features.policy_matcher.categories import FINANCIAL_LARGE_CATEGORY, category_tags
 from app.features.policy_matcher.matching import is_newlywed_policy, region_matches
+from app.features.policy_matcher.models import CachedPolicy
 from app.features.policy_matcher.status import compute_policy_status, today_kst
-from app.features.policy_matcher.youth_center_client import RawYouthPolicy, fetch_all_policies
 from app.tools.base import ToolContext, ToolSpec
 
 MAX_RESULTS = 8
@@ -11,7 +11,7 @@ MAX_RESULTS = 8
 # policy_matcher.matching.is_eligible과 달리 이 조건들은 챗봇 대화에서 자연스럽게
 # 다 언급되지 않을 수 있다 — 값이 주어진 필드만 체크하고, None인 필드는 그냥
 # 통과시킨다(그 필드에 대해서는 아무 의견도 없다는 뜻으로 취급).
-def _matches(policy: RawYouthPolicy, input: PolicyChatSearchInput) -> bool:
+def _matches(policy: CachedPolicy, input: PolicyChatSearchInput) -> bool:
     if input.age is not None:
         if policy.min_age is not None and input.age < policy.min_age:
             return False
@@ -39,7 +39,9 @@ def _matches(policy: RawYouthPolicy, input: PolicyChatSearchInput) -> bool:
 
 def run(input: PolicyChatSearchInput, ctx: ToolContext) -> PolicyChatSearchOutput:
     today = today_kst()
-    policies = fetch_all_policies()
+    # 온통청년 API를 매 대화 턴마다 직접 부르는 대신, 배치가 채워 넣는 DB 캐시
+    # (CachedPolicy)를 조회한다 — "정책 읽기"/policy_matcher와 동일한 데이터 소스.
+    policies = ctx.db.query(CachedPolicy).all()
     financial_policies = [
         policy for policy in policies if FINANCIAL_LARGE_CATEGORY in category_tags(policy.large_category)
     ]

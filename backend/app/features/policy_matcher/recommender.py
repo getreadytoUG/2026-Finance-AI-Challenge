@@ -12,9 +12,8 @@ from app.features.policy_matcher.matching import (
     is_eligible,
     is_likely_template_region_code,
 )
-from app.features.policy_matcher.models import PolicyRecommendation
+from app.features.policy_matcher.models import CachedPolicy, PolicyRecommendation
 from app.features.policy_matcher.schemas import PolicyMatchInput
-from app.features.policy_matcher.youth_center_client import fetch_all_policies
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +38,10 @@ def run_recommendation_batch_for_user(db: Session, user: User) -> int:
         region=user.region,
         spouse_annual_income_krw=user.spouse_annual_income_krw,
     )
-    # fetch_policies()의 기본 page_size(100)로는 전체 카탈로그(~2,700여 건) 중
-    # 일부만 보게 되어 상당수 매칭을 놓친다 — 전체를 가져온다.
-    policies = fetch_all_policies()
+    # 온통청년 API를 직접 부르는 대신, 배치가 매일 새벽 갱신해 두는 DB 캐시
+    # (CachedPolicy)를 조회한다 — 유저 수만큼 외부 API를 반복 호출하지 않도록
+    # _run_daily_recommendation_job에서 캐시를 한 번만 갱신한 뒤 이 함수를 유저별로 돈다.
+    policies = db.query(CachedPolicy).all()
 
     existing_keys = {
         row.policy_key
@@ -56,7 +56,7 @@ def run_recommendation_batch_for_user(db: Session, user: User) -> int:
             continue
         if is_likely_template_region_code(policy):
             continue
-        policy_key = policy.policy_id or policy.policy_name
+        policy_key = policy.policy_key
         if policy_key in existing_keys:
             continue
         db.add(

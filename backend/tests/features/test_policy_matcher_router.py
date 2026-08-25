@@ -1,7 +1,9 @@
+from datetime import datetime, timezone
+
 from app.auth.service import create_user
 from app.core.security import create_access_token
 from app.features.policy_matcher import recommender
-from app.features.policy_matcher.youth_center_client import RawYouthPolicy
+from app.features.policy_matcher.models import CachedPolicy
 
 
 def _signup_login_with_profile(client, email="router-user@example.com"):
@@ -21,22 +23,30 @@ def _signup_login_with_profile(client, email="router-user@example.com"):
     return login.json()["access_token"]
 
 
-def _policy(**overrides) -> RawYouthPolicy:
+def _seed_policy(db_session, **overrides) -> CachedPolicy:
     defaults = dict(
-        policy_id="P100",
+        policy_key="P100",
         policy_name="테스트 정책",
         description="지원 내용",
         apply_url="https://example.com",
         application_period="상시",
+        apply_start_ymd=None,
+        apply_end_ymd=None,
         min_age=19,
         max_age=39,
         min_income_krw=None,
         max_income_krw=None,
         marital_status="",
         region_code="",
+        large_category="기타",
+        mid_category="",
+        refreshed_at=datetime.now(timezone.utc),
     )
     defaults.update(overrides)
-    return RawYouthPolicy(**defaults)
+    row = CachedPolicy(**defaults)
+    db_session.add(row)
+    db_session.commit()
+    return row
 
 
 def test_refresh_requires_auth(client):
@@ -44,8 +54,8 @@ def test_refresh_requires_auth(client):
     assert response.status_code == 401
 
 
-def test_refresh_creates_recommendations_for_eligible_policies(client, monkeypatch):
-    monkeypatch.setattr(recommender, "fetch_all_policies", lambda: [_policy()])
+def test_refresh_creates_recommendations_for_eligible_policies(client, db_session):
+    _seed_policy(db_session)
     token = _signup_login_with_profile(client)
     response = client.post(
         "/policy_matcher/recommendations/refresh",
@@ -55,8 +65,8 @@ def test_refresh_creates_recommendations_for_eligible_policies(client, monkeypat
     assert response.json()["created"] == 1
 
 
-def test_refresh_returns_zero_when_profile_incomplete(client, db_session, monkeypatch):
-    monkeypatch.setattr(recommender, "fetch_all_policies", lambda: [_policy()])
+def test_refresh_returns_zero_when_profile_incomplete(client, db_session):
+    _seed_policy(db_session)
     # 신규 회원가입은 이제 프로필을 항상 같이 받으므로, "프로필 미입력" 상태는
     # (데모 계정처럼) signup 스키마를 거치지 않은 유저로만 재현할 수 있다.
     user = create_user(db_session, "incomplete@example.com", "secret123")
@@ -69,11 +79,13 @@ def test_refresh_returns_zero_when_profile_incomplete(client, db_session, monkey
     assert response.json()["created"] == 0
 
 
-def test_refresh_failure_still_returns_cors_headers(client, monkeypatch):
-    def boom():
+def test_refresh_failure_still_returns_cors_headers(client, db_session, monkeypatch):
+    _seed_policy(db_session)
+
+    def boom(policy, match_input):
         raise RuntimeError("boom")
 
-    monkeypatch.setattr(recommender, "fetch_all_policies", boom)
+    monkeypatch.setattr(recommender, "is_eligible", boom)
     token = _signup_login_with_profile(client)
 
     response = client.post(
@@ -85,8 +97,8 @@ def test_refresh_failure_still_returns_cors_headers(client, monkeypatch):
     assert response.headers.get("access-control-allow-origin") == "http://localhost:3000"
 
 
-def test_list_returns_only_current_users_recommendations(client, monkeypatch):
-    monkeypatch.setattr(recommender, "fetch_all_policies", lambda: [_policy(policy_id="P200")])
+def test_list_returns_only_current_users_recommendations(client, db_session):
+    _seed_policy(db_session, policy_key="P200")
     token_a = _signup_login_with_profile(client, email="user-a@example.com")
     client.post("/policy_matcher/recommendations/refresh", headers={"Authorization": f"Bearer {token_a}"})
 
@@ -101,8 +113,8 @@ def test_list_returns_only_current_users_recommendations(client, monkeypatch):
     assert response_a.json()["recommendations"][0]["policy_name"] == "테스트 정책"
 
 
-def test_list_includes_unread_count(client, monkeypatch):
-    monkeypatch.setattr(recommender, "fetch_all_policies", lambda: [_policy(policy_id="P300")])
+def test_list_includes_unread_count(client, db_session):
+    _seed_policy(db_session, policy_key="P300")
     token = _signup_login_with_profile(client)
     client.post("/policy_matcher/recommendations/refresh", headers={"Authorization": f"Bearer {token}"})
 
@@ -110,8 +122,8 @@ def test_list_includes_unread_count(client, monkeypatch):
     assert response.json()["unread_count"] == 1
 
 
-def test_mark_recommendation_read_updates_is_read(client, monkeypatch):
-    monkeypatch.setattr(recommender, "fetch_all_policies", lambda: [_policy(policy_id="P301")])
+def test_mark_recommendation_read_updates_is_read(client, db_session):
+    _seed_policy(db_session, policy_key="P301")
     token = _signup_login_with_profile(client)
     client.post("/policy_matcher/recommendations/refresh", headers={"Authorization": f"Bearer {token}"})
     rec_id = client.get(
@@ -128,8 +140,8 @@ def test_mark_recommendation_read_updates_is_read(client, monkeypatch):
     assert listing.json()["unread_count"] == 0
 
 
-def test_mark_recommendation_read_rejects_other_users_recommendation(client, monkeypatch):
-    monkeypatch.setattr(recommender, "fetch_all_policies", lambda: [_policy(policy_id="P302")])
+def test_mark_recommendation_read_rejects_other_users_recommendation(client, db_session):
+    _seed_policy(db_session, policy_key="P302")
     token_a = _signup_login_with_profile(client, email="read-a@example.com")
     client.post("/policy_matcher/recommendations/refresh", headers={"Authorization": f"Bearer {token_a}"})
     rec_id = client.get(
