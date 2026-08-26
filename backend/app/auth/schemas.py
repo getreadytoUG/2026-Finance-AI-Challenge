@@ -1,6 +1,8 @@
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, computed_field
+
+from app.auth.service import is_admin_email
 
 # 학생/직장인 등 직업 구분. 프론트 select와 값이 1:1로 맞아야 한다.
 OccupationType = Literal["student", "employee", "self_employed", "unemployed", "other"]
@@ -58,3 +60,10 @@ class UserOut(BaseModel):
     spouse_age: int | None = None
     spouse_annual_income_krw: int | None = None
     spouse_occupation: OccupationType | None = None
+
+    # DB 컬럼이 아니라 이메일이 관리자 계정과 일치하는지로만 판단한다 — 스키마
+    # 마이그레이션 없이 관리자 여부를 노출하기 위한 계산 필드.
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def is_admin(self) -> bool:
+        return is_admin_email(self.email)

@@ -194,6 +194,30 @@ def test_update_profile_requires_auth(client):
     assert response.status_code == 401
 
 
+def test_seed_admin_user_creates_admin_once_and_is_idempotent(db_session):
+    from app.auth.models import User
+    from app.auth.service import seed_admin_user
+    from app.core.config import settings
+
+    seed_admin_user(db_session)
+    seed_admin_user(db_session)  # 두 번째 호출은 이미 존재하니 아무 것도 안 해야 한다
+
+    admins = db_session.query(User).filter(User.email == settings.admin_email).all()
+    assert len(admins) == 1
+
+
+def test_admin_account_can_log_in_with_seeded_credentials(client, db_session):
+    from app.auth.service import seed_admin_user
+    from app.core.config import settings
+
+    seed_admin_user(db_session)
+    response = client.post(
+        "/auth/login", json={"email": settings.admin_email, "password": settings.admin_password}
+    )
+    assert response.status_code == 200
+    assert response.json()["access_token"]
+
+
 def test_me_reflects_profile_after_update(client):
     client.post("/auth/signup", json=_signup_payload("f@example.com"))
     login = client.post("/auth/login", json={"email": "f@example.com", "password": "secret123"})

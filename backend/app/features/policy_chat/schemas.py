@@ -85,4 +85,8 @@ class PolicyAnalysisRequest(BaseModel):
 
 
 class PolicyAnalysisResponse(BaseModel):
-    report: str
+    fit: Literal["적합", "부적합"]
+    concerns: str | None = None
+    benefit_summary: str
+    application_notes: str
+    required_documents: list[str] = []

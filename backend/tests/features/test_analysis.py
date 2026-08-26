@@ -2,8 +2,9 @@ from datetime import datetime, timezone
 
 from app.auth.models import User
 from app.features.policy_chat import analysis
+from app.features.policy_chat.analysis import PolicyAnalysisResult
 from app.features.policy_matcher.models import CachedPolicy
-from app.llm.base import LLMResponse
+from app.llm.base import LLMResponse, ToolCallRequest
 
 
 def _user(**overrides) -> User:
@@ -53,25 +54,97 @@ class _FakeProvider:
         return self._response
 
 
-def test_generate_policy_report_calls_llm_once_with_no_tools(monkeypatch):
-    fake = _FakeProvider(LLMResponse(content="적합도: 조건부 적합\n예상 혜택: ...", tool_calls=[]))
+def test_generate_policy_report_calls_llm_once_via_tool_call(monkeypatch):
+    fake = _FakeProvider(
+        LLMResponse(
+            content=None,
+            tool_calls=[
+                ToolCallRequest(
+                    name="policy_analysis_result",
+                    arguments={
+                        "fit": "적합",
+                        "concerns": None,
+                        "benefit_summary": "월 20만원 지원",
+                        "application_notes": "재직 증명서를 준비하세요.",
+                        "required_documents": ["재직증명서", "주민등록등본"],
+                    },
+                )
+            ],
+        )
+    )
     monkeypatch.setattr(analysis, "get_provider", lambda: fake)
 
-    report = analysis.generate_policy_report(_user(), _policy())
+    result = analysis.generate_policy_report(_user(), _policy())
 
-    assert report == "적합도: 조건부 적합\n예상 혜택: ..."
+    assert result == PolicyAnalysisResult(
+        fit="적합",
+        concerns=None,
+        benefit_summary="월 20만원 지원",
+        application_notes="재직 증명서를 준비하세요.",
+        required_documents=["재직증명서", "주민등록등본"],
+    )
     assert len(fake.calls) == 1
     messages, tools = fake.calls[0]
-    assert tools == []
+    assert tools[0].name == "policy_analysis_result"
     assert messages[0].role == "system"
     assert "청년 월세 지원" in messages[1].content
     assert "29세" in messages[1].content
 
 
-def test_generate_policy_report_falls_back_when_llm_returns_no_content(monkeypatch):
-    fake = _FakeProvider(LLMResponse(content=None, tool_calls=[]))
+def test_generate_policy_report_defaults_required_documents_to_empty_list_when_omitted(monkeypatch):
+    fake = _FakeProvider(
+        LLMResponse(
+            content=None,
+            tool_calls=[
+                ToolCallRequest(
+                    name="policy_analysis_result",
+                    arguments={
+                        "fit": "적합",
+                        "benefit_summary": "월 20만원 지원",
+                        "application_notes": "특별한 유의사항 없음",
+                    },
+                )
+            ],
+        )
+    )
     monkeypatch.setattr(analysis, "get_provider", lambda: fake)
 
-    report = analysis.generate_policy_report(_user(), _policy())
+    result = analysis.generate_policy_report(_user(), _policy())
 
-    assert report == "분석 결과를 생성하지 못했습니다."
+    assert result.required_documents == []
+
+
+def test_generate_policy_report_falls_back_when_no_tool_call(monkeypatch):
+    fake = _FakeProvider(LLMResponse(content="그냥 텍스트로만 답했어요", tool_calls=[]))
+    monkeypatch.setattr(analysis, "get_provider", lambda: fake)
+
+    result = analysis.generate_policy_report(_user(), _policy())
+
+    assert result.fit == "부적합"
+    assert result.concerns
+
+
+def test_generate_policy_report_falls_back_when_tool_call_has_invalid_fit_value(monkeypatch):
+    # fit은 "적합"/"부적합" Literal이라 모델이 다른 값(예: "조건부 적합")을 내면
+    # 검증에 실패해야 한다 — 프론트에서 원 색깔을 이분법으로만 표시하기 위함.
+    fake = _FakeProvider(
+        LLMResponse(
+            content=None,
+            tool_calls=[
+                ToolCallRequest(
+                    name="policy_analysis_result",
+                    arguments={
+                        "fit": "조건부 적합",
+                        "benefit_summary": "월 20만원 지원",
+                        "application_notes": "",
+                    },
+                )
+            ],
+        )
+    )
+    monkeypatch.setattr(analysis, "get_provider", lambda: fake)
+
+    result = analysis.generate_policy_report(_user(), _policy())
+
+    assert result.fit == "부적합"
+    assert result.concerns

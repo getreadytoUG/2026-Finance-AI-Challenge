@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { login } from "@/lib/api";
+import { getMe, login } from "@/lib/api";
 import PasswordField from "@/components/PasswordField";
 
 export default function LoginPage() {
@@ -20,7 +20,8 @@ export default function LoginPage() {
     try {
       const token = await login(email, password);
       localStorage.setItem("token", token);
-      router.push("/policy");
+      const profile = await getMe(token);
+      router.push(profile.is_admin ? "/admin" : "/policy");
     } catch {
       setError("이메일 또는 비밀번호가 올바르지 않습니다.");
     } finally {

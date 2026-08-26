@@ -78,6 +78,12 @@ def me(current_user: User = Depends(get_current_user)):
     return current_user
 
 
+def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    if not service.is_admin_email(current_user.email):
+        raise HTTPException(status_code=403, detail="관리자만 접근할 수 있습니다.")
+    return current_user
+
+
 @router.put("/profile", response_model=UserOut)
 def update_profile(
     payload: ProfileUpdateRequest,

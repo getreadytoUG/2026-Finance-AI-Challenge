@@ -294,6 +294,90 @@ a {
   cursor: not-allowed;
 }
 
+.admin-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.admin-kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px 18px;
+}
+
+.admin-kpi-card .kpi-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.admin-kpi-card .kpi-value {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.admin-table th,
+.admin-table td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.admin-table th {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.admin-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+.admin-bar-label {
+  width: 110px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.admin-bar-track {
+  flex: 1;
+  background: var(--bg);
+  border-radius: 999px;
+  height: 10px;
+  overflow: hidden;
+}
+
+.admin-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+  border-radius: 999px;
+}
+
+.admin-bar-count {
+  width: 40px;
+  text-align: right;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
 .analysis-report {
   margin-top: 12px;
   background: var(--bg);
@@ -315,6 +399,41 @@ a {
 
 .analysis-report-loading .chat-typing {
   padding: 0;
+}
+
+.analysis-fit-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.analysis-fit-dot {
+  display: block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.analysis-report-section {
+  margin-top: 10px;
+}
+
+.analysis-report-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.analysis-doc-list {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.analysis-doc-list li {
+  margin-top: 2px;
 }
 
 .badge {

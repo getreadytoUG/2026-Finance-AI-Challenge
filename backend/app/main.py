@@ -6,9 +6,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth.models import User  # noqa: F401
 from app.auth.router import router as auth_router
+from app.auth.service import seed_admin_user
 from app.core.config import settings
 from app.core.db import Base, SessionLocal, engine
 from app.features import register_all_tools
+from app.features.admin.router import router as admin_router
 from app.features.policy_chat.router import router as policy_chat_router
 from app.features.policy_matcher.cache import seed_policy_cache_if_empty
 from app.features.policy_matcher.models import PolicyRecommendation  # noqa: F401
@@ -26,6 +28,7 @@ async def lifespan(app: FastAPI):
     db = SessionLocal()
     try:
         seed_policy_cache_if_empty(db)
+        seed_admin_user(db)
     finally:
         db.close()
     register_daily_recommendation_job()
@@ -46,6 +49,7 @@ app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(tools_router, prefix="/tools", tags=["tools"])
 app.include_router(policy_matcher_router, prefix="/policy_matcher", tags=["policy_matcher"])
 app.include_router(policy_chat_router, prefix="/policy_chat", tags=["policy_chat"])
+app.include_router(admin_router, prefix="/admin", tags=["admin"])
 
 
 @app.get("/health")

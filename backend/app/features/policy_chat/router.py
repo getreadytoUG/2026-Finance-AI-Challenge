@@ -283,8 +283,8 @@ def analyze_ai_search_policy(
         policy = db.query(CachedPolicy).filter(CachedPolicy.policy_key == payload.policy_key).first()
         if policy is None:
             raise HTTPException(status_code=404, detail="정책을 찾을 수 없습니다.")
-        report = generate_policy_report(current_user, policy)
-        return PolicyAnalysisResponse(report=report)
+        result = generate_policy_report(current_user, policy)
+        return PolicyAnalysisResponse(**result.model_dump())
     except HTTPException:
         raise
     except Exception as e:

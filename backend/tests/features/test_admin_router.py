@@ -1,0 +1,171 @@
+import itertools
+from datetime import datetime, timedelta, timezone
+
+from app.auth.service import seed_admin_user
+from app.core.config import settings
+from app.features.policy_matcher.models import CachedPolicy, PolicyRecommendation
+
+_key_seq = itertools.count(1)
+
+
+def _signup_login(client, email="normal-user@example.com", **overrides):
+    payload = {
+        "email": email,
+        "password": "secret123",
+        "age": 29,
+        "is_married": True,
+        "annual_income_krw": 40_000_000,
+        "region": "서울",
+        "occupation": "employee",
+    }
+    payload.update(overrides)
+    client.post("/auth/signup", json=payload)
+    login = client.post("/auth/login", json={"email": email, "password": "secret123"})
+    return login.json()["access_token"]
+
+
+def _admin_login(client, db_session):
+    seed_admin_user(db_session)
+    login = client.post(
+        "/auth/login", json={"email": settings.admin_email, "password": settings.admin_password}
+    )
+    return login.json()["access_token"]
+
+
+def _seed_policy(db_session, **overrides) -> CachedPolicy:
+    defaults = dict(
+        policy_key=f"P{next(_key_seq)}",
+        policy_name="테스트 정책",
+        description="지원 내용",
+        apply_url="https://example.com",
+        application_period="상시",
+        apply_start_ymd=None,
+        apply_end_ymd=None,
+        min_age=None,
+        max_age=None,
+        min_income_krw=None,
+        max_income_krw=None,
+        marital_status="",
+        region_code="",
+        large_category="일자리",
+        mid_category="",
+        refreshed_at=datetime.now(timezone.utc),
+    )
+    defaults.update(overrides)
+    row = CachedPolicy(**defaults)
+    db_session.add(row)
+    db_session.commit()
+    return row
+
+
+def test_me_reports_is_admin_true_for_admin_account(client, db_session):
+    token = _admin_login(client, db_session)
+    response = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert response.json()["is_admin"] is True
+
+
+def test_me_reports_is_admin_false_for_normal_account(client):
+    token = _signup_login(client)
+    response = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert response.json()["is_admin"] is False
+
+
+def test_admin_endpoints_reject_normal_user(client):
+    token = _signup_login(client)
+    for method, path in [
+        ("get", "/admin/overview"),
+        ("get", "/admin/users"),
+        ("get", "/admin/policies/stats"),
+        ("post", "/admin/policies/refresh"),
+    ]:
+        response = getattr(client, method)(path, headers={"Authorization": f"Bearer {token}"})
+        assert response.status_code == 403, f"{method} {path} should be forbidden for non-admin"
+
+
+def test_admin_endpoints_reject_unauthenticated(client):
+    response = client.get("/admin/overview")
+    assert response.status_code == 401
+
+
+def test_admin_overview_reports_aggregate_counts(client, db_session):
+    _signup_login(client, email="u1@example.com", is_married=True)
+    _signup_login(client, email="u2@example.com", is_married=False)
+    yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y%m%d")
+    _seed_policy(db_session, apply_url="", apply_start_ymd="20200101", apply_end_ymd=yesterday)
+    _seed_policy(db_session, apply_url="https://example.com")
+
+    admin_token = _admin_login(client, db_session)
+    response = client.get("/admin/overview", headers={"Authorization": f"Bearer {admin_token}"})
+    assert response.status_code == 200
+    body = response.json()
+    # 관리자 계정 자신도 회원 수에 포함된다.
+    assert body["total_users"] == 3
+    assert body["married_users"] == 1
+    assert body["total_policies"] == 2
+    assert body["policies_missing_link"] == 1
+    assert body["policies_expired"] == 1
+
+
+def test_admin_users_lists_all_users(client, db_session):
+    _signup_login(client, email="u1@example.com")
+    _signup_login(client, email="u2@example.com")
+    admin_token = _admin_login(client, db_session)
+
+    response = client.get("/admin/users", headers={"Authorization": f"Bearer {admin_token}"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == 3  # 일반 유저 2명 + 관리자 자신
+    emails = {u["email"] for u in body["users"]}
+    assert {"u1@example.com", "u2@example.com", settings.admin_email} == emails
+
+
+def test_admin_policy_stats_breaks_down_by_category_and_status(client, db_session):
+    _seed_policy(db_session, large_category="일자리,주거")
+    _seed_policy(db_session, large_category="주거")
+    admin_token = _admin_login(client, db_session)
+
+    response = client.get("/admin/policies/stats", headers={"Authorization": f"Bearer {admin_token}"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == 2
+    categories = {c["name"]: c["count"] for c in body["by_category"]}
+    assert categories["주거"] == 2
+    assert categories["일자리"] == 1
+    statuses = {s["status"]: s["count"] for s in body["by_status"]}
+    assert statuses["상시"] == 2
+
+
+def test_admin_policy_refresh_triggers_cache_refresh(client, db_session, monkeypatch):
+    from app.features.admin import router as admin_router
+
+    monkeypatch.setattr(admin_router, "refresh_policy_cache", lambda db: 42)
+    admin_token = _admin_login(client, db_session)
+
+    response = client.post("/admin/policies/refresh", headers={"Authorization": f"Bearer {admin_token}"})
+    assert response.status_code == 200
+    assert response.json()["upserted"] == 42
+
+
+def test_admin_overview_counts_recommendations(client, db_session):
+    from app.auth.models import User
+
+    admin_token = _admin_login(client, db_session)
+    owner = db_session.query(User).filter(User.email == settings.admin_email).first()
+    db_session.add(
+        PolicyRecommendation(
+            user_id=owner.id,
+            policy_key="P1",
+            policy_name="정책",
+            benefit_description="설명",
+            application_period="상시",
+            reference_url="https://example.com",
+            matched_at=datetime.now(timezone.utc),
+            is_read=False,
+        )
+    )
+    db_session.commit()
+
+    response = client.get("/admin/overview", headers={"Authorization": f"Bearer {admin_token}"})
+    body = response.json()
+    assert body["total_recommendations"] == 1
+    assert body["unread_recommendations"] == 1

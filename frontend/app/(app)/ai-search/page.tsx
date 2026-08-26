@@ -7,6 +7,7 @@ import {
   getMe,
   sendAiSearchMessage,
   type AiSearchFilters,
+  type PolicyAnalysisResult,
   type PolicyBrowseItem,
   type PolicyChatMessage,
 } from "@/lib/api";
@@ -48,7 +49,7 @@ function StatusDot({ status }: { status: string }) {
 
 type ChatTurn = { role: "user" | "assistant"; content: string };
 
-type AnalysisState = { loading: boolean; report: string | null; error: string | null; open: boolean };
+type AnalysisState = { loading: boolean; result: PolicyAnalysisResult | null; error: string | null; open: boolean };
 
 const WELCOME_MESSAGE: ChatTurn = {
   role: "assistant",
@@ -151,21 +152,21 @@ export default function AiSearchPage() {
 
   async function handleAnalyze(policyKey: string) {
     const existing = analysis[policyKey];
-    if (existing?.report) {
+    if (existing?.result) {
       setAnalysis((prev) => ({ ...prev, [policyKey]: { ...existing, open: !existing.open } }));
       return;
     }
-    setAnalysis((prev) => ({ ...prev, [policyKey]: { loading: true, report: null, error: null, open: true } }));
+    setAnalysis((prev) => ({ ...prev, [policyKey]: { loading: true, result: null, error: null, open: true } }));
     try {
       const token = localStorage.getItem("token") ?? "";
-      const res = await analyzePolicy(token, policyKey);
-      setAnalysis((prev) => ({ ...prev, [policyKey]: { loading: false, report: res.report, error: null, open: true } }));
+      const result = await analyzePolicy(token, policyKey);
+      setAnalysis((prev) => ({ ...prev, [policyKey]: { loading: false, result, error: null, open: true } }));
     } catch (err) {
       setAnalysis((prev) => ({
         ...prev,
         [policyKey]: {
           loading: false,
-          report: null,
+          result: null,
           error: err instanceof Error ? err.message : "분석 리포트를 불러오지 못했습니다.",
           open: true,
         },
@@ -362,7 +363,7 @@ export default function AiSearchPage() {
                     >
                       {state?.loading
                         ? "분석 중..."
-                        : state?.report
+                        : state?.result
                           ? state.open
                             ? "✨ AI 분석 리포트 접기"
                             : "✨ AI 분석 리포트 다시 보기"
@@ -380,7 +381,38 @@ export default function AiSearchPage() {
                       </span>
                     </div>
                   )}
-                  {state?.open && state.report && <div className="analysis-report">{state.report}</div>}
+                  {state?.open && state.result && (
+                    <div className="analysis-report">
+                      <div className="analysis-fit-row">
+                        <span
+                          className="analysis-fit-dot"
+                          style={{ background: state.result.fit === "적합" ? "var(--success)" : "var(--danger)" }}
+                        />
+                        <span style={{ fontWeight: 700 }}>{state.result.fit}</span>
+                      </div>
+                      {state.result.fit === "부적합" && state.result.concerns && (
+                        <div className="analysis-report-section">
+                          <div className="analysis-report-label">우려되는 지점</div>
+                          <div>{state.result.concerns}</div>
+                        </div>
+                      )}
+                      <div className="analysis-report-section">
+                        <div className="analysis-report-label">예상 혜택</div>
+                        <div>{state.result.benefit_summary}</div>
+                      </div>
+                      <div className="analysis-report-section">
+                        <div className="analysis-report-label">신청 시 유의사항</div>
+                        <div>{state.result.application_notes}</div>
+                        {state.result.required_documents.length > 0 && (
+                          <ul className="analysis-doc-list">
+                            {state.result.required_documents.map((doc, i) => (
+                              <li key={i}>{doc}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}

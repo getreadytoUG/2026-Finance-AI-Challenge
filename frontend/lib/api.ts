@@ -87,6 +87,7 @@ export type UserProfile = {
   spouse_age: number | null;
   spouse_annual_income_krw: number | null;
   spouse_occupation: OccupationType | null;
+  is_admin: boolean;
 };
 
 export type ProfileInput = {
@@ -327,10 +328,77 @@ export async function fetchAiSearchResults(
   return res.json();
 }
 
-export async function analyzePolicy(token: string, policyKey: string): Promise<{ report: string }> {
+export type PolicyAnalysisResult = {
+  fit: "적합" | "부적합";
+  concerns: string | null;
+  benefit_summary: string;
+  application_notes: string;
+  required_documents: string[];
+};
+
+export async function analyzePolicy(token: string, policyKey: string): Promise<PolicyAnalysisResult> {
   const res = await authedFetch("/policy_chat/ai_search/analyze", token, {
     method: "POST",
     body: JSON.stringify({ policy_key: policyKey }),
   });
+  return res.json();
+}
+
+export type AdminOverview = {
+  total_users: number;
+  married_users: number;
+  total_policies: number;
+  last_cache_refreshed_at: string | null;
+  policies_missing_link: number;
+  policies_expired: number;
+  nationwide_template_policies: number;
+  total_recommendations: number;
+  unread_recommendations: number;
+};
+
+export type AdminUserItem = {
+  id: number;
+  email: string;
+  age: number | null;
+  is_married: boolean | null;
+  annual_income_krw: number | null;
+  region: string | null;
+  occupation: OccupationType | null;
+};
+
+export type AdminUserListResponse = {
+  users: AdminUserItem[];
+  total: number;
+};
+
+export type AdminCategoryStat = { name: string; count: number };
+export type AdminStatusStat = { status: string; count: number };
+
+export type AdminPolicyStatsResponse = {
+  total: number;
+  by_category: AdminCategoryStat[];
+  by_status: AdminStatusStat[];
+  missing_link_count: number;
+  nationwide_template_count: number;
+  last_refreshed_at: string | null;
+};
+
+export async function getAdminOverview(token: string): Promise<AdminOverview> {
+  const res = await authedFetch("/admin/overview", token);
+  return res.json();
+}
+
+export async function getAdminUsers(token: string): Promise<AdminUserListResponse> {
+  const res = await authedFetch("/admin/users", token);
+  return res.json();
+}
+
+export async function getAdminPolicyStats(token: string): Promise<AdminPolicyStatsResponse> {
+  const res = await authedFetch("/admin/policies/stats", token);
+  return res.json();
+}
+
+export async function refreshAdminPolicyCache(token: string): Promise<{ upserted: number }> {
+  const res = await authedFetch("/admin/policies/refresh", token, { method: "POST" });
   return res.json();
 }

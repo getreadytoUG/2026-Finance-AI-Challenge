@@ -244,10 +244,28 @@ def test_ai_search_analyze_returns_404_for_unknown_policy(client):
     assert response.status_code == 404
 
 
-def test_ai_search_analyze_calls_llm_once_and_returns_report(client, db_session, monkeypatch):
+def test_ai_search_analyze_calls_llm_once_and_returns_structured_result(client, db_session, monkeypatch):
     policy = _seed_policy(db_session, policy_name="청년 월세 지원")
     token = _signup_login(client)
-    fake = _FakeProvider([LLMResponse(content="적합도: 적합\n예상 혜택: 월 20만원", tool_calls=[])])
+    fake = _FakeProvider(
+        [
+            LLMResponse(
+                content=None,
+                tool_calls=[
+                    ToolCallRequest(
+                        name="policy_analysis_result",
+                        arguments={
+                            "fit": "적합",
+                            "concerns": None,
+                            "benefit_summary": "월 20만원 지원",
+                            "application_notes": "재직 증명서를 준비하세요.",
+                            "required_documents": ["재직증명서", "주민등록등본"],
+                        },
+                    )
+                ],
+            )
+        ]
+    )
     monkeypatch.setattr(policy_chat_analysis, "get_provider", lambda: fake)
 
     response = client.post(
@@ -256,7 +274,12 @@ def test_ai_search_analyze_calls_llm_once_and_returns_report(client, db_session,
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200
-    assert response.json()["report"] == "적합도: 적합\n예상 혜택: 월 20만원"
+    body = response.json()
+    assert body["fit"] == "적합"
+    assert body["concerns"] is None
+    assert body["benefit_summary"] == "월 20만원 지원"
+    assert body["application_notes"] == "재직 증명서를 준비하세요."
+    assert body["required_documents"] == ["재직증명서", "주민등록등본"]
     assert len(fake.calls) == 1
 
 

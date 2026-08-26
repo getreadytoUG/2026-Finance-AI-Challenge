@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { getRecommendations, isTokenExpired } from "@/lib/api";
+import { getMe, getRecommendations, isTokenExpired } from "@/lib/api";
 import ChatWidget from "@/components/ChatWidget";
 
 const TABS = [
@@ -14,9 +14,17 @@ const TABS = [
   { href: "/recommendations", label: "추천", icon: "🔔" },
 ];
 
+// 관리자 계정은 일반 사용자용 탭이 필요 없다 — 대시보드 전용 탭 3개만 보여준다.
+const ADMIN_TABS = [
+  { href: "/admin", label: "개요", icon: "📊" },
+  { href: "/admin/users", label: "회원", icon: "👥" },
+  { href: "/admin/policies", label: "정책", icon: "🗂️" },
+];
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isAdmin, setIsAdmin] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -46,6 +54,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const interval = setInterval(poll, 60000);
     return () => clearInterval(interval);
   }, [ready]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const token = localStorage.getItem("token") ?? "";
+    getMe(token)
+      .then((profile) => setIsAdmin(profile.is_admin))
+      .catch(() => {});
+  }, [ready]);
+
+  const tabs = isAdmin ? ADMIN_TABS : TABS;
 
   function handleLogout() {
     localStorage.removeItem("token");
@@ -77,7 +95,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         >
           <span style={{ fontSize: 20, marginRight: 8 }}>🌱</span>
           <nav style={{ display: "flex", gap: 4, flex: 1, flexWrap: "nowrap", overflowX: "auto" }}>
-            {TABS.map((tab) => {
+            {tabs.map((tab) => {
               const active = pathname === tab.href;
               return (
                 <Link
@@ -140,7 +158,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className={pathname === "/ai-search" ? "page page-wide" : "page"} style={{ paddingTop: 32 }}>
         {children}
       </div>
-      {pathname !== "/ai-search" && <ChatWidget />}
+      {pathname !== "/ai-search" && !pathname.startsWith("/admin") && <ChatWidget />}
     </div>
   );
 }
