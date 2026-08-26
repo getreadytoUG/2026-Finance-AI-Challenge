@@ -1,6 +1,7 @@
 import itertools
 from datetime import datetime, timezone
 
+from app.features.policy_chat import analysis as policy_chat_analysis
 from app.features.policy_chat import router as policy_chat_router
 from app.features.policy_matcher.models import CachedPolicy
 from app.llm.base import LLMResponse, ToolCallRequest
@@ -226,6 +227,37 @@ def test_ai_search_results_filters_by_query_params(client, db_session):
     body = response.json()
     assert body["total"] == 1
     assert body["items"][0]["policy_name"] == "서울 정책"
+
+
+def test_ai_search_analyze_requires_auth(client):
+    response = client.post("/policy_chat/ai_search/analyze", json={"policy_key": "P1"})
+    assert response.status_code == 401
+
+
+def test_ai_search_analyze_returns_404_for_unknown_policy(client):
+    token = _signup_login(client)
+    response = client.post(
+        "/policy_chat/ai_search/analyze",
+        json={"policy_key": "does-not-exist"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 404
+
+
+def test_ai_search_analyze_calls_llm_once_and_returns_report(client, db_session, monkeypatch):
+    policy = _seed_policy(db_session, policy_name="청년 월세 지원")
+    token = _signup_login(client)
+    fake = _FakeProvider([LLMResponse(content="적합도: 적합\n예상 혜택: 월 20만원", tool_calls=[])])
+    monkeypatch.setattr(policy_chat_analysis, "get_provider", lambda: fake)
+
+    response = client.post(
+        "/policy_chat/ai_search/analyze",
+        json={"policy_key": policy.policy_key},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    assert response.json()["report"] == "적합도: 적합\n예상 혜택: 월 20만원"
+    assert len(fake.calls) == 1
 
 
 def test_ai_search_results_paginates(client, db_session):

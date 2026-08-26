@@ -271,6 +271,52 @@ a {
   color: var(--text);
 }
 
+.btn-analyze {
+  margin-top: 12px;
+  width: auto;
+  color: var(--primary);
+  background: transparent;
+  border: 1px solid var(--primary);
+  font-weight: 600;
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.btn-analyze:hover:not(:disabled) {
+  background: var(--primary);
+  color: #fff;
+}
+
+.btn-analyze:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.analysis-report {
+  margin-top: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.analysis-report-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.analysis-report-loading .chat-typing {
+  padding: 0;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;

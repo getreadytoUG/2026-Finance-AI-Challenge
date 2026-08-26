@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  analyzePolicy,
   fetchAiSearchResults,
   getMe,
   sendAiSearchMessage,
@@ -47,6 +48,8 @@ function StatusDot({ status }: { status: string }) {
 
 type ChatTurn = { role: "user" | "assistant"; content: string };
 
+type AnalysisState = { loading: boolean; report: string | null; error: string | null; open: boolean };
+
 const WELCOME_MESSAGE: ChatTurn = {
   role: "assistant",
   content:
@@ -79,6 +82,7 @@ export default function AiSearchPage() {
   const [includeClosed, setIncludeClosed] = useState(false);
   const [resultsLoading, setResultsLoading] = useState(false);
   const [resultsError, setResultsError] = useState<string | null>(null);
+  const [analysis, setAnalysis] = useState<Record<string, AnalysisState>>({});
 
   const [turns, setTurns] = useState<ChatTurn[]>([WELCOME_MESSAGE]);
   const [chatInput, setChatInput] = useState("");
@@ -143,6 +147,30 @@ export default function AiSearchPage() {
   function handlePageChange(nextPage: number) {
     if (!filters) return;
     refetch(filters, nextPage, includeClosed);
+  }
+
+  async function handleAnalyze(policyKey: string) {
+    const existing = analysis[policyKey];
+    if (existing?.report) {
+      setAnalysis((prev) => ({ ...prev, [policyKey]: { ...existing, open: !existing.open } }));
+      return;
+    }
+    setAnalysis((prev) => ({ ...prev, [policyKey]: { loading: true, report: null, error: null, open: true } }));
+    try {
+      const token = localStorage.getItem("token") ?? "";
+      const res = await analyzePolicy(token, policyKey);
+      setAnalysis((prev) => ({ ...prev, [policyKey]: { loading: false, report: res.report, error: null, open: true } }));
+    } catch (err) {
+      setAnalysis((prev) => ({
+        ...prev,
+        [policyKey]: {
+          loading: false,
+          report: null,
+          error: err instanceof Error ? err.message : "분석 리포트를 불러오지 못했습니다.",
+          open: true,
+        },
+      }));
+    }
   }
 
   function scrollToBottom() {
@@ -301,32 +329,61 @@ export default function AiSearchPage() {
           )}
 
           <div className="result-list">
-            {items.map((item, i) => (
-              <div key={i} className="result-item">
-                <div className="result-item-title">
-                  <StatusDot status={item.status} />
-                  {item.policy_name}
-                </div>
-                <div className="result-item-row">
-                  <span>분야</span>
-                  <span>{item.large_category}</span>
-                </div>
-                <div className="result-item-row">
-                  <span>상태</span>
-                  <span style={{ display: "inline-flex", alignItems: "center" }}>
+            {items.map((item, i) => {
+              const state = analysis[item.policy_key];
+              return (
+                <div key={i} className="result-item">
+                  <div className="result-item-title">
                     <StatusDot status={item.status} />
-                    {item.status}
-                  </span>
+                    {item.policy_name}
+                  </div>
+                  <div className="result-item-row">
+                    <span>분야</span>
+                    <span>{item.large_category}</span>
+                  </div>
+                  <div className="result-item-row">
+                    <span>상태</span>
+                    <span style={{ display: "inline-flex", alignItems: "center" }}>
+                      <StatusDot status={item.status} />
+                      {item.status}
+                    </span>
+                  </div>
+                  <div className="result-item-row">
+                    <span>신청 기간</span>
+                    <span>{item.application_period}</span>
+                  </div>
+                  <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <PolicyDetailLink url={item.reference_url} />
+                    <button
+                      type="button"
+                      className="btn-analyze"
+                      disabled={state?.loading}
+                      onClick={() => handleAnalyze(item.policy_key)}
+                    >
+                      {state?.loading
+                        ? "분석 중..."
+                        : state?.report
+                          ? state.open
+                            ? "✨ AI 분석 리포트 접기"
+                            : "✨ AI 분석 리포트 다시 보기"
+                          : "✨ AI 분석 리포트 보기"}
+                    </button>
+                  </div>
+                  {state?.error && <p className="error-text" style={{ marginTop: 8 }}>{state.error}</p>}
+                  {state?.loading && (
+                    <div className="analysis-report analysis-report-loading">
+                      <span>AI가 리포트를 생성하고 있어요...</span>
+                      <span className="chat-typing">
+                        <span />
+                        <span />
+                        <span />
+                      </span>
+                    </div>
+                  )}
+                  {state?.open && state.report && <div className="analysis-report">{state.report}</div>}
                 </div>
-                <div className="result-item-row">
-                  <span>신청 기간</span>
-                  <span>{item.application_period}</span>
-                </div>
-                <div style={{ marginTop: 12 }}>
-                  <PolicyDetailLink url={item.reference_url} />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <Pagination page={page} totalPages={totalPages} onPageChange={handlePageChange} />

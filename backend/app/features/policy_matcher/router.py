@@ -136,6 +136,7 @@ def browse_policies(
         return PolicyBrowseResponse(
             items=[
                 PolicyBrowseItem(
+                    policy_key=row.policy_key,
                     policy_name=row.policy_name,
                     benefit_description=row.description,
                     application_period=row.application_period,

@@ -185,6 +185,7 @@ export async function markRecommendationRead(token: string, id: number): Promise
 }
 
 export type PolicyBrowseItem = {
+  policy_key: string;
   policy_name: string;
   benefit_description: string;
   application_period: string;
@@ -323,5 +324,13 @@ export async function fetchAiSearchResults(
   search.set("page", String(page));
   search.set("page_size", String(pageSize));
   const res = await authedFetch(`/policy_chat/ai_search/results?${search.toString()}`, token);
+  return res.json();
+}
+
+export async function analyzePolicy(token: string, policyKey: string): Promise<{ report: string }> {
+  const res = await authedFetch("/policy_chat/ai_search/analyze", token, {
+    method: "POST",
+    body: JSON.stringify({ policy_key: policyKey }),
+  });
   return res.json();
 }

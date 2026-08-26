@@ -47,6 +47,7 @@ class RefreshResponse(BaseModel):
 
 
 class PolicyBrowseItem(BaseModel):
+    policy_key: str
     policy_name: str
     benefit_description: str
     application_period: str

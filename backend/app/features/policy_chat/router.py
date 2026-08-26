@@ -9,17 +9,21 @@ from app.auth.models import User
 from app.auth.router import get_current_user
 from app.core.db import get_db
 from app.features.policy_chat.ai_search import FILTER_DELTA_SPEC, search_policies
+from app.features.policy_chat.analysis import generate_policy_report
 from app.features.policy_chat.schemas import (
     AiSearchMessageRequest,
     AiSearchMessageResponse,
     AiSearchResultsResponse,
     ChatRequest,
     ChatResponse,
+    PolicyAnalysisRequest,
+    PolicyAnalysisResponse,
     PolicyChatSearchInput,
 )
 from app.features.policy_chat.tool import TOOL_SPEC
 from app.features.policy_matcher.categories import PolicyCategoryTag
 from app.features.policy_matcher.matching import PolicyRegion
+from app.features.policy_matcher.models import CachedPolicy
 from app.features.policy_matcher.status import PolicyStatusLabel
 from app.llm.base import Message
 from app.llm.factory import get_provider
@@ -265,3 +269,23 @@ def get_ai_search_results(
         return AiSearchResultsResponse(items=items, total=total, page=page, page_size=page_size)
     except Exception as e:
         _raise_as_http_500("/policy_chat/ai_search/results", f" for user_id={current_user.id}", e)
+
+
+@router.post("/ai_search/analyze", response_model=PolicyAnalysisResponse)
+def analyze_ai_search_policy(
+    payload: PolicyAnalysisRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # 카드마다 자동으로 분석을 돌리면 LLM 호출 비용이 정책 개수만큼 쌓이므로,
+    # 사용자가 "AI 분석 리포트 보기" 버튼을 눌렀을 때만 1건씩 온디맨드로 호출한다.
+    try:
+        policy = db.query(CachedPolicy).filter(CachedPolicy.policy_key == payload.policy_key).first()
+        if policy is None:
+            raise HTTPException(status_code=404, detail="정책을 찾을 수 없습니다.")
+        report = generate_policy_report(current_user, policy)
+        return PolicyAnalysisResponse(report=report)
+    except HTTPException:
+        raise
+    except Exception as e:
+        _raise_as_http_500("/policy_chat/ai_search/analyze", f" for user_id={current_user.id}", e)

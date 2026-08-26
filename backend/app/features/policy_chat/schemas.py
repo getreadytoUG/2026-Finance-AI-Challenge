@@ -78,3 +78,11 @@ class AiSearchResultsResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class PolicyAnalysisRequest(BaseModel):
+    policy_key: str
+
+
+class PolicyAnalysisResponse(BaseModel):
+    report: str
