@@ -2,13 +2,25 @@ import json
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.auth.models import User
 from app.auth.router import get_current_user
 from app.core.db import get_db
-from app.features.policy_chat.schemas import ChatRequest, ChatResponse
+from app.features.policy_chat.ai_search import FILTER_DELTA_SPEC, search_policies
+from app.features.policy_chat.schemas import (
+    AiSearchMessageRequest,
+    AiSearchMessageResponse,
+    AiSearchResultsResponse,
+    ChatRequest,
+    ChatResponse,
+    PolicyChatSearchInput,
+)
 from app.features.policy_chat.tool import TOOL_SPEC
+from app.features.policy_matcher.categories import PolicyCategoryTag
+from app.features.policy_matcher.matching import PolicyRegion
+from app.features.policy_matcher.status import PolicyStatusLabel
 from app.llm.base import Message
 from app.llm.factory import get_provider
 from app.tools.base import ToolContext
@@ -102,3 +114,154 @@ def send_chat_message(
         return ChatResponse(reply=second.content or "", policies=result.options[:5])
     except Exception as e:
         _raise_as_http_500("/policy_chat/message", f" for user_id={current_user.id}", e)
+
+
+def _profile_default_filters(user: User) -> PolicyChatSearchInput:
+    return PolicyChatSearchInput(
+        age=user.age,
+        is_married=user.is_married,
+        annual_income_krw=user.annual_income_krw,
+        spouse_annual_income_krw=user.spouse_annual_income_krw,
+        region=user.region,
+    )
+
+
+def _describe_filters(filters: PolicyChatSearchInput) -> str:
+    lines = []
+    if filters.age is not None:
+        lines.append(f"나이: {filters.age}세")
+    if filters.is_married is not None:
+        lines.append(f"기혼 여부: {'기혼' if filters.is_married else '미혼'}")
+    if filters.annual_income_krw is not None:
+        lines.append(f"연소득: {filters.annual_income_krw:,}원")
+    if filters.spouse_annual_income_krw is not None:
+        lines.append(f"배우자 연소득: {filters.spouse_annual_income_krw:,}원")
+    if filters.region is not None:
+        lines.append(f"지역: {filters.region}")
+    if filters.category is not None:
+        lines.append(f"카테고리: {filters.category}")
+    if filters.keyword is not None:
+        lines.append(f"키워드: {filters.keyword}")
+    if filters.status is not None:
+        lines.append(f"신청 상태: {filters.status}")
+    return "\n".join(lines) if lines else "(적용된 조건 없음 — 전체 정책 대상)"
+
+
+def _build_ai_search_system_prompt(filters: PolicyChatSearchInput) -> str:
+    return (
+        "당신은 청년/신혼부부를 위한 정책 검색 도우미입니다. 화면 오른쪽에는 현재 적용된 "
+        "검색 조건에 맞는 정책 목록이 실시간으로 표시됩니다. "
+        "사용자가 조건을 새로 언급하거나 바꾸고 싶어하면 policy_ai_filter_delta 도구를 호출해 "
+        "이번 턴에 바뀐 필드만 담아 넘기세요 — 언급하지 않은 필드는 생략하세요(생략하면 "
+        "아래 현재 조건이 그대로 유지됩니다). 조건 변경 요청이 아니라 단순 질문이면 도구를 "
+        "호출하지 말고 바로 답하세요.\n\n"
+        "region/category/status는 반드시 도구 스키마에 정의된 목록 중 하나여야 합니다 — 목록에 "
+        "없는 값을 만들어내지 마세요. 특히 '마감 임박', '곧 마감' 같은 표현은 keyword가 아니라 "
+        "status='임박'으로, '마감된 것도/지난 것도 보여줘'는 status='만료'로 담으세요.\n\n"
+        f"[현재 적용된 조건]\n{_describe_filters(filters)}\n\n"
+        "답변은 짧고 친절한 한국어로, 조건이 바뀌었으면 어떻게 좁혀졌는지 한두 문장으로 알려주세요."
+    )
+
+
+@router.post("/ai_search/message", response_model=AiSearchMessageResponse)
+def send_ai_search_message(
+    payload: AiSearchMessageRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        base_filters = payload.filters or _profile_default_filters(current_user)
+
+        provider = get_provider()
+        history = payload.messages[-MAX_HISTORY:]
+        messages = [Message(role="system", content=_build_ai_search_system_prompt(base_filters))] + [
+            Message(role=m.role, content=m.content) for m in history
+        ]
+
+        first = provider.chat(messages, tools=[FILTER_DELTA_SPEC])
+
+        if not first.tool_calls:
+            # 조건 변경이 아니라 단순 질문 — 필터는 그대로, LLM도 한 번만 호출한다
+            # (기존 /message 엔드포인트와 동일한 단축 경로).
+            items, total = search_policies(
+                db, base_filters, include_closed=payload.include_closed, page=1, page_size=payload.page_size
+            )
+            return AiSearchMessageResponse(
+                reply=first.content or "",
+                filters=base_filters,
+                items=items,
+                total=total,
+                page=1,
+                page_size=payload.page_size,
+            )
+
+        call = first.tool_calls[0]
+        delta = {k: v for k, v in dict(call.arguments).items() if v is not None}
+        try:
+            # model_copy(update=...)는 검증을 건너뛰므로, 모델이 스키마에 없는 값을
+            # 잘못 내놓더라도 여기서 다시 PolicyChatSearchInput(**...)로 만들어 Literal
+            # 제약을 실제로 재검증한다. 드물게 모델이 enum 밖 값을 내면(공급자가 tool
+            # 스키마의 enum을 완벽히 지키지 못하는 경우) 이번 턴은 필터를 바꾸지 않는다.
+            new_filters = PolicyChatSearchInput(**{**base_filters.model_dump(), **delta})
+        except ValidationError as e:
+            logger.warning(f"[WARN] /policy_chat/ai_search/message got invalid filter delta {delta}: {e}")
+            new_filters = base_filters
+
+        items, total = search_policies(
+            db, new_filters, include_closed=payload.include_closed, page=1, page_size=payload.page_size
+        )
+
+        top_names = [item.policy_name for item in items[:3]]
+        synth = Message(
+            role="user",
+            content=(
+                f"(검색 결과) 총 {total}건을 찾았습니다. 상위 정책명: {', '.join(top_names) or '없음'}\n\n"
+                "위 검색 결과를 바탕으로 사용자에게 자연스러운 한국어로 짧게 답변해줘. "
+                "결과가 0건이면 조건에 맞는 정책이 없다고 솔직히 말해줘."
+            ),
+        )
+        second = provider.chat(messages + [synth], tools=[])
+
+        return AiSearchMessageResponse(
+            reply=second.content or "",
+            filters=new_filters,
+            items=items,
+            total=total,
+            page=1,
+            page_size=payload.page_size,
+        )
+    except Exception as e:
+        _raise_as_http_500("/policy_chat/ai_search/message", f" for user_id={current_user.id}", e)
+
+
+@router.get("/ai_search/results", response_model=AiSearchResultsResponse)
+def get_ai_search_results(
+    age: int | None = None,
+    is_married: bool | None = None,
+    annual_income_krw: int | None = None,
+    spouse_annual_income_krw: int | None = None,
+    region: PolicyRegion | None = None,
+    category: PolicyCategoryTag | None = None,
+    keyword: str | None = None,
+    status: PolicyStatusLabel | None = None,
+    include_closed: bool = False,
+    page: int = 1,
+    page_size: int = 10,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        filters = PolicyChatSearchInput(
+            age=age,
+            is_married=is_married,
+            annual_income_krw=annual_income_krw,
+            spouse_annual_income_krw=spouse_annual_income_krw,
+            region=region,
+            category=category,
+            keyword=keyword,
+            status=status,
+        )
+        items, total = search_policies(db, filters, include_closed=include_closed, page=page, page_size=page_size)
+        return AiSearchResultsResponse(items=items, total=total, page=page, page_size=page_size)
+    except Exception as e:
+        _raise_as_http_500("/policy_chat/ai_search/results", f" for user_id={current_user.id}", e)

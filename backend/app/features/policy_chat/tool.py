@@ -45,13 +45,17 @@ def run(input: PolicyChatSearchInput, ctx: ToolContext) -> PolicyChatSearchOutpu
     financial_policies = [
         policy for policy in policies if FINANCIAL_LARGE_CATEGORY in category_tags(policy.large_category)
     ]
-    matched = [policy for policy in financial_policies if _matches(policy, input)]
-    # 마감된 정책을 챗봇이 추천하면 혼란만 준다 — "정책 읽기" 탭 기본값과 동일하게 제외.
-    matched = [
-        policy
-        for policy in matched
-        if compute_policy_status(policy.apply_start_ymd, policy.apply_end_ymd, today)[0] != "만료"
-    ]
+    candidates = [policy for policy in financial_policies if _matches(policy, input)]
+    matched = []
+    for policy in candidates:
+        status, _ = compute_policy_status(policy.apply_start_ymd, policy.apply_end_ymd, today)
+        # 마감된 정책을 챗봇이 추천하면 혼란만 준다 — "만료"를 명시적으로 요청한
+        # 게 아니면 "정책 읽기" 탭 기본값과 동일하게 제외한다.
+        if status == "만료" and input.status != "만료":
+            continue
+        if input.status and status != input.status:
+            continue
+        matched.append(policy)
     if input.is_married:
         matched.sort(key=lambda policy: not is_newlywed_policy(policy))
     matched = matched[:MAX_RESULTS]

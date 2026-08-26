@@ -3,6 +3,7 @@ from app.features.policy_matcher.matching import (
     is_eligible,
     is_likely_template_region_code,
     is_newlywed_policy,
+    region_matches,
 )
 from app.features.policy_matcher.schemas import PolicyMatchInput
 from app.features.policy_matcher.youth_center_client import RawYouthPolicy
@@ -130,3 +131,25 @@ def test_is_newlywed_policy_does_not_match_unrelated_결혼_policies():
     # 결혼이민여성 취업지원 등) 키워드에서 제외했다.
     assert is_newlywed_policy(_policy(policy_name="미혼남녀 만남 지원 프로그램")) is False
     assert is_newlywed_policy(_policy(policy_name="결혼이민여성 취업지원")) is False
+
+
+def test_region_matches_seoul_uses_11_prefix():
+    assert region_matches("11110,11140", "서울") is True
+    assert region_matches("26110", "서울") is False
+
+
+def test_region_matches_gwangju_and_jeonnam_accept_both_old_and_new_merged_code():
+    # 2026-08-26 실측: 광주광역시+전라남도가 "전남광주통합특별시"로 통합되며 새
+    # zipCd 접두사 "12"가 부여됐다 — 옛 코드(광주=29, 전남=46)로 남아있는 레코드와
+    # 새 코드(12)로 넘어간 레코드 양쪽 다 "광주"/"전남" 검색에 걸려야 한다.
+    assert region_matches("29110", "광주") is True  # 옛 광주 코드
+    assert region_matches("12110", "광주") is True  # 새 통합 코드
+    assert region_matches("46110", "전남") is True  # 옛 전남 코드
+    assert region_matches("12110", "전남") is True  # 새 통합 코드
+    # 다른 지역과는 여전히 안 섞인다.
+    assert region_matches("12110", "서울") is False
+
+
+def test_region_matches_unmapped_input_fails_open():
+    # 매핑에 없는 자유 텍스트는 필터링하지 않고 통과시킨다(기존 동작 유지).
+    assert region_matches("11110", "강남구") is True

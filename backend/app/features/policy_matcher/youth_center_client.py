@@ -57,7 +57,12 @@ def _parse_youth_policy_json(payload: dict) -> list[RawYouthPolicy]:
                 policy_id=item.get("plcyNo") or "",
                 policy_name=item.get("plcyNm") or "",
                 description=item.get("plcyExplnCn") or "",
-                apply_url=item.get("aplyUrlAddr") or "",
+                # aplyUrlAddr(신청 URL)이 비어있는 레코드가 실측 2,730건 중 1,820건
+                # (67%)이나 된다 — "자세히 보기"가 href=""로 렌더돼 클릭해도 같은
+                # 페이지로 돌아오는 것처럼 보이는 버그의 원인이었다(2026-08-26 발견).
+                # refUrlAddr1/2(참고 URL)에 실제로 접근 가능한 링크가 있는 경우가
+                # 그중 1,253건이라, 신청 URL이 없으면 참고 URL로 대체한다.
+                apply_url=item.get("aplyUrlAddr") or item.get("refUrlAddr1") or item.get("refUrlAddr2") or "",
                 application_period=item.get("aplyYmd") or "상시",
                 min_age=_bounded_int_or_none(item.get("sprtTrgtMinAge")),
                 max_age=_bounded_int_or_none(item.get("sprtTrgtMaxAge")),

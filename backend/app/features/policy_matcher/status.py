@@ -1,7 +1,13 @@
 from datetime import date, datetime, timedelta, timezone
+from typing import Literal
 
 _KST = timezone(timedelta(hours=9))
 _CLOSING_SOON_DAYS = 7
+
+# compute_policy_status()가 낼 수 있는 값 전부 — LLM 도구 호출 스키마(policy_chat)에서
+# "마감 임박" 같은 자유 텍스트가 keyword로 잘못 들어가 매칭이 안 되는 문제를 막기 위해
+# status를 이 Literal로 제한한다. STATUS_ORDER의 키와 반드시 동일하게 유지할 것.
+PolicyStatusLabel = Literal["임박", "여유", "상시", "예정", "만료"]
 
 # "정책 읽기" 탭 정렬 순서: 임박 - 여유 - 상시 - 예정 - 만료
 STATUS_ORDER: dict[str, int] = {

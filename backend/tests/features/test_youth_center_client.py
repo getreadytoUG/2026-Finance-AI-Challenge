@@ -177,6 +177,48 @@ def test_parse_youth_policy_json_uses_aplyYmd_not_bizPrd_for_status_dates():
     assert policy.apply_end_ymd == "20260619"
 
 
+def test_parse_youth_policy_json_falls_back_to_ref_url_when_apply_url_blank():
+    # 실측: aplyUrlAddr(신청 URL)이 비어있는 레코드가 전체의 67%나 됐고, 그중
+    # 상당수는 refUrlAddr1/2(참고 URL)에 실제 접근 가능한 링크가 있었다 —
+    # 프론트에서 href=""로 렌더돼 "자세히 보기"를 눌러도 제자리인 버그의 원인.
+    payload = {
+        "result": {
+            "youthPolicyList": [
+                {
+                    "plcyNo": "P001",
+                    "plcyNm": "신청 URL이 비어있는 정책",
+                    "aplyUrlAddr": "",
+                    "refUrlAddr1": "https://example.com/ref1",
+                    "refUrlAddr2": "https://example.com/ref2",
+                },
+                {
+                    "plcyNo": "P002",
+                    "plcyNm": "신청 URL과 참고 URL1이 둘 다 비어있는 정책",
+                    "aplyUrlAddr": "",
+                    "refUrlAddr1": "",
+                    "refUrlAddr2": "https://example.com/ref2-only",
+                },
+                {
+                    "plcyNo": "P003",
+                    "plcyNm": "URL이 아예 없는 정책",
+                    "aplyUrlAddr": "",
+                    "refUrlAddr1": "",
+                    "refUrlAddr2": "",
+                },
+            ]
+        }
+    }
+    policies = _parse_youth_policy_json(payload)
+    assert policies[0].apply_url == "https://example.com/ref1"
+    assert policies[1].apply_url == "https://example.com/ref2-only"
+    assert policies[2].apply_url == ""
+
+
+def test_parse_youth_policy_json_prefers_apply_url_over_ref_url_when_both_present():
+    policies = _parse_youth_policy_json(SAMPLE_PAYLOAD)
+    assert policies[0].apply_url == "https://example.com/apply/1"
+
+
 def test_fetch_all_policies_requests_a_large_page_size(monkeypatch):
     from app.features.policy_matcher import youth_center_client
 

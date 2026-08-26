@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { browsePolicies, getPolicyCategories } from "@/lib/api";
 import type { PolicyBrowseItem, PolicyCategory } from "@/lib/api";
 import Pagination from "@/components/Pagination";
+import PolicyDetailLink from "@/components/PolicyDetailLink";
 import { REGIONS } from "@/lib/profileOptions";
 
 const PAGE_SIZE = 10;
@@ -183,9 +184,7 @@ export default function BrowsePage() {
               <span>{item.application_period}</span>
             </div>
             <div style={{ marginTop: 12 }}>
-              <a className="link" href={item.reference_url} target="_blank" rel="noreferrer">
-                자세히 보기 →
-              </a>
+              <PolicyDetailLink url={item.reference_url} />
             </div>
           </div>
         ))}

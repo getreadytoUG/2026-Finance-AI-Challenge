@@ -257,3 +257,71 @@ export async function sendPolicyChatMessage(
   });
   return res.json();
 }
+
+export type PolicyStatus = "임박" | "여유" | "상시" | "예정" | "만료";
+
+export type AiSearchFilters = {
+  age?: number | null;
+  is_married?: boolean | null;
+  annual_income_krw?: number | null;
+  spouse_annual_income_krw?: number | null;
+  region?: string | null;
+  category?: string | null;
+  keyword?: string | null;
+  status?: PolicyStatus | null;
+};
+
+export type AiSearchMessageResult = {
+  reply: string;
+  filters: AiSearchFilters;
+  items: PolicyBrowseItem[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
+export type AiSearchResults = {
+  items: PolicyBrowseItem[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
+export async function sendAiSearchMessage(
+  token: string,
+  messages: PolicyChatMessage[],
+  filters: AiSearchFilters | null,
+  includeClosed: boolean,
+  pageSize: number
+): Promise<AiSearchMessageResult> {
+  const res = await authedFetch("/policy_chat/ai_search/message", token, {
+    method: "POST",
+    body: JSON.stringify({ messages, filters, include_closed: includeClosed, page_size: pageSize }),
+  });
+  return res.json();
+}
+
+export async function fetchAiSearchResults(
+  token: string,
+  filters: AiSearchFilters,
+  includeClosed: boolean,
+  page: number,
+  pageSize: number
+): Promise<AiSearchResults> {
+  const search = new URLSearchParams();
+  if (filters.age != null) search.set("age", String(filters.age));
+  if (filters.is_married != null) search.set("is_married", String(filters.is_married));
+  if (filters.annual_income_krw != null) search.set("annual_income_krw", String(filters.annual_income_krw));
+  if (filters.spouse_annual_income_krw != null) {
+    search.set("spouse_annual_income_krw", String(filters.spouse_annual_income_krw));
+  }
+  if (filters.region) search.set("region", filters.region);
+  if (filters.category) search.set("category", filters.category);
+  if (filters.keyword) search.set("keyword", filters.keyword);
+  if (filters.status) search.set("status", filters.status);
+  if (includeClosed) search.set("include_closed", "true");
+  search.set("page", String(page));
+  search.set("page_size", String(pageSize));
+  const res = await authedFetch(`/policy_chat/ai_search/results?${search.toString()}`, token);
+  return res.json();
+}

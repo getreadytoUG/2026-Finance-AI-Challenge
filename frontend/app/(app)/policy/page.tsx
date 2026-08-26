@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { callTool, getMe, getRegions } from "@/lib/api";
 import Pagination from "@/components/Pagination";
+import PolicyDetailLink from "@/components/PolicyDetailLink";
 import { krwToManwon, manwonToKrw } from "@/lib/profileOptions";
 
 type PolicyOption = {
@@ -161,9 +162,7 @@ export default function PolicyPage() {
                     <span>{option.application_period}</span>
                   </div>
                   <div style={{ marginTop: 12 }}>
-                    <a className="link" href={option.reference_url} target="_blank" rel="noreferrer">
-                      자세히 보기 →
-                    </a>
+                    <PolicyDetailLink url={option.reference_url} />
                   </div>
                 </div>
               ))}

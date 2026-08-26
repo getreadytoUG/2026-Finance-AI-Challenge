@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { sendPolicyChatMessage } from "@/lib/api";
 import type { PolicyChatMessage, PolicyChatOption } from "@/lib/api";
+import PolicyDetailLink from "@/components/PolicyDetailLink";
 
 type ChatTurn = {
   role: "user" | "assistant";
@@ -29,11 +30,19 @@ export default function PolicyChat() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   function scrollToBottom() {
     requestAnimationFrame(() => {
       listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
     });
+  }
+
+  function resizeTextarea() {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
   }
 
   async function sendText(text: string) {
@@ -42,6 +51,7 @@ export default function PolicyChat() {
     const nextTurns = [...turns, { role: "user" as const, content: text }];
     setTurns(nextTurns);
     setInput("");
+    requestAnimationFrame(resizeTextarea);
     setError(null);
     setLoading(true);
     scrollToBottom();
@@ -65,6 +75,13 @@ export default function PolicyChat() {
   function handleSend(e: React.FormEvent) {
     e.preventDefault();
     sendText(input);
+  }
+
+  function handleInputKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendText(input);
+    }
   }
 
   const showSuggestions = turns.length === 1 && !loading;
@@ -102,9 +119,7 @@ export default function PolicyChat() {
                         <span>신청 기간</span>
                         <span>{p.application_period}</span>
                       </div>
-                      <a className="link" href={p.reference_url} target="_blank" rel="noreferrer" style={{ fontSize: 12 }}>
-                        자세히 보기 →
-                      </a>
+                      <PolicyDetailLink url={p.reference_url} style={{ fontSize: 12 }} />
                     </div>
                   ))}
                 </div>
@@ -141,17 +156,22 @@ export default function PolicyChat() {
       )}
 
       {error && <p className="error-text" style={{ marginTop: 8 }}>{error}</p>}
-      <form onSubmit={handleSend} style={{ display: "flex", gap: 8, marginTop: 12 }}>
-        <input
-          className="input"
-          type="text"
+      <form onSubmit={handleSend} className="chat-input-bar" style={{ marginTop: 12 }}>
+        <textarea
+          ref={textareaRef}
+          className="chat-input-textarea"
+          rows={1}
           placeholder="예: 신혼부부 전세자금 대출 있어?"
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => {
+            setInput(e.target.value);
+            resizeTextarea();
+          }}
+          onKeyDown={handleInputKeyDown}
           disabled={loading}
         />
-        <button className="btn" type="submit" style={{ width: "auto", flexShrink: 0 }} disabled={loading || !input.trim()}>
-          전송
+        <button className="chat-input-send" type="submit" aria-label="전송" disabled={loading || !input.trim()}>
+          ➤
         </button>
       </form>
     </div>

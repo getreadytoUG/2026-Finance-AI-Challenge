@@ -5,6 +5,7 @@ import { getMe, getRecommendations, markRecommendationRead, refreshRecommendatio
 import type { Recommendation, UserProfile } from "@/lib/api";
 import { OCCUPATION_OPTIONS, manwonToKrw, type OccupationType } from "@/lib/profileOptions";
 import Pagination from "@/components/Pagination";
+import PolicyDetailLink from "@/components/PolicyDetailLink";
 
 const PAGE_SIZE = 10;
 
@@ -189,9 +190,7 @@ export default function RecommendationsPage() {
                       <span>{rec.application_period}</span>
                     </div>
                     <div style={{ marginTop: 12 }}>
-                      <a className="link" href={rec.reference_url} target="_blank" rel="noreferrer">
-                        자세히 보기 →
-                      </a>
+                      <PolicyDetailLink url={rec.reference_url} />
                     </div>
                   </div>
                 ))}

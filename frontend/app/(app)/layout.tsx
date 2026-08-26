@@ -9,6 +9,7 @@ import ChatWidget from "@/components/ChatWidget";
 const TABS = [
   { href: "/policy", label: "금융 정책 추천", icon: "🏛️" },
   { href: "/browse", label: "정책 읽기", icon: "📖" },
+  { href: "/ai-search", label: "AI로 정책 알기", icon: "✨" },
   { href: "/savings", label: "저축플랜", icon: "💰" },
   { href: "/recommendations", label: "추천", icon: "🔔" },
 ];
@@ -136,10 +137,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </button>
         </div>
       </header>
-      <div className="page" style={{ paddingTop: 32 }}>
+      <div className={pathname === "/ai-search" ? "page page-wide" : "page"} style={{ paddingTop: 32 }}>
         {children}
       </div>
-      <ChatWidget />
+      {pathname !== "/ai-search" && <ChatWidget />}
     </div>
   );
 }
