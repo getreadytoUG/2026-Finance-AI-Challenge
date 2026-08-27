@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { FaComments, FaXmark } from "react-icons/fa6";
 import PolicyChat from "@/components/PolicyChat";
 
 export default function ChatWidget() {
@@ -19,7 +20,7 @@ export default function ChatWidget() {
         onClick={() => setOpen((v) => !v)}
         aria-label={open ? "정책 챗봇 닫기" : "정책 챗봇 열기"}
       >
-        {open ? "✕" : "💬"}
+        {open ? <FaXmark /> : <FaComments />}
       </button>
       {!open && <span className="chat-widget-tooltip">정책 챗봇에게 물어보기</span>}
     </>

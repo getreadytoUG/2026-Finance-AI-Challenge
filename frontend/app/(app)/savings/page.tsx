@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { FaPiggyBank } from "react-icons/fa6";
 import {
   callTool,
   getMe,
@@ -171,7 +172,12 @@ export default function SavingsPage() {
   return (
     <>
       <div className="page-header">
-        <h1>💰 저축플랜</h1>
+        <h1>
+          <span className="icon-box">
+            <FaPiggyBank />
+          </span>
+          저축플랜
+        </h1>
         <p>월급과 목표 금액으로 저축 계획을 세우고, 구독료·카드소비 리포트로 절약 여지를 함께 확인하세요.</p>
       </div>
 

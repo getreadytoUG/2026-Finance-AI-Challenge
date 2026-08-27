@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { FaClipboardList } from "react-icons/fa6";
 import { getAdminPolicyList, getPolicyCategories, type AdminPolicyItem, type PolicyCategory } from "@/lib/api";
 import AdminGuard from "@/components/AdminGuard";
 import PolicyDetailLink from "@/components/PolicyDetailLink";
@@ -172,7 +173,12 @@ export default function AdminPoliciesListPage() {
   return (
     <AdminGuard>
       <div className="page-header">
-        <h1>📋 정책 목록</h1>
+        <h1>
+          <span className="icon-box">
+            <FaClipboardList />
+          </span>
+          정책 목록
+        </h1>
         <p>캐시된 정책을 검색하고 개별 데이터를 확인하세요.</p>
       </div>
       <PoliciesListContent />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { FaLandmark, FaRing } from "react-icons/fa6";
 import { callTool, getMe, getRegions } from "@/lib/api";
 import Pagination from "@/components/Pagination";
 import PolicyDetailLink from "@/components/PolicyDetailLink";
@@ -79,7 +80,12 @@ export default function PolicyPage() {
   return (
     <>
       <div className="page-header">
-        <h1>🏛️ 금융 정책 추천</h1>
+        <h1>
+          <span className="icon-box">
+            <FaLandmark />
+          </span>
+          금융 정책 추천
+        </h1>
         <p>현재 상황을 입력하면 금융 지원 정책 중 지금 신청 가능한 것만 모아 보여드립니다.</p>
       </div>
 
@@ -148,7 +154,7 @@ export default function PolicyPage() {
                   <div className="result-item-title">
                     {option.is_newlywed_policy && (
                       <span className="badge badge-success" style={{ marginRight: 8 }}>
-                        💍 신혼부부
+                        <FaRing /> 신혼부부
                       </span>
                     )}
                     {option.policy_name}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { FaCircleCheck, FaMagnifyingGlass, FaSackDollar, FaWandMagicSparkles } from "react-icons/fa6";
 import {
   analyzePolicy,
   fetchAiSearchResults,
@@ -310,7 +311,12 @@ export default function AiSearchPage() {
   return (
     <>
       <div className="page-header">
-        <h1>✨ AI로 정책 알기</h1>
+        <h1>
+          <span className="icon-box">
+            <FaWandMagicSparkles />
+          </span>
+          AI로 정책 알기
+        </h1>
         <p>대화로 조건을 좁혀가며 나에게 맞는 정책을 실시간으로 찾아보세요.</p>
       </div>
 
@@ -403,7 +409,7 @@ export default function AiSearchPage() {
         <div>
           <form onSubmit={handleKeywordSearchSubmit} className="keyword-search-bar" style={{ marginBottom: 16 }}>
             <span className="keyword-search-icon" aria-hidden="true">
-              🔍
+              <FaMagnifyingGlass />
             </span>
             <input
               className="keyword-search-input"
@@ -466,13 +472,14 @@ export default function AiSearchPage() {
                       disabled={state?.loading}
                       onClick={() => handleAnalyze(item.policy_key)}
                     >
+                      <FaWandMagicSparkles style={{ marginRight: 4 }} />
                       {state?.loading
                         ? "분석 중..."
                         : state?.result
                           ? state.open
-                            ? "✨ AI 분석 리포트 접기"
-                            : "✨ AI 분석 리포트 다시 보기"
-                          : "✨ AI 분석 리포트 보기"}
+                            ? "AI 분석 리포트 접기"
+                            : "AI 분석 리포트 다시 보기"
+                          : "AI 분석 리포트 보기"}
                     </button>
                   </div>
                   {state?.error && <p className="error-text" style={{ marginTop: 8 }}>{state.error}</p>}
@@ -506,8 +513,11 @@ export default function AiSearchPage() {
                         <div>{state.result.benefit_summary}</div>
                         {state.result.estimated_monthly_benefit_krw != null && (
                           <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                            <span style={{ fontSize: 13, fontWeight: 700 }}>
-                              💰 예상 월 혜택: {state.result.estimated_monthly_benefit_krw.toLocaleString()}원
+                            <span
+                              style={{ fontSize: 13, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 6 }}
+                            >
+                              <FaSackDollar />
+                              예상 월 혜택: {state.result.estimated_monthly_benefit_krw.toLocaleString()}원
                             </span>
                             <button
                               type="button"
@@ -515,7 +525,16 @@ export default function AiSearchPage() {
                               disabled={state.linking || state.linked}
                               onClick={() => handleLinkBenefit(item)}
                             >
-                              {state.linked ? "✅ 저축플랜에 반영됨" : state.linking ? "반영 중..." : "저축플랜에 반영하기"}
+                              {state.linked ? (
+                                <>
+                                  <FaCircleCheck style={{ marginRight: 4 }} />
+                                  저축플랜에 반영됨
+                                </>
+                              ) : state.linking ? (
+                                "반영 중..."
+                              ) : (
+                                "저축플랜에 반영하기"
+                              )}
                             </button>
                           </div>
                         )}

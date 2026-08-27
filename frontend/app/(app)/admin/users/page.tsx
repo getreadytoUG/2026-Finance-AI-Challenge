@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { FaUsers } from "react-icons/fa6";
 import { getAdminUsers, type AdminUserItem } from "@/lib/api";
 import AdminGuard from "@/components/AdminGuard";
 import { OCCUPATION_LABELS, formatDateTime } from "@/components/AdminWidgets";
@@ -62,7 +63,12 @@ export default function AdminUsersPage() {
   return (
     <AdminGuard>
       <div className="page-header">
-        <h1>👥 회원</h1>
+        <h1>
+          <span className="icon-box">
+            <FaUsers />
+          </span>
+          회원
+        </h1>
         <p>가입한 회원 목록을 확인하세요.</p>
       </div>
       <UsersContent />

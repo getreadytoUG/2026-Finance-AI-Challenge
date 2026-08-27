@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { FaBookOpen } from "react-icons/fa6";
 import { browsePolicies, getPolicyCategories } from "@/lib/api";
 import type { PolicyBrowseItem, PolicyCategory } from "@/lib/api";
 import Pagination from "@/components/Pagination";
@@ -89,7 +90,12 @@ export default function BrowsePage() {
   return (
     <>
       <div className="page-header">
-        <h1>📖 정책 읽기</h1>
+        <h1>
+          <span className="icon-box">
+            <FaBookOpen />
+          </span>
+          정책 읽기
+        </h1>
         <p>조건 입력 없이 전체 정책을 카테고리별로 둘러보세요.</p>
       </div>
 

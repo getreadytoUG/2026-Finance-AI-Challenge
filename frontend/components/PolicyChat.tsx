@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { FaCircleUser, FaComments, FaPaperPlane, FaRing, FaRobot } from "react-icons/fa6";
 import { sendPolicyChatMessage } from "@/lib/api";
 import type { PolicyChatMessage, PolicyChatOption } from "@/lib/api";
 import PolicyDetailLink from "@/components/PolicyDetailLink";
@@ -88,11 +89,14 @@ export default function PolicyChat() {
 
   return (
     <div className="card chat-panel">
-      <div style={{ fontWeight: 700, marginBottom: 12 }}>💬 정책 챗봇</div>
+      <div style={{ fontWeight: 700, marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+        <FaComments />
+        정책 챗봇
+      </div>
       <div className="chat-message-list" ref={listRef}>
         {turns.map((turn, i) => (
           <div key={i} className={`chat-row ${turn.role === "user" ? "chat-row-user" : "chat-row-assistant"}`}>
-            <span className="chat-avatar">{turn.role === "user" ? "🙋" : "🤖"}</span>
+            <span className="chat-avatar">{turn.role === "user" ? <FaCircleUser /> : <FaRobot />}</span>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
               <div className={`chat-bubble ${turn.role === "user" ? "chat-bubble-user" : "chat-bubble-assistant"}`}>
                 {turn.content}
@@ -105,7 +109,7 @@ export default function PolicyChat() {
                         <div style={{ fontWeight: 700, fontSize: 13 }}>
                           {p.is_newlywed_policy && (
                             <span className="badge badge-success" style={{ marginRight: 6 }}>
-                              💍 신혼부부
+                              <FaRing /> 신혼부부
                             </span>
                           )}
                           {p.policy_name}
@@ -129,7 +133,7 @@ export default function PolicyChat() {
         ))}
         {loading && (
           <div className="chat-row chat-row-assistant">
-            <span className="chat-avatar">🤖</span>
+            <span className="chat-avatar"><FaRobot /></span>
             <div className="chat-bubble chat-bubble-assistant chat-typing">
               <span />
               <span />
@@ -171,7 +175,7 @@ export default function PolicyChat() {
           disabled={loading}
         />
         <button className="chat-input-send" type="submit" aria-label="전송" disabled={loading || !input.trim()}>
-          ➤
+          <FaPaperPlane style={{ fontSize: 14 }} />
         </button>
       </form>
     </div>

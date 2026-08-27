@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { FaPiggyBank, FaUser } from "react-icons/fa6";
 import {
   getMe,
   listSavingsLinkedBenefits,
@@ -132,7 +133,12 @@ export default function ProfilePage() {
   return (
     <>
       <div className="page-header">
-        <h1>👤 내 정보</h1>
+        <h1>
+          <span className="icon-box">
+            <FaUser />
+          </span>
+          내 정보
+        </h1>
         <p>가입 시 입력한 정보를 확인하고 수정할 수 있습니다.</p>
       </div>
 
@@ -318,7 +324,10 @@ export default function ProfilePage() {
       {linkedBenefits.length > 0 && (
         <div className="card" style={{ marginTop: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
-            <h3 style={{ margin: 0 }}>💰 저축플랜에 반영된 정책</h3>
+            <h3 style={{ margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+              <FaPiggyBank />
+              저축플랜에 반영된 정책
+            </h3>
             <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
               합계 월 {totalLinkedBenefitKrw.toLocaleString()}원
             </span>

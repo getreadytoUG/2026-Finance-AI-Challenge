@@ -3,23 +3,38 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import {
+  FaBell,
+  FaBookOpen,
+  FaChartLine,
+  FaClipboardList,
+  FaFolderOpen,
+  FaLandmark,
+  FaPiggyBank,
+  FaRightFromBracket,
+  FaSeedling,
+  FaUser,
+  FaUsers,
+  FaWandMagicSparkles,
+} from "react-icons/fa6";
+import type { IconType } from "react-icons";
 import { getMe, getRecommendations, isTokenExpired } from "@/lib/api";
 import ChatWidget from "@/components/ChatWidget";
 
-const TABS = [
-  { href: "/policy", label: "금융 정책 추천", icon: "🏛️" },
-  { href: "/browse", label: "정책 읽기", icon: "📖" },
-  { href: "/ai-search", label: "AI로 정책 알기", icon: "✨" },
-  { href: "/savings", label: "저축플랜", icon: "💰" },
-  { href: "/recommendations", label: "추천", icon: "🔔" },
+const TABS: { href: string; label: string; icon: IconType }[] = [
+  { href: "/policy", label: "금융 정책 추천", icon: FaLandmark },
+  { href: "/browse", label: "정책 읽기", icon: FaBookOpen },
+  { href: "/ai-search", label: "AI로 정책 알기", icon: FaWandMagicSparkles },
+  { href: "/savings", label: "저축플랜", icon: FaPiggyBank },
+  { href: "/recommendations", label: "추천", icon: FaBell },
 ];
 
 // 관리자 계정은 일반 사용자용 탭이 필요 없다 — 대시보드 전용 탭만 보여준다.
-const ADMIN_TABS = [
-  { href: "/admin", label: "개요", icon: "📊" },
-  { href: "/admin/users", label: "회원", icon: "👥" },
-  { href: "/admin/policies", label: "정책", icon: "🗂️" },
-  { href: "/admin/policies/list", label: "정책 목록", icon: "📋" },
+const ADMIN_TABS: { href: string; label: string; icon: IconType }[] = [
+  { href: "/admin", label: "개요", icon: FaChartLine },
+  { href: "/admin/users", label: "회원", icon: FaUsers },
+  { href: "/admin/policies", label: "정책", icon: FaFolderOpen },
+  { href: "/admin/policies/list", label: "정책 목록", icon: FaClipboardList },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -75,85 +90,52 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div style={{ minHeight: "100vh" }}>
-      <header
-        style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 10,
-          background: "var(--surface)",
-          borderBottom: "1px solid var(--border)",
-        }}
-      >
-        <div
-          className="nav-bar"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "16px 20px",
-            marginBottom: 0,
-          }}
-        >
-          <span style={{ fontSize: 20, marginRight: 8 }}>🌱</span>
-          <nav style={{ display: "flex", gap: 4, flex: 1, flexWrap: "nowrap", overflowX: "auto" }}>
+      <header className="app-header">
+        <div className="app-header-inner">
+          <Link href={isAdmin ? "/admin" : "/policy"} className="app-logo">
+            <span className="icon-box icon-box-solid icon-box-sm">
+              <FaSeedling />
+            </span>
+            청년/신혼부부 금융 도우미
+          </Link>
+          <nav className="app-nav">
             {tabs.map((tab) => {
               const active = pathname === tab.href;
+              const Icon = tab.icon;
               return (
-                <Link
-                  key={tab.href}
-                  href={tab.href}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "8px 14px",
-                    borderRadius: 999,
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: active ? "var(--primary)" : "var(--text-muted)",
-                    background: active ? "var(--primary-tint)" : "transparent",
-                  }}
-                >
-                  <span>{tab.icon}</span>
+                <Link key={tab.href} href={tab.href} className={`app-nav-tab${active ? " active" : ""}`}>
+                  <Icon />
                   {tab.label}
                   {tab.href === "/recommendations" && unreadCount > 0 && (
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        minWidth: 16,
-                        height: 16,
-                        padding: "0 4px",
-                        borderRadius: 999,
-                        background: "var(--danger)",
-                        color: "#fff",
-                        fontSize: 10,
-                        fontWeight: 700,
-                      }}
-                    >
-                      {unreadCount}
-                    </span>
+                    <span className="app-nav-badge">{unreadCount}</span>
                   )}
                 </Link>
               );
             })}
           </nav>
-          <Link
-            href="/profile"
-            className="btn-ghost"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              borderRadius: "var(--radius-sm)",
-              color: pathname === "/profile" ? "var(--primary)" : undefined,
-            }}
-          >
-            내 정보
-          </Link>
-          <button className="btn btn-ghost" onClick={handleLogout}>
-            로그아웃
-          </button>
+          <div className="app-header-actions">
+            <Link
+              href="/profile"
+              className="btn-ghost"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                color: pathname === "/profile" ? "var(--primary)" : undefined,
+              }}
+            >
+              <FaUser />
+              내 정보
+            </Link>
+            <button
+              className="btn-ghost"
+              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+              onClick={handleLogout}
+            >
+              <FaRightFromBracket />
+              로그아웃
+            </button>
+          </div>
         </div>
       </header>
       <div className={pathname === "/ai-search" ? "page page-wide" : "page"} style={{ paddingTop: 32 }}>

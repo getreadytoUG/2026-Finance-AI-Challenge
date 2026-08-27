@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { FaChartLine } from "react-icons/fa6";
 import { getAdminOverview, getAdminSignupTrend, type AdminOverview, type AdminSignupTrendResponse } from "@/lib/api";
 import AdminGuard from "@/components/AdminGuard";
 import { BarRow, KpiCard, formatDateTime } from "@/components/AdminWidgets";
@@ -71,7 +72,12 @@ export default function AdminOverviewPage() {
   return (
     <AdminGuard>
       <div className="page-header">
-        <h1>📊 개요</h1>
+        <h1>
+          <span className="icon-box">
+            <FaChartLine />
+          </span>
+          개요
+        </h1>
         <p>서비스 전체 현황을 한눈에 확인하세요.</p>
       </div>
       <OverviewContent />

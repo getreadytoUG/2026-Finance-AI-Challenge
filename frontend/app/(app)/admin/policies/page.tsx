@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { FaFolderOpen } from "react-icons/fa6";
 import { getAdminPolicyStats, refreshAdminPolicyCache, type AdminPolicyStatsResponse } from "@/lib/api";
 import AdminGuard from "@/components/AdminGuard";
 import { BarRow, formatDateTime } from "@/components/AdminWidgets";
@@ -80,7 +81,12 @@ export default function AdminPoliciesPage() {
   return (
     <AdminGuard>
       <div className="page-header">
-        <h1>🗂️ 정책</h1>
+        <h1>
+          <span className="icon-box">
+            <FaFolderOpen />
+          </span>
+          정책
+        </h1>
         <p>정책 캐시 데이터 현황을 확인하고 갱신하세요.</p>
       </div>
       <PoliciesContent />

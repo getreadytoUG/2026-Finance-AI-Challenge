@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { FaBell } from "react-icons/fa6";
 import { getMe, getRecommendations, markRecommendationRead, refreshRecommendations, updateProfile } from "@/lib/api";
 import type { Recommendation, UserProfile } from "@/lib/api";
 import { OCCUPATION_OPTIONS, manwonToKrw, type OccupationType } from "@/lib/profileOptions";
@@ -99,7 +100,12 @@ export default function RecommendationsPage() {
   return (
     <>
       <div className="page-header">
-        <h1>🔔 맞춤 추천</h1>
+        <h1>
+          <span className="icon-box">
+            <FaBell />
+          </span>
+          맞춤 추천
+        </h1>
         <p>프로필을 저장해두면 매일 새로 맞는 정책을 찾아 알려드립니다.</p>
       </div>
 
