@@ -401,15 +401,18 @@ export default function AiSearchPage() {
         </div>
 
         <div>
-          <form onSubmit={handleKeywordSearchSubmit} style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+          <form onSubmit={handleKeywordSearchSubmit} className="keyword-search-bar" style={{ marginBottom: 16 }}>
+            <span className="keyword-search-icon" aria-hidden="true">
+              🔍
+            </span>
             <input
-              className="input"
+              className="keyword-search-input"
               placeholder="정책명/내용 검색"
               value={keywordInput}
               onChange={(e) => setKeywordInput(e.target.value)}
               disabled={!filters}
             />
-            <button type="submit" className="btn-ghost" disabled={!filters}>
+            <button type="submit" className="keyword-search-btn" disabled={!filters}>
               검색
             </button>
           </form>
