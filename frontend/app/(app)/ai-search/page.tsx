@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { FaCircleCheck, FaMagnifyingGlass, FaSackDollar, FaWandMagicSparkles } from "react-icons/fa6";
+import { Bot, Check, Search, Send, Sparkles, UserRound, WalletCards } from "lucide-react";
 import {
   analyzePolicy,
   fetchAiSearchResults,
@@ -14,39 +14,26 @@ import {
   type PolicyBrowseItem,
   type PolicyChatMessage,
 } from "@/lib/api";
+import { DashboardLayout } from "@/components/DashboardLayout";
 import Pagination from "@/components/Pagination";
 import PolicyDetailLink from "@/components/PolicyDetailLink";
 
 const PAGE_SIZE = 10;
 
-const STATUS_COLORS: Record<string, string> = {
-  임박: "var(--accent)",
-  여유: "var(--success)",
-  상시: "var(--primary)",
-  예정: "var(--text-muted)",
-  만료: "var(--danger)",
+const STATUS_PILL: Record<string, string> = {
+  임박: "urgent",
+  만료: "urgent",
+  여유: "available",
+  상시: "available",
+  예정: "neutral",
 };
 
-const STATUS_EMOJI: Record<string, string> = {
-  임박: "🟡",
-  여유: "🟢",
-  상시: "🟢",
-  예정: "⚪",
-  만료: "🔴",
-};
-
-function StatusDot({ status }: { status: string }) {
+function StatusPill({ status }: { status: string }) {
   return (
-    <span
-      style={{
-        display: "inline-block",
-        width: 10,
-        height: 10,
-        borderRadius: "50%",
-        background: STATUS_COLORS[status] ?? "var(--text-muted)",
-        marginRight: 6,
-      }}
-    />
+    <span className={`policy-status ${STATUS_PILL[status] ?? "neutral"}`}>
+      <span />
+      {status}
+    </span>
   );
 }
 
@@ -81,7 +68,7 @@ function filterChips(filters: AiSearchFilters): { key: keyof AiSearchFilters; la
   if (filters.region) chips.push({ key: "region", label: filters.region });
   if (filters.category) chips.push({ key: "category", label: filters.category });
   if (filters.keyword) chips.push({ key: "keyword", label: `"${filters.keyword}"` });
-  if (filters.status) chips.push({ key: "status", label: `${STATUS_EMOJI[filters.status] ?? ""} ${filters.status}` });
+  if (filters.status) chips.push({ key: "status", label: filters.status });
   return chips;
 }
 
@@ -309,69 +296,61 @@ export default function AiSearchPage() {
   const showSuggestions = turns.length === 1 && !chatLoading;
 
   return (
-    <>
-      <div className="page-header">
-        <h1>
-          <span className="icon-box">
-            <FaWandMagicSparkles />
-          </span>
-          AI로 정책 알기
-        </h1>
-        <p>대화로 조건을 좁혀가며 나에게 맞는 정책을 실시간으로 찾아보세요.</p>
-      </div>
-
-      <div className="ai-search-grid">
-        <div className="card chat-panel">
+    <DashboardLayout eyebrow="AI ANALYSIS REPORT" title="AI 분석 리포트">
+      <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
+        <div className="flex max-h-[720px] min-h-[520px] flex-col rounded-[22px] border border-slate-200/80 bg-white p-5">
           {chips.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginBottom: 12 }}>
+            <div className="mb-3 flex flex-wrap items-center gap-1.5">
               {chips.map((chip) => (
-                <span key={chip.key} className="filter-chip">
+                <span key={chip.key} className="inline-flex items-center gap-1.5 rounded-full border border-[#2457d6] bg-[#eef3ff] px-3 py-1.5 text-[12px] font-bold text-[#2457d6]">
                   {chip.label}
-                  <button type="button" onClick={() => handleRemoveChip(chip.key)} aria-label={`${chip.label} 필터 제거`}>
+                  <button type="button" onClick={() => handleRemoveChip(chip.key)} aria-label={`${chip.label} 필터 제거`} className="text-[#2457d6]/70 hover:text-[#2457d6]">
                     ×
                   </button>
                 </span>
               ))}
-              <button
-                type="button"
-                className="btn-ghost"
-                style={{ fontSize: 12, borderRadius: 999, padding: "4px 10px" }}
-                onClick={handleResetFilters}
-              >
+              <button type="button" className="rounded-full border border-slate-200 px-2.5 py-1 text-[11px] font-bold text-slate-400 hover:border-slate-300 hover:text-slate-600" onClick={handleResetFilters}>
                 조건 전체 초기화
               </button>
             </div>
           )}
 
-          <div className="chat-message-list" ref={listRef}>
+          <div className="flex-1 min-h-0 space-y-3.5 overflow-y-auto pr-1" ref={listRef}>
             {turns.map((turn, i) => (
-              <div key={i} className={`chat-row ${turn.role === "user" ? "chat-row-user" : "chat-row-assistant"}`}>
-                <span className="chat-avatar">{turn.role === "user" ? "🙋" : "🤖"}</span>
-                <div className={`chat-bubble ${turn.role === "user" ? "chat-bubble-user" : "chat-bubble-assistant"}`}>
+              <div key={i} className={`flex items-start gap-2 ${turn.role === "user" ? "flex-row-reverse" : ""}`}>
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#e8f0ff] text-[#2457d6]">
+                  {turn.role === "user" ? <UserRound size={14} /> : <Bot size={14} />}
+                </span>
+                <div
+                  className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed ${
+                    turn.role === "user" ? "rounded-br-md bg-[#2457d6] text-white" : "rounded-bl-md border border-slate-100 bg-[#f7f9fc] text-ink"
+                  }`}
+                >
                   {turn.content}
                 </div>
               </div>
             ))}
             {chatLoading && (
-              <div className="chat-row chat-row-assistant">
-                <span className="chat-avatar">🤖</span>
-                <div className="chat-bubble chat-bubble-assistant chat-typing">
-                  <span />
-                  <span />
-                  <span />
+              <div className="flex items-start gap-2">
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#e8f0ff] text-[#2457d6]">
+                  <Bot size={14} />
+                </span>
+                <div className="flex items-center gap-1 rounded-2xl rounded-bl-md border border-slate-100 bg-[#f7f9fc] px-4 py-3.5">
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.3s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.15s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" />
                 </div>
               </div>
             )}
           </div>
 
           {showSuggestions && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
               {SUGGESTED_QUESTIONS.map((q) => (
                 <button
                   key={q}
                   type="button"
-                  className="btn-ghost"
-                  style={{ borderRadius: 999, fontSize: 12 }}
+                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-500 transition hover:border-[#2457d6] hover:text-[#2457d6]"
                   onClick={() => sendText(q)}
                 >
                   {q}
@@ -380,11 +359,11 @@ export default function AiSearchPage() {
             </div>
           )}
 
-          {chatError && <p className="error-text" style={{ marginTop: 8 }}>{chatError}</p>}
-          <form onSubmit={handleSend} className="chat-input-bar" style={{ marginTop: 12 }}>
+          {chatError && <p className="mt-2 text-[12px] font-bold text-rose-500">{chatError}</p>}
+          <form onSubmit={handleSend} className="mt-3 flex items-end gap-1.5 rounded-[22px] border border-slate-200 bg-[#f7f9fc] p-1.5 pl-4 transition focus-within:border-[#2457d6] focus-within:bg-white">
             <textarea
               ref={textareaRef}
-              className="chat-input-textarea"
+              className="max-h-[88px] min-w-0 flex-1 resize-none border-none bg-transparent py-2 text-[13px] text-ink outline-none placeholder:text-slate-400"
               rows={1}
               placeholder="예: 서울 지역 정책만 보여줘"
               value={chatInput}
@@ -396,139 +375,111 @@ export default function AiSearchPage() {
               disabled={chatLoading || !filters}
             />
             <button
-              className="chat-input-send"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#2457d6] text-white transition hover:bg-[#1949c1] disabled:bg-slate-200 disabled:text-slate-400"
               type="submit"
               aria-label="전송"
               disabled={chatLoading || !chatInput.trim() || !filters}
             >
-              ➤
+              <Send size={15} />
             </button>
           </form>
         </div>
 
         <div>
-          <form onSubmit={handleKeywordSearchSubmit} className="keyword-search-bar" style={{ marginBottom: 16 }}>
-            <span className="keyword-search-icon" aria-hidden="true">
-              <FaMagnifyingGlass />
-            </span>
+          <form onSubmit={handleKeywordSearchSubmit} className="mb-4 flex items-center gap-1.5 rounded-full border border-slate-200 bg-white p-1.5 pl-4 shadow-[0_1px_2px_rgba(20,30,60,.04)] transition focus-within:border-[#2457d6] focus-within:ring-4 focus-within:ring-[#2457d6]/10">
+            <Search size={16} className="text-slate-400" />
             <input
-              className="keyword-search-input"
+              className="min-w-0 flex-1 border-none bg-transparent py-2.5 text-[14px] text-ink outline-none placeholder:text-slate-400"
               placeholder="정책명/내용 검색"
               value={keywordInput}
               onChange={(e) => setKeywordInput(e.target.value)}
               disabled={!filters}
             />
-            <button type="submit" className="keyword-search-btn" disabled={!filters}>
+            <button type="submit" className="shrink-0 rounded-full bg-[#2457d6] px-5 py-2.5 text-[13px] font-extrabold text-white transition hover:bg-[#1949c1] disabled:bg-slate-200" disabled={!filters}>
               검색
             </button>
           </form>
 
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-            <div style={{ fontWeight: 700, fontSize: 16 }}>
-              맞춤 검색 결과: <span style={{ color: "var(--primary)" }}>{total}개</span>
+          <div className="mb-4 flex items-center justify-between">
+            <div className="text-[15px] font-extrabold text-ink">
+              맞춤 검색 결과: <span className="text-[#2457d6]">{total}개</span>
             </div>
+            <label className="flex items-center gap-2 text-[12px] font-bold text-slate-500">
+              <input type="checkbox" checked={includeClosed} onChange={handleToggleIncludeClosed} className="h-4 w-4 accent-[#2457d6]" />
+              마감된 정책도 보기
+            </label>
           </div>
 
-          <label className="checkbox-field">
-            <input type="checkbox" checked={includeClosed} onChange={handleToggleIncludeClosed} />
-            마감된 정책도 보기
-          </label>
-
-          {resultsError && <p className="error-text">{resultsError}</p>}
-          {resultsLoading && <p>불러오는 중...</p>}
+          {resultsError && <p className="text-[13px] font-bold text-rose-500">{resultsError}</p>}
+          {resultsLoading && <p className="text-[13px] text-slate-400">불러오는 중...</p>}
           {!resultsLoading && items.length === 0 && !resultsError && (
-            <p className="error-text">조건에 맞는 정책이 없습니다.</p>
+            <div className="rounded-2xl border border-dashed border-slate-300 p-10 text-center text-[13px] font-bold text-slate-400">조건에 맞는 정책이 없습니다.</div>
           )}
 
-          <div className="result-list">
+          <div className="grid gap-3">
             {items.map((item, i) => {
               const state = analysis[item.policy_key];
               return (
-                <div key={i} className="result-item">
-                  <div className="result-item-title">
-                    <StatusDot status={item.status} />
-                    {item.policy_name}
+                <div key={i} className="rounded-2xl border border-slate-200/80 bg-white p-5 transition hover:border-[#cddafb] hover:shadow-[0_14px_30px_rgba(28,50,88,.07)]">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[15px] font-extrabold tracking-[-.03em] text-ink">{item.policy_name}</span>
+                    <StatusPill status={item.status} />
                   </div>
-                  <div className="result-item-row">
-                    <span>분야</span>
-                    <span>{item.large_category}</span>
-                  </div>
-                  <div className="result-item-row">
-                    <span>상태</span>
-                    <span style={{ display: "inline-flex", alignItems: "center" }}>
-                      <StatusDot status={item.status} />
-                      {item.status}
-                    </span>
-                  </div>
-                  <div className="result-item-row">
-                    <span>신청 기간</span>
-                    <span>{item.application_period}</span>
-                  </div>
-                  <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <div className="mt-1.5 text-[11px] font-semibold text-slate-400">{item.large_category}</div>
+                  <div className="mt-1 text-[11px] font-semibold text-slate-400">신청 기간 {item.application_period}</div>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
                     <PolicyDetailLink url={item.reference_url} />
                     <button
                       type="button"
-                      className="btn-analyze"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-[#2457d6] px-3 py-1.5 text-[11px] font-extrabold text-[#2457d6] transition hover:bg-[#2457d6] hover:text-white disabled:opacity-50"
                       disabled={state?.loading}
                       onClick={() => handleAnalyze(item.policy_key)}
                     >
-                      <FaWandMagicSparkles style={{ marginRight: 4 }} />
-                      {state?.loading
-                        ? "분석 중..."
-                        : state?.result
-                          ? state.open
-                            ? "AI 분석 리포트 접기"
-                            : "AI 분석 리포트 다시 보기"
-                          : "AI 분석 리포트 보기"}
+                      <Sparkles size={12} />
+                      {state?.loading ? "분석 중..." : state?.result ? (state.open ? "AI 분석 리포트 접기" : "AI 분석 리포트 다시 보기") : "AI 분석 리포트 보기"}
                     </button>
                   </div>
-                  {state?.error && <p className="error-text" style={{ marginTop: 8 }}>{state.error}</p>}
+                  {state?.error && <p className="mt-2 text-[12px] font-bold text-rose-500">{state.error}</p>}
                   {state?.loading && (
-                    <div className="analysis-report analysis-report-loading">
+                    <div className="mt-3 flex items-center gap-2 rounded-xl bg-[#f7f9fc] px-3.5 py-3 text-[12px] text-slate-500">
                       <span>AI가 리포트를 생성하고 있어요...</span>
-                      <span className="chat-typing">
-                        <span />
-                        <span />
-                        <span />
+                      <span className="flex items-center gap-1">
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.3s]" />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.15s]" />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" />
                       </span>
                     </div>
                   )}
                   {state?.open && state.result && (
-                    <div className="analysis-report">
-                      <div className="analysis-fit-row">
-                        <span
-                          className="analysis-fit-dot"
-                          style={{ background: state.result.fit === "적합" ? "var(--success)" : "var(--danger)" }}
-                        />
-                        <span style={{ fontWeight: 700 }}>{state.result.fit}</span>
+                    <div className="mt-3 rounded-xl bg-[#f7f9fc] p-4 text-[13px] leading-relaxed">
+                      <div className="flex items-center gap-2">
+                        <span className={`h-3 w-3 rounded-full ${state.result.fit === "적합" ? "bg-[#1eb8a6]" : "bg-rose-400"}`} />
+                        <span className="font-extrabold text-ink">{state.result.fit}</span>
                       </div>
                       {state.result.fit === "부적합" && state.result.concerns && (
-                        <div className="analysis-report-section">
-                          <div className="analysis-report-label">우려되는 지점</div>
-                          <div>{state.result.concerns}</div>
+                        <div className="mt-2.5">
+                          <div className="text-[11px] font-extrabold text-slate-400">우려되는 지점</div>
+                          <div className="mt-0.5 text-slate-600">{state.result.concerns}</div>
                         </div>
                       )}
-                      <div className="analysis-report-section">
-                        <div className="analysis-report-label">예상 혜택</div>
-                        <div>{state.result.benefit_summary}</div>
+                      <div className="mt-2.5">
+                        <div className="text-[11px] font-extrabold text-slate-400">예상 혜택</div>
+                        <div className="mt-0.5 text-slate-600">{state.result.benefit_summary}</div>
                         {state.result.estimated_monthly_benefit_krw != null && (
-                          <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                            <span
-                              style={{ fontSize: 13, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 6 }}
-                            >
-                              <FaSackDollar />
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <span className="inline-flex items-center gap-1.5 text-[13px] font-extrabold text-ink">
+                              <WalletCards size={14} className="text-[#159c8d]" />
                               예상 월 혜택: {state.result.estimated_monthly_benefit_krw.toLocaleString()}원
                             </span>
                             <button
                               type="button"
-                              className="btn-analyze"
+                              className="inline-flex items-center gap-1.5 rounded-full border border-[#2457d6] px-3 py-1.5 text-[11px] font-extrabold text-[#2457d6] transition hover:bg-[#2457d6] hover:text-white disabled:opacity-60"
                               disabled={state.linking || state.linked}
                               onClick={() => handleLinkBenefit(item)}
                             >
                               {state.linked ? (
                                 <>
-                                  <FaCircleCheck style={{ marginRight: 4 }} />
-                                  저축플랜에 반영됨
+                                  <Check size={12} /> 저축플랜에 반영됨
                                 </>
                               ) : state.linking ? (
                                 "반영 중..."
@@ -539,13 +490,15 @@ export default function AiSearchPage() {
                           </div>
                         )}
                       </div>
-                      <div className="analysis-report-section">
-                        <div className="analysis-report-label">신청 시 유의사항</div>
-                        <div>{state.result.application_notes}</div>
+                      <div className="mt-2.5">
+                        <div className="text-[11px] font-extrabold text-slate-400">신청 시 유의사항</div>
+                        <div className="mt-0.5 text-slate-600">{state.result.application_notes}</div>
                         {state.result.required_documents.length > 0 && (
-                          <ul className="analysis-doc-list">
+                          <ul className="mt-1.5 list-disc pl-5 text-slate-600">
                             {state.result.required_documents.map((doc, i) => (
-                              <li key={i}>{doc}</li>
+                              <li key={i} className="mt-0.5">
+                                {doc}
+                              </li>
                             ))}
                           </ul>
                         )}
@@ -560,6 +513,6 @@ export default function AiSearchPage() {
           <Pagination page={page} totalPages={totalPages} onPageChange={handlePageChange} />
         </div>
       </div>
-    </>
+    </DashboardLayout>
   );
 }

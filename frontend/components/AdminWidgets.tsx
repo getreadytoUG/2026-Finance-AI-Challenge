@@ -15,11 +15,20 @@ export function formatDateTime(value: string | null): string {
   return new Date(value).toLocaleString("ko-KR");
 }
 
-export function KpiCard({ label, value }: { label: string; value: string | number }) {
+const TONE_ORB: Record<string, string> = {
+  blue: "bg-[#edf3ff]",
+  mint: "bg-[#e8f8f4]",
+  violet: "bg-[#f0eeff]",
+};
+
+export function KpiCard({ label, value, tone = "blue" }: { label: string; value: string | number; tone?: "blue" | "mint" | "violet" }) {
   return (
-    <div className="admin-kpi-card">
-      <div className="kpi-label">{label}</div>
-      <div className="kpi-value">{value}</div>
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5">
+      <div className={`absolute -right-[22px] -top-7 h-[108px] w-[108px] rounded-full opacity-90 ${TONE_ORB[tone]}`} />
+      <div className="relative">
+        <div className="text-[11px] font-bold text-slate-400">{label}</div>
+        <div className="mt-3 text-[24px] font-extrabold tracking-[-.05em] text-ink">{value}</div>
+      </div>
     </div>
   );
 }
@@ -36,12 +45,11 @@ export function ExpandableCell({ text, maxLength = 40 }: { text: string; maxLeng
   const wrappable = text.replace(/,/g, ", ");
 
   return (
-    <div style={{ whiteSpace: expanded ? "normal" : "nowrap", maxWidth: 320 }}>
+    <div className={`max-w-[320px] ${expanded ? "whitespace-normal" : "whitespace-nowrap"}`}>
       {expanded ? wrappable : `${text.slice(0, maxLength)}…`}{" "}
       <button
         type="button"
-        className="link"
-        style={{ fontSize: 12, whiteSpace: "nowrap", background: "none", border: "none", padding: 0, cursor: "pointer" }}
+        className="whitespace-nowrap border-none bg-transparent p-0 text-[12px] font-bold text-[#2457d6] hover:underline"
         onClick={() => setExpanded((prev) => !prev)}
       >
         {expanded ? "접기" : "더보기"}
@@ -53,12 +61,12 @@ export function ExpandableCell({ text, maxLength = 40 }: { text: string; maxLeng
 export function BarRow({ label, count, max }: { label: string; count: number; max: number }) {
   const pct = max > 0 ? Math.round((count / max) * 100) : 0;
   return (
-    <div className="admin-bar-row">
-      <span className="admin-bar-label">{label}</span>
-      <span className="admin-bar-track">
-        <span className="admin-bar-fill" style={{ width: `${pct}%` }} />
+    <div className="mb-2.5 flex items-center gap-2.5 text-[13px]">
+      <span className="w-[110px] shrink-0 text-slate-500">{label}</span>
+      <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-[#f0f4f9]">
+        <span className="block h-full rounded-full bg-[#2457d6]" style={{ width: `${pct}%` }} />
       </span>
-      <span className="admin-bar-count">{count}</span>
+      <span className="w-10 shrink-0 text-right font-bold text-ink">{count}</span>
     </div>
   );
 }

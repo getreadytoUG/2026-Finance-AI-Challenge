@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { FaCircleUser, FaComments, FaPaperPlane, FaRing, FaRobot } from "react-icons/fa6";
+import { Bot, Heart, MessageCircle, Send, UserRound } from "lucide-react";
 import { sendPolicyChatMessage } from "@/lib/api";
 import type { PolicyChatMessage, PolicyChatOption } from "@/lib/api";
 import PolicyDetailLink from "@/components/PolicyDetailLink";
@@ -88,42 +88,50 @@ export default function PolicyChat() {
   const showSuggestions = turns.length === 1 && !loading;
 
   return (
-    <div className="card chat-panel">
-      <div style={{ fontWeight: 700, marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
-        <FaComments />
+    <div className="flex max-h-[560px] min-h-[420px] flex-col overflow-hidden rounded-[22px] border border-slate-200/80 bg-white p-5 shadow-[0_24px_55px_rgba(16,35,71,.18)]">
+      <div className="mb-3 flex items-center gap-2 text-[13px] font-extrabold text-ink">
+        <MessageCircle size={16} className="text-[#2457d6]" />
         정책 챗봇
       </div>
-      <div className="chat-message-list" ref={listRef}>
+      <div className="flex-1 min-h-0 space-y-3.5 overflow-y-auto pr-1" ref={listRef}>
         {turns.map((turn, i) => (
-          <div key={i} className={`chat-row ${turn.role === "user" ? "chat-row-user" : "chat-row-assistant"}`}>
-            <span className="chat-avatar">{turn.role === "user" ? <FaCircleUser /> : <FaRobot />}</span>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
-              <div className={`chat-bubble ${turn.role === "user" ? "chat-bubble-user" : "chat-bubble-assistant"}`}>
+          <div key={i} className={`flex items-start gap-2 ${turn.role === "user" ? "flex-row-reverse" : ""}`}>
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#e8f0ff] text-[#2457d6]">
+              {turn.role === "user" ? <UserRound size={14} /> : <Bot size={14} />}
+            </span>
+            <div className="flex min-w-0 flex-col gap-2">
+              <div
+                className={`max-w-full whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed ${
+                  turn.role === "user"
+                    ? "rounded-br-md bg-[#2457d6] text-white"
+                    : "rounded-bl-md border border-slate-100 bg-[#f7f9fc] text-ink"
+                }`}
+              >
                 {turn.content}
               </div>
               {turn.policies && turn.policies.length > 0 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div className="flex flex-col gap-2">
                   {turn.policies.map((p, j) => (
-                    <div key={j} className="chat-policy-card">
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                        <div style={{ fontWeight: 700, fontSize: 13 }}>
+                    <div key={j} className="rounded-xl border border-slate-200/80 bg-white p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-[13px] font-extrabold text-ink">
                           {p.is_newlywed_policy && (
-                            <span className="badge badge-success" style={{ marginRight: 6 }}>
-                              <FaRing /> 신혼부부
+                            <span className="mr-1.5 inline-flex items-center gap-1 rounded-full bg-[#e7f8f5] px-2 py-0.5 text-[10px] font-extrabold text-[#159c8d]">
+                              <Heart size={11} /> 신혼부부
                             </span>
                           )}
                           {p.policy_name}
                         </div>
-                        <span style={{ fontSize: 11, color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+                        <span className="whitespace-nowrap text-[11px] text-slate-400">
                           {p.status_emoji} {p.status}
                         </span>
                       </div>
-                      <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>{p.benefit_description}</div>
-                      <div className="result-item-row" style={{ marginTop: 6, fontSize: 12 }}>
+                      <div className="mt-1 text-[12px] text-slate-500">{p.benefit_description}</div>
+                      <div className="mt-1.5 flex items-center justify-between text-[11px] text-slate-400">
                         <span>신청 기간</span>
                         <span>{p.application_period}</span>
                       </div>
-                      <PolicyDetailLink url={p.reference_url} style={{ fontSize: 12 }} />
+                      <PolicyDetailLink url={p.reference_url} className="mt-1.5 text-[12px]" />
                     </div>
                   ))}
                 </div>
@@ -132,25 +140,26 @@ export default function PolicyChat() {
           </div>
         ))}
         {loading && (
-          <div className="chat-row chat-row-assistant">
-            <span className="chat-avatar"><FaRobot /></span>
-            <div className="chat-bubble chat-bubble-assistant chat-typing">
-              <span />
-              <span />
-              <span />
+          <div className="flex items-start gap-2">
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#e8f0ff] text-[#2457d6]">
+              <Bot size={14} />
+            </span>
+            <div className="flex items-center gap-1 rounded-2xl rounded-bl-md border border-slate-100 bg-[#f7f9fc] px-4 py-3.5">
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.3s]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.15s]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" />
             </div>
           </div>
         )}
       </div>
 
       {showSuggestions && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
+        <div className="mt-2.5 flex flex-wrap gap-1.5">
           {SUGGESTED_QUESTIONS.map((q) => (
             <button
               key={q}
               type="button"
-              className="btn-ghost"
-              style={{ borderRadius: 999, fontSize: 12 }}
+              className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-500 transition hover:border-[#2457d6] hover:text-[#2457d6]"
               onClick={() => sendText(q)}
             >
               {q}
@@ -159,11 +168,11 @@ export default function PolicyChat() {
         </div>
       )}
 
-      {error && <p className="error-text" style={{ marginTop: 8 }}>{error}</p>}
-      <form onSubmit={handleSend} className="chat-input-bar" style={{ marginTop: 12 }}>
+      {error && <p className="mt-2 text-[12px] font-bold text-rose-500">{error}</p>}
+      <form onSubmit={handleSend} className="mt-3 flex items-end gap-1.5 rounded-[22px] border border-slate-200 bg-[#f7f9fc] p-1.5 pl-4 transition focus-within:border-[#2457d6] focus-within:bg-white">
         <textarea
           ref={textareaRef}
-          className="chat-input-textarea"
+          className="max-h-[88px] min-w-0 flex-1 resize-none border-none bg-transparent py-2 text-[13px] text-ink outline-none placeholder:text-slate-400"
           rows={1}
           placeholder="예: 신혼부부 전세자금 대출 있어?"
           value={input}
@@ -174,8 +183,13 @@ export default function PolicyChat() {
           onKeyDown={handleInputKeyDown}
           disabled={loading}
         />
-        <button className="chat-input-send" type="submit" aria-label="전송" disabled={loading || !input.trim()}>
-          <FaPaperPlane style={{ fontSize: 14 }} />
+        <button
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#2457d6] text-white transition hover:bg-[#1949c1] disabled:bg-slate-200 disabled:text-slate-400"
+          type="submit"
+          aria-label="전송"
+          disabled={loading || !input.trim()}
+        >
+          <Send size={15} />
         </button>
       </form>
     </div>

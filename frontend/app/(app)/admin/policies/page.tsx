@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FaFolderOpen } from "react-icons/fa6";
 import { getAdminPolicyStats, refreshAdminPolicyCache, type AdminPolicyStatsResponse } from "@/lib/api";
 import AdminGuard from "@/components/AdminGuard";
+import { DashboardLayout } from "@/components/DashboardLayout";
 import { BarRow, formatDateTime } from "@/components/AdminWidgets";
 
 function PoliciesContent() {
@@ -42,32 +42,37 @@ function PoliciesContent() {
   const maxStatusCount = stats ? Math.max(1, ...stats.by_status.map((s) => s.count)) : 1;
 
   return (
-    <div className="card">
-      {error && <p className="error-text">{error}</p>}
-      {!stats && !error && <p>불러오는 중...</p>}
+    <div className="rounded-[22px] border border-slate-200/80 bg-white p-6">
+      {error && <p className="text-[13px] font-bold text-rose-500">{error}</p>}
+      {!stats && !error && <p className="text-[13px] text-slate-400">불러오는 중...</p>}
       {stats && (
         <>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <div className="mb-5 flex items-center justify-between">
             <div>
-              <div style={{ fontSize: 14, color: "var(--text-muted)" }}>
+              <div className="text-[14px] font-bold text-slate-500">
                 총 {stats.total}건 · 마지막 갱신 {formatDateTime(stats.last_refreshed_at)}
               </div>
-              <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
+              <div className="mt-1 text-[12px] text-slate-400">
                 링크 없는 정책 {stats.missing_link_count}건 · 전국형(추정) {stats.nationwide_template_count}건
               </div>
             </div>
-            <button type="button" className="btn-ghost" onClick={handleRefreshCache} disabled={refreshing}>
+            <button
+              type="button"
+              onClick={handleRefreshCache}
+              disabled={refreshing}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[12px] font-extrabold text-slate-600 transition hover:border-[#2457d6] hover:text-[#2457d6] disabled:opacity-50"
+            >
               {refreshing ? "갱신 중..." : "지금 갱신"}
             </button>
           </div>
-          {refreshMessage && <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>{refreshMessage}</p>}
+          {refreshMessage && <p className="mb-4 text-[12px] text-slate-500">{refreshMessage}</p>}
 
-          <div style={{ fontWeight: 700, marginBottom: 12 }}>분야별 분포</div>
+          <div className="mb-3 text-[14px] font-extrabold text-ink">분야별 분포</div>
           {stats.by_category.map((c) => (
             <BarRow key={c.name} label={c.name} count={c.count} max={maxCategoryCount} />
           ))}
 
-          <div style={{ fontWeight: 700, margin: "24px 0 12px" }}>상태별 분포</div>
+          <div className="mb-3 mt-6 text-[14px] font-extrabold text-ink">상태별 분포</div>
           {stats.by_status.map((s) => (
             <BarRow key={s.status} label={s.status} count={s.count} max={maxStatusCount} />
           ))}
@@ -80,16 +85,9 @@ function PoliciesContent() {
 export default function AdminPoliciesPage() {
   return (
     <AdminGuard>
-      <div className="page-header">
-        <h1>
-          <span className="icon-box">
-            <FaFolderOpen />
-          </span>
-          정책
-        </h1>
-        <p>정책 캐시 데이터 현황을 확인하고 갱신하세요.</p>
-      </div>
-      <PoliciesContent />
+      <DashboardLayout eyebrow="ADMIN" title="정책">
+        <PoliciesContent />
+      </DashboardLayout>
     </AdminGuard>
   );
 }

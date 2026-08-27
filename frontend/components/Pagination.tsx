@@ -26,14 +26,17 @@ export default function Pagination({ page, totalPages, onPageChange }: Paginatio
 
   if (totalPages <= 1) return null;
 
+  const btnClass =
+    "rounded-xl border border-slate-200 bg-white px-4 py-2 text-[12px] font-extrabold text-slate-600 transition hover:border-[#2457d6] hover:text-[#2457d6] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:text-slate-600";
+
   return (
-    <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 20 }}>
-      <button className="btn-ghost" type="button" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
+    <div className="mt-5 flex items-center justify-center gap-2">
+      <button className={btnClass} type="button" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
         이전
       </button>
-      <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, color: "var(--text-muted)" }}>
+      <span className="flex items-center gap-1.5 text-[12px] font-semibold text-slate-400">
         <input
-          className="input"
+          className="h-9 w-14 rounded-lg border border-slate-200 text-center text-[13px] font-bold text-ink outline-none focus:border-[#2457d6] focus:ring-4 focus:ring-[#2457d6]/10"
           type="number"
           min={1}
           max={totalPages}
@@ -46,11 +49,10 @@ export default function Pagination({ page, totalPages, onPageChange }: Paginatio
               commitPageInput();
             }
           }}
-          style={{ width: 52, textAlign: "center", padding: "4px 6px" }}
         />
         <span>/ {totalPages}</span>
       </span>
-      <button className="btn-ghost" type="button" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>
+      <button className={btnClass} type="button" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>
         다음
       </button>
     </div>

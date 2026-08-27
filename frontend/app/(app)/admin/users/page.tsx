@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FaUsers } from "react-icons/fa6";
 import { getAdminUsers, type AdminUserItem } from "@/lib/api";
 import AdminGuard from "@/components/AdminGuard";
+import { DashboardLayout } from "@/components/DashboardLayout";
 import { OCCUPATION_LABELS, formatDateTime } from "@/components/AdminWidgets";
+
+const TH_CLASS = "px-3 py-2.5 text-left text-[12px] font-bold text-slate-400";
+const TD_CLASS = "whitespace-nowrap border-t border-slate-100 px-3 py-2.5 text-[13px] text-ink";
 
 function UsersContent() {
   const [users, setUsers] = useState<AdminUserItem[]>([]);
@@ -20,35 +23,35 @@ function UsersContent() {
   }, []);
 
   return (
-    <div className="card">
-      {error && <p className="error-text">{error}</p>}
-      {!loaded && !error && <p>불러오는 중...</p>}
+    <div className="rounded-[22px] border border-slate-200/80 bg-white p-6">
+      {error && <p className="text-[13px] font-bold text-rose-500">{error}</p>}
+      {!loaded && !error && <p className="text-[13px] text-slate-400">불러오는 중...</p>}
       {loaded && users.length > 0 && (
-        <div className="admin-table-wrap">
-          <table className="admin-table">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-[13px]">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>이메일</th>
-                <th>나이</th>
-                <th>혼인</th>
-                <th>연소득</th>
-                <th>지역</th>
-                <th>직업</th>
-                <th>가입일</th>
+                <th className={TH_CLASS}>ID</th>
+                <th className={TH_CLASS}>이메일</th>
+                <th className={TH_CLASS}>나이</th>
+                <th className={TH_CLASS}>혼인</th>
+                <th className={TH_CLASS}>연소득</th>
+                <th className={TH_CLASS}>지역</th>
+                <th className={TH_CLASS}>직업</th>
+                <th className={TH_CLASS}>가입일</th>
               </tr>
             </thead>
             <tbody>
               {users.map((u) => (
                 <tr key={u.id}>
-                  <td>{u.id}</td>
-                  <td>{u.email}</td>
-                  <td>{u.age ?? "-"}</td>
-                  <td>{u.is_married == null ? "-" : u.is_married ? "기혼" : "미혼"}</td>
-                  <td>{u.annual_income_krw != null ? `${u.annual_income_krw.toLocaleString()}원` : "-"}</td>
-                  <td>{u.region ?? "-"}</td>
-                  <td>{u.occupation ? OCCUPATION_LABELS[u.occupation] ?? u.occupation : "-"}</td>
-                  <td>{formatDateTime(u.created_at)}</td>
+                  <td className={TD_CLASS}>{u.id}</td>
+                  <td className={TD_CLASS}>{u.email}</td>
+                  <td className={TD_CLASS}>{u.age ?? "-"}</td>
+                  <td className={TD_CLASS}>{u.is_married == null ? "-" : u.is_married ? "기혼" : "미혼"}</td>
+                  <td className={TD_CLASS}>{u.annual_income_krw != null ? `${u.annual_income_krw.toLocaleString()}원` : "-"}</td>
+                  <td className={TD_CLASS}>{u.region ?? "-"}</td>
+                  <td className={TD_CLASS}>{u.occupation ? OCCUPATION_LABELS[u.occupation] ?? u.occupation : "-"}</td>
+                  <td className={TD_CLASS}>{formatDateTime(u.created_at)}</td>
                 </tr>
               ))}
             </tbody>
@@ -62,16 +65,9 @@ function UsersContent() {
 export default function AdminUsersPage() {
   return (
     <AdminGuard>
-      <div className="page-header">
-        <h1>
-          <span className="icon-box">
-            <FaUsers />
-          </span>
-          회원
-        </h1>
-        <p>가입한 회원 목록을 확인하세요.</p>
-      </div>
-      <UsersContent />
+      <DashboardLayout eyebrow="ADMIN" title="회원">
+        <UsersContent />
+      </DashboardLayout>
     </AdminGuard>
   );
 }

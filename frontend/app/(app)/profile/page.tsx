@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { FaPiggyBank, FaUser } from "react-icons/fa6";
+import { PiggyBank } from "lucide-react";
 import {
   getMe,
   listSavingsLinkedBenefits,
@@ -20,6 +20,13 @@ import {
   occupationLabel,
   type OccupationType,
 } from "@/lib/profileOptions";
+import { DashboardLayout } from "@/components/DashboardLayout";
+
+function pillClass(active: boolean) {
+  return `rounded-lg px-3.5 py-2 text-[11px] font-extrabold transition ${
+    active ? "bg-[#2457d6] text-white" : "bg-[#eef3f9] text-slate-500 hover:bg-[#e3eaf6]"
+  }`;
+}
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -83,9 +90,7 @@ export default function ProfilePage() {
     setRegion(me.region ?? null);
     setIsMarried(me.is_married ?? false);
     setSpouseAge(me.spouse_age?.toString() ?? "");
-    setSpouseIncome(
-      me.spouse_annual_income_krw != null ? String(krwToManwon(me.spouse_annual_income_krw)) : ""
-    );
+    setSpouseIncome(me.spouse_annual_income_krw != null ? String(krwToManwon(me.spouse_annual_income_krw)) : "");
     setSpouseOccupation(me.spouse_occupation ?? "");
   }
 
@@ -131,30 +136,15 @@ export default function ProfilePage() {
   if (loading) return null;
 
   return (
-    <>
-      <div className="page-header">
-        <h1>
-          <span className="icon-box">
-            <FaUser />
-          </span>
-          내 정보
-        </h1>
-        <p>가입 시 입력한 정보를 확인하고 수정할 수 있습니다.</p>
-      </div>
-
-      {error && <p className="error-text">{error}</p>}
-      {saved && !editing && (
-        <p style={{ color: "var(--success)", fontSize: 13, marginBottom: 12 }}>저장되었습니다.</p>
-      )}
+    <DashboardLayout eyebrow="MY PROFILE" title="내 정보">
+      {error && <p className="mb-4 text-[13px] font-bold text-rose-500">{error}</p>}
+      {saved && !editing && <p className="mb-3 text-[13px] font-bold text-[#159c8d]">저장되었습니다.</p>}
 
       {profile && !editing && (
-        <div className="card">
+        <div className="rounded-[22px] border border-slate-200/80 bg-white p-6">
           <InfoRow label="이메일" value={profile.email} />
           <InfoRow label="나이" value={profile.age != null ? `${profile.age}세` : "-"} />
-          <InfoRow
-            label="연소득"
-            value={profile.annual_income_krw != null ? `${krwToManwon(profile.annual_income_krw).toLocaleString()}만원` : "-"}
-          />
+          <InfoRow label="연소득" value={profile.annual_income_krw != null ? `${krwToManwon(profile.annual_income_krw).toLocaleString()}만원` : "-"} />
           <InfoRow label="직업 구분" value={occupationLabel(profile.occupation)} />
           <InfoRow label="지역" value={profile.region ?? "-"} />
           <InfoRow label="기혼 여부" value={profile.is_married ? "기혼" : "미혼"} />
@@ -163,136 +153,104 @@ export default function ProfilePage() {
               <InfoRow label="배우자 나이" value={profile.spouse_age != null ? `${profile.spouse_age}세` : "-"} />
               <InfoRow
                 label="배우자 연소득"
-                value={
-                  profile.spouse_annual_income_krw != null
-                    ? `${krwToManwon(profile.spouse_annual_income_krw).toLocaleString()}만원`
-                    : "-"
-                }
+                value={profile.spouse_annual_income_krw != null ? `${krwToManwon(profile.spouse_annual_income_krw).toLocaleString()}만원` : "-"}
               />
               <InfoRow label="배우자 직업 구분" value={occupationLabel(profile.spouse_occupation)} />
             </>
           )}
-          <button className="btn" style={{ marginTop: 8 }} onClick={startEditing}>
+          <button
+            onClick={startEditing}
+            className="mt-4 h-11 rounded-xl bg-[#2457d6] px-6 text-[13px] font-extrabold text-white shadow-[0_10px_20px_rgba(36,87,214,.18)] transition hover:bg-[#1949c1]"
+          >
             정보 수정
           </button>
         </div>
       )}
 
       {profile && editing && (
-        <div className="card">
-          <form onSubmit={handleSave}>
-            <label className="field">
-              <span className="field-label">나이</span>
-              <input className="input" type="number" min={0} value={age} onChange={(e) => setAge(e.target.value)} required />
-            </label>
-            <label className="field">
-              <span className="field-label">연소득 (만원)</span>
-              <input
-                className="input"
-                type="number"
-                min={0}
-                value={income}
-                onChange={(e) => setIncome(e.target.value)}
-                required
-              />
-            </label>
-
-            <span className="field-label" style={{ display: "block" }}>
-              직업 구분
-            </span>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
-              {OCCUPATION_OPTIONS.map((o) => (
-                <button
-                  key={o.value}
-                  type="button"
-                  className="btn-ghost"
-                  onClick={() => setOccupation(o.value)}
-                  style={{
-                    borderRadius: 999,
-                    background: occupation === o.value ? "var(--primary-tint)" : undefined,
-                    color: occupation === o.value ? "var(--primary)" : undefined,
-                  }}
-                >
-                  {o.label}
-                </button>
-              ))}
+        <div className="rounded-[22px] border border-slate-200/80 bg-white p-6">
+          <form onSubmit={handleSave} className="grid gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="grid gap-2 text-[12px] font-extrabold text-slate-700">
+                나이
+                <input
+                  type="number"
+                  min={0}
+                  value={age}
+                  onChange={(e) => setAge(e.target.value)}
+                  required
+                  className="h-12 rounded-xl border border-slate-200 px-4 text-[13px] font-semibold outline-none focus:border-[#2457d6] focus:ring-4 focus:ring-[#2457d6]/10"
+                />
+              </label>
+              <label className="grid gap-2 text-[12px] font-extrabold text-slate-700">
+                연소득 (만원)
+                <input
+                  type="number"
+                  min={0}
+                  value={income}
+                  onChange={(e) => setIncome(e.target.value)}
+                  required
+                  className="h-12 rounded-xl border border-slate-200 px-4 text-[13px] font-semibold outline-none focus:border-[#2457d6] focus:ring-4 focus:ring-[#2457d6]/10"
+                />
+              </label>
             </div>
 
-            <span className="field-label" style={{ display: "block" }}>
-              지역
-            </span>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
-              {REGIONS.map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  className="btn-ghost"
-                  onClick={() => setRegion(r)}
-                  style={{
-                    borderRadius: 999,
-                    background: region === r ? "var(--primary-tint)" : undefined,
-                    color: region === r ? "var(--primary)" : undefined,
-                  }}
-                >
-                  {r}
-                </button>
-              ))}
+            <div>
+              <div className="mb-2 text-[12px] font-extrabold text-slate-700">직업 구분</div>
+              <div className="flex flex-wrap gap-2">
+                {OCCUPATION_OPTIONS.map((o) => (
+                  <button key={o.value} type="button" className={pillClass(occupation === o.value)} onClick={() => setOccupation(o.value)}>
+                    {o.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <label className="checkbox-field">
-              <input type="checkbox" checked={isMarried} onChange={(e) => setIsMarried(e.target.checked)} />
+            <div>
+              <div className="mb-2 text-[12px] font-extrabold text-slate-700">지역</div>
+              <div className="flex flex-wrap gap-2">
+                {REGIONS.map((r) => (
+                  <button key={r} type="button" className={pillClass(region === r)} onClick={() => setRegion(r)}>
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <label className="flex items-center gap-2 text-[13px] font-bold text-slate-700">
+              <input type="checkbox" checked={isMarried} onChange={(e) => setIsMarried(e.target.checked)} className="h-4 w-4 accent-[#2457d6]" />
               기혼
             </label>
 
             {isMarried && (
-              <div
-                style={{
-                  background: "var(--bg)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-sm)",
-                  padding: 16,
-                  marginBottom: 16,
-                }}
-              >
-                <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text-muted)", marginBottom: 12 }}>
-                  배우자 정보 (선택)
-                </p>
-                <label className="field">
-                  <span className="field-label">배우자 나이</span>
-                  <input
-                    className="input"
-                    type="number"
-                    min={0}
-                    value={spouseAge}
-                    onChange={(e) => setSpouseAge(e.target.value)}
-                  />
-                </label>
-                <label className="field">
-                  <span className="field-label">배우자 연소득 (만원)</span>
-                  <input
-                    className="input"
-                    type="number"
-                    min={0}
-                    value={spouseIncome}
-                    onChange={(e) => setSpouseIncome(e.target.value)}
-                  />
-                </label>
-                <span className="field-label" style={{ display: "block" }}>
-                  배우자 직업 구분
-                </span>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              <div className="rounded-xl bg-[#f5f8fd] p-4">
+                <p className="mb-3 text-[12px] font-bold text-slate-500">배우자 정보 (선택)</p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="grid gap-2 text-[12px] font-extrabold text-slate-700">
+                    배우자 나이
+                    <input
+                      type="number"
+                      min={0}
+                      value={spouseAge}
+                      onChange={(e) => setSpouseAge(e.target.value)}
+                      className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-[13px] font-semibold outline-none focus:border-[#2457d6]"
+                    />
+                  </label>
+                  <label className="grid gap-2 text-[12px] font-extrabold text-slate-700">
+                    배우자 연소득 (만원)
+                    <input
+                      type="number"
+                      min={0}
+                      value={spouseIncome}
+                      onChange={(e) => setSpouseIncome(e.target.value)}
+                      className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-[13px] font-semibold outline-none focus:border-[#2457d6]"
+                    />
+                  </label>
+                </div>
+                <div className="mt-3 text-[12px] font-extrabold text-slate-700">배우자 직업 구분</div>
+                <div className="mt-2 flex flex-wrap gap-2">
                   {OCCUPATION_OPTIONS.map((o) => (
-                    <button
-                      key={o.value}
-                      type="button"
-                      className="btn-ghost"
-                      onClick={() => setSpouseOccupation(o.value)}
-                      style={{
-                        borderRadius: 999,
-                        background: spouseOccupation === o.value ? "var(--primary-tint)" : undefined,
-                        color: spouseOccupation === o.value ? "var(--primary)" : undefined,
-                      }}
-                    >
+                    <button key={o.value} type="button" className={pillClass(spouseOccupation === o.value)} onClick={() => setSpouseOccupation(o.value)}>
                       {o.label}
                     </button>
                   ))}
@@ -300,19 +258,22 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {error && <p className="error-text">{error}</p>}
-            <div style={{ display: "flex", gap: 8 }}>
-              <button className="btn" type="submit" disabled={saving || !region || !occupation}>
+            {error && <p className="text-[13px] font-bold text-rose-500">{error}</p>}
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={saving || !region || !occupation}
+                className="h-11 rounded-xl bg-[#2457d6] px-6 text-[13px] font-extrabold text-white shadow-[0_10px_20px_rgba(36,87,214,.18)] transition hover:bg-[#1949c1] disabled:opacity-50"
+              >
                 {saving ? "저장 중..." : "저장"}
               </button>
               <button
-                className="btn btn-ghost"
                 type="button"
-                style={{ width: "auto" }}
                 onClick={() => {
                   setEditing(false);
                   setError(null);
                 }}
+                className="h-11 rounded-xl border border-slate-200 bg-white px-6 text-[13px] font-extrabold text-slate-600 transition hover:border-slate-300"
               >
                 취소
               </button>
@@ -322,67 +283,65 @@ export default function ProfilePage() {
       )}
 
       {linkedBenefits.length > 0 && (
-        <div className="card" style={{ marginTop: 16 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
-            <h3 style={{ margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
-              <FaPiggyBank />
+        <div className="mt-5 rounded-[22px] border border-slate-200/80 bg-white p-6">
+          <div className="mb-4 flex items-baseline justify-between">
+            <h3 className="flex items-center gap-2 text-[15px] font-extrabold text-ink">
+              <PiggyBank size={16} className="text-[#2457d6]" />
               저축플랜에 반영된 정책
             </h3>
-            <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
-              합계 월 {totalLinkedBenefitKrw.toLocaleString()}원
-            </span>
+            <span className="text-[13px] font-bold text-slate-400">합계 월 {totalLinkedBenefitKrw.toLocaleString()}원</span>
           </div>
-          {linkedBenefits.map((b) => (
-            <div key={b.id} className="result-item-row" style={{ marginTop: 0, marginBottom: 12 }}>
-              <span>{b.policy_name}</span>
-              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <strong>{b.estimated_monthly_benefit_krw.toLocaleString()}원/월</strong>
-                <button
-                  type="button"
-                  className="link"
-                  style={{ fontSize: 12, background: "none", border: "none", padding: 0, cursor: "pointer" }}
-                  disabled={unlinkingId === b.id}
-                  onClick={() => handleUnlinkBenefit(b.id)}
-                >
-                  {unlinkingId === b.id ? "제거 중..." : "제거"}
-                </button>
-              </span>
-            </div>
-          ))}
-          <Link href="/savings" className="btn btn-ghost" style={{ marginTop: 8, display: "inline-block", width: "auto" }}>
+          <div className="grid gap-3">
+            {linkedBenefits.map((b) => (
+              <div key={b.id} className="flex items-center justify-between rounded-xl bg-[#f7f9fc] px-4 py-3">
+                <span className="text-[13px] font-bold text-slate-600">{b.policy_name}</span>
+                <span className="flex items-center gap-3">
+                  <strong className="text-[13px] font-extrabold text-ink">{b.estimated_monthly_benefit_krw.toLocaleString()}원/월</strong>
+                  <button
+                    type="button"
+                    disabled={unlinkingId === b.id}
+                    onClick={() => handleUnlinkBenefit(b.id)}
+                    className="text-[12px] font-bold text-[#2457d6] hover:underline disabled:opacity-50"
+                  >
+                    {unlinkingId === b.id ? "제거 중..." : "제거"}
+                  </button>
+                </span>
+              </div>
+            ))}
+          </div>
+          <Link href="/savings" className="mt-4 inline-block text-[12px] font-extrabold text-[#2457d6] hover:underline">
             저축플랜에서 보기 →
           </Link>
         </div>
       )}
 
-      <div className="card" style={{ marginTop: 16 }}>
-        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-          <button className="btn btn-ghost" style={{ width: "auto" }} onClick={handleLogout}>
+      <div className="mt-5 rounded-[22px] border border-slate-200/80 bg-white p-6">
+        <div className="flex gap-2">
+          <button onClick={handleLogout} className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-[12px] font-extrabold text-slate-600 transition hover:border-slate-300">
             로그아웃
           </button>
           <button
-            className="btn btn-ghost"
-            style={{ width: "auto", color: "var(--danger)" }}
             onClick={() => setShowWithdrawNotice(true)}
+            className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-[12px] font-extrabold text-rose-500 transition hover:border-rose-300"
           >
             회원탈퇴
           </button>
         </div>
         {showWithdrawNotice && (
-          <p style={{ color: "var(--text-muted)", fontSize: 13 }}>
+          <p className="mt-3 text-[12px] text-slate-500">
             * 회원탈퇴는 아직 구현되지 않은 기능입니다. (현재 별도 DB 저장소가 없어 계정 삭제 로직이 연결되어 있지 않습니다)
           </p>
         )}
       </div>
-    </>
+    </DashboardLayout>
   );
 }
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="result-item-row" style={{ marginTop: 0, marginBottom: 12 }}>
-      <span>{label}</span>
-      <strong>{value}</strong>
+    <div className="flex items-center justify-between border-b border-slate-100 py-3 text-[13px] last:border-0">
+      <span className="text-slate-500">{label}</span>
+      <strong className="font-extrabold text-ink">{value}</strong>
     </div>
   );
 }

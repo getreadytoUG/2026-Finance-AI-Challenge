@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FaChartLine } from "react-icons/fa6";
 import { getAdminOverview, getAdminSignupTrend, type AdminOverview, type AdminSignupTrendResponse } from "@/lib/api";
 import AdminGuard from "@/components/AdminGuard";
+import { DashboardLayout } from "@/components/DashboardLayout";
 import { BarRow, KpiCard, formatDateTime } from "@/components/AdminWidgets";
+
+const TONES = ["blue", "mint", "violet"] as const;
 
 function formatShortDate(iso: string): string {
   const [, month, day] = iso.split("-");
@@ -29,33 +31,39 @@ function OverviewContent() {
 
   const maxTrendCount = trend ? Math.max(1, ...trend.points.map((p) => p.count)) : 1;
 
+  const kpis = overview
+    ? [
+        { label: "전체 회원 수", value: overview.total_users },
+        { label: "기혼 회원 수", value: overview.married_users },
+        { label: "캐시된 정책 수", value: overview.total_policies },
+        { label: "마감된 정책 수", value: overview.policies_expired },
+        { label: "링크 없는 정책 수", value: overview.policies_missing_link },
+        { label: "전국형(추정) 정책 수", value: overview.nationwide_template_policies },
+        { label: "총 추천 알림 수", value: overview.total_recommendations },
+        { label: "안 읽은 추천 알림", value: overview.unread_recommendations },
+        { label: "정책 캐시 마지막 갱신", value: formatDateTime(overview.last_cache_refreshed_at) },
+      ]
+    : [];
+
   return (
     <>
-      <div className="card">
-        {error && <p className="error-text">{error}</p>}
-        {!overview && !error && <p>불러오는 중...</p>}
-        {overview && (
-          <div className="admin-kpi-grid">
-            <KpiCard label="전체 회원 수" value={overview.total_users} />
-            <KpiCard label="기혼 회원 수" value={overview.married_users} />
-            <KpiCard label="캐시된 정책 수" value={overview.total_policies} />
-            <KpiCard label="마감된 정책 수" value={overview.policies_expired} />
-            <KpiCard label="링크 없는 정책 수" value={overview.policies_missing_link} />
-            <KpiCard label="전국형(추정) 정책 수" value={overview.nationwide_template_policies} />
-            <KpiCard label="총 추천 알림 수" value={overview.total_recommendations} />
-            <KpiCard label="안 읽은 추천 알림" value={overview.unread_recommendations} />
-            <KpiCard label="정책 캐시 마지막 갱신" value={formatDateTime(overview.last_cache_refreshed_at)} />
-          </div>
-        )}
-      </div>
+      {error && <p className="text-[13px] font-bold text-rose-500">{error}</p>}
+      {!overview && !error && <p className="text-[13px] text-slate-400">불러오는 중...</p>}
+      {overview && (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          {kpis.map((kpi, i) => (
+            <KpiCard key={kpi.label} label={kpi.label} value={kpi.value} tone={TONES[i % TONES.length]} />
+          ))}
+        </div>
+      )}
 
-      <div className="card" style={{ marginTop: 20 }}>
-        <div style={{ fontWeight: 700, marginBottom: 4 }}>최근 14일 가입 추이</div>
-        {trendError && <p className="error-text">{trendError}</p>}
-        {!trend && !trendError && <p>불러오는 중...</p>}
+      <div className="mt-6 rounded-[22px] border border-slate-200/80 bg-white p-6">
+        <div className="text-[15px] font-extrabold text-ink">최근 14일 가입 추이</div>
+        {trendError && <p className="mt-2 text-[13px] font-bold text-rose-500">{trendError}</p>}
+        {!trend && !trendError && <p className="mt-2 text-[13px] text-slate-400">불러오는 중...</p>}
         {trend && (
           <>
-            <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>
+            <p className="mb-4 mt-1 text-[12px] text-slate-400">
               가입일 정보가 없는 회원 {trend.unknown_signup_date_count}명은 집계에서 제외했습니다(기능 추가 이전 가입자).
             </p>
             {trend.points.map((p) => (
@@ -71,16 +79,9 @@ function OverviewContent() {
 export default function AdminOverviewPage() {
   return (
     <AdminGuard>
-      <div className="page-header">
-        <h1>
-          <span className="icon-box">
-            <FaChartLine />
-          </span>
-          개요
-        </h1>
-        <p>서비스 전체 현황을 한눈에 확인하세요.</p>
-      </div>
-      <OverviewContent />
+      <DashboardLayout eyebrow="ADMIN" title="개요">
+        <OverviewContent />
+      </DashboardLayout>
     </AdminGuard>
   );
 }

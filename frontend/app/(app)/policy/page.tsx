@@ -1,11 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { FaLandmark, FaRing } from "react-icons/fa6";
-import { callTool, getMe, getRegions } from "@/lib/api";
+import { useEffect, useMemo, useState } from "react";
+import { Check, Search, SlidersHorizontal } from "lucide-react";
+import { DashboardLayout, SectionLabel } from "@/components/DashboardLayout";
 import Pagination from "@/components/Pagination";
 import PolicyDetailLink from "@/components/PolicyDetailLink";
+import {
+  browsePolicies,
+  callTool,
+  getMe,
+  getPolicyCategories,
+  getRegions,
+  type PolicyBrowseItem,
+  type PolicyCategory,
+} from "@/lib/api";
 import { krwToManwon, manwonToKrw } from "@/lib/profileOptions";
+
+const PAGE_SIZE = 10;
 
 type PolicyOption = {
   policy_name: string;
@@ -19,9 +30,24 @@ type PolicyMatchOutput = {
   options: PolicyOption[];
 };
 
-const PAGE_SIZE = 10;
+const STATUS_PILL: Record<string, string> = {
+  임박: "urgent",
+  만료: "urgent",
+  여유: "available",
+  상시: "available",
+  예정: "neutral",
+};
 
-export default function PolicyPage() {
+function StatusPill({ status }: { status: string }) {
+  return (
+    <span className={`policy-status ${STATUS_PILL[status] ?? "neutral"}`}>
+      <span />
+      {status}
+    </span>
+  );
+}
+
+function MatchTab() {
   const [regions, setRegions] = useState<string[]>([]);
   const [age, setAge] = useState("29");
   const [isMarried, setIsMarried] = useState(false);
@@ -38,7 +64,6 @@ export default function PolicyPage() {
     getRegions(token)
       .then((res) => setRegions(res.regions))
       .catch(() => {});
-    // 내 정보에 저장된 값이 있으면 초기값으로 채워준다 — 이후 자유롭게 바꿔서 조회할 수 있다.
     getMe(token)
       .then((me) => {
         if (me.age != null) setAge(String(me.age));
@@ -78,105 +103,294 @@ export default function PolicyPage() {
   const pageOptions = result ? result.options.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE) : [];
 
   return (
-    <>
-      <div className="page-header">
-        <h1>
-          <span className="icon-box">
-            <FaLandmark />
-          </span>
-          금융 정책 추천
-        </h1>
-        <p>현재 상황을 입력하면 금융 지원 정책 중 지금 신청 가능한 것만 모아 보여드립니다.</p>
-      </div>
-
-      <div className="card">
-        <form onSubmit={handleSubmit}>
-          <label className="field">
-            <span className="field-label">나이</span>
-            <input className="input" type="number" value={age} onChange={(e) => setAge(e.target.value)} />
+    <div>
+      <div className="rounded-[22px] border border-slate-200/80 bg-white p-6">
+        <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2">
+          <label className="grid gap-2 text-[12px] font-extrabold text-slate-700">
+            나이
+            <input
+              type="number"
+              value={age}
+              onChange={(e) => setAge(e.target.value)}
+              className="h-12 rounded-xl border border-slate-200 px-4 text-[13px] font-semibold outline-none focus:border-[#2457d6] focus:ring-4 focus:ring-[#2457d6]/10"
+            />
           </label>
-          <label className="checkbox-field">
-            <input type="checkbox" checked={isMarried} onChange={(e) => setIsMarried(e.target.checked)} />
+          <label className="grid gap-2 text-[12px] font-extrabold text-slate-700">
+            연소득 (만원)
+            <input
+              type="number"
+              value={income}
+              onChange={(e) => setIncome(e.target.value)}
+              className="h-12 rounded-xl border border-slate-200 px-4 text-[13px] font-semibold outline-none focus:border-[#2457d6] focus:ring-4 focus:ring-[#2457d6]/10"
+            />
+          </label>
+          <label className="flex items-center gap-2 text-[13px] font-bold text-slate-700 sm:col-span-2">
+            <input type="checkbox" checked={isMarried} onChange={(e) => setIsMarried(e.target.checked)} className="h-4 w-4 accent-[#2457d6]" />
             기혼
           </label>
-          <label className="field">
-            <span className="field-label">연소득 (만원)</span>
-            <input className="input" type="number" value={income} onChange={(e) => setIncome(e.target.value)} />
-          </label>
           {isMarried && (
-            <label className="field">
-              <span className="field-label">배우자 연소득 (만원, 선택)</span>
+            <label className="grid gap-2 text-[12px] font-extrabold text-slate-700 sm:col-span-2">
+              배우자 연소득 (만원, 선택)
               <input
-                className="input"
                 type="number"
                 value={spouseIncome}
                 onChange={(e) => setSpouseIncome(e.target.value)}
                 placeholder="입력하면 가구소득(본인+배우자) 합산 기준으로 조회해요"
+                className="h-12 rounded-xl border border-slate-200 px-4 text-[13px] font-semibold outline-none focus:border-[#2457d6] focus:ring-4 focus:ring-[#2457d6]/10"
               />
             </label>
           )}
-          <label className="field-label" style={{ display: "block" }}>
-            지역
-          </label>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
-            {regions.map((r) => (
-              <button
-                key={r}
-                type="button"
-                className="btn-ghost"
-                onClick={() => setRegion(r)}
-                style={{
-                  borderRadius: 999,
-                  background: region === r ? "var(--primary-tint)" : undefined,
-                  color: region === r ? "var(--primary)" : undefined,
-                }}
-              >
-                {r}
-              </button>
-            ))}
+          <div className="sm:col-span-2">
+            <div className="mb-2 text-[12px] font-extrabold text-slate-700">지역</div>
+            <div className="flex flex-wrap gap-2">
+              {regions.map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setRegion(r)}
+                  className={`rounded-lg px-3.5 py-2 text-[11px] font-extrabold transition ${
+                    region === r ? "bg-[#2457d6] text-white" : "bg-[#eef3f9] text-slate-500 hover:bg-[#e3eaf6]"
+                  }`}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
           </div>
-          <button className="btn" type="submit" disabled={loading || !region}>
+          <button
+            type="submit"
+            disabled={loading || !region}
+            className="h-12 rounded-xl bg-[#2457d6] text-[13px] font-extrabold text-white shadow-[0_10px_20px_rgba(36,87,214,.18)] transition hover:bg-[#1949c1] disabled:opacity-50 sm:col-span-2"
+          >
             {loading ? "찾는 중..." : region ? "금융 정책 찾기" : "지역을 선택해주세요"}
           </button>
         </form>
       </div>
 
-      {error && <p className="error-text" style={{ marginTop: 16 }}>{error}</p>}
+      {error && <p className="mt-4 text-[13px] font-bold text-rose-500">{error}</p>}
 
-      {result && (
-        result.options.length === 0 ? (
-          <p className="error-text" style={{ marginTop: 16 }}>지금 신청 가능한 금융 정책을 찾지 못했습니다.</p>
+      {result &&
+        (result.options.length === 0 ? (
+          <p className="mt-4 text-[13px] font-bold text-slate-400">지금 신청 가능한 금융 정책을 찾지 못했습니다.</p>
         ) : (
           <>
-            <div className="result-list">
+            <div className="mt-6 grid gap-3">
               {pageOptions.map((option, i) => (
-                <div key={i} className="result-item">
-                  <div className="result-item-title">
-                    {option.is_newlywed_policy && (
-                      <span className="badge badge-success" style={{ marginRight: 8 }}>
-                        <FaRing /> 신혼부부
-                      </span>
-                    )}
-                    {option.policy_name}
-                  </div>
-                  <div className="result-item-row">
-                    <span>지원 내용</span>
-                    <span>{option.benefit_description}</span>
-                  </div>
-                  <div className="result-item-row">
-                    <span>신청 기간</span>
-                    <span>{option.application_period}</span>
-                  </div>
-                  <div style={{ marginTop: 12 }}>
-                    <PolicyDetailLink url={option.reference_url} />
+                <div key={i} className="flex flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 sm:flex-row sm:items-center">
+                  <span className="policy-list-icon blue">
+                    <Search size={19} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {option.is_newlywed_policy && (
+                        <span className="policy-status available">
+                          <span />
+                          신혼부부
+                        </span>
+                      )}
+                      <span className="text-[15px] font-extrabold tracking-[-.03em] text-ink">{option.policy_name}</span>
+                    </div>
+                    <p className="mt-2 text-[12px] leading-5 text-slate-500">{option.benefit_description}</p>
+                    <div className="mt-2 text-[11px] font-semibold text-slate-400">신청 기간 {option.application_period}</div>
+                    <PolicyDetailLink url={option.reference_url} className="mt-2" />
                   </div>
                 </div>
               ))}
             </div>
             <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
           </>
-        )
+        ))}
+    </div>
+  );
+}
+
+function BrowseTab() {
+  const [categories, setCategories] = useState<PolicyCategory[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
+  const [items, setItems] = useState<PolicyBrowseItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [includeClosed, setIncludeClosed] = useState(false);
+  const [query, setQuery] = useState("");
+  const [regions, setRegions] = useState<string[]>([]);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token") ?? "";
+    getRegions(token)
+      .then((res) => setRegions(res.regions))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token") ?? "";
+    getPolicyCategories(token, { region: selectedRegion ?? undefined, includeClosed })
+      .then((res) => setCategories(res.categories))
+      .catch(() => {});
+  }, [selectedRegion, includeClosed]);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token") ?? "";
+    setLoading(true);
+    setError(null);
+    browsePolicies(token, {
+      category: selectedCategory ?? undefined,
+      region: selectedRegion ?? undefined,
+      page,
+      pageSize: PAGE_SIZE,
+      includeClosed,
+    })
+      .then((res) => {
+        setItems(res.items);
+        setTotal(res.total);
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : "정책을 불러오지 못했습니다."))
+      .finally(() => setLoading(false));
+  }, [selectedCategory, selectedRegion, page, includeClosed]);
+
+  const filteredItems = useMemo(
+    () => items.filter((item) => (item.policy_name + item.benefit_description).toLowerCase().includes(query.toLowerCase())),
+    [items, query]
+  );
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  return (
+    <div>
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={17} />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="정책명, 지원 내용으로 검색 (현재 페이지 안에서)"
+            className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-4 text-[13px] font-semibold outline-none transition focus:border-[#2457d6] focus:ring-4 focus:ring-[#2457d6]/10"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setIncludeClosed((v) => !v);
+            setPage(1);
+          }}
+          className={`flex h-12 shrink-0 items-center gap-2 rounded-xl border px-4 text-[12px] font-extrabold transition ${
+            includeClosed ? "border-[#2457d6] bg-[#eef3ff] text-[#2457d6]" : "border-slate-200 bg-white text-slate-500 hover:border-[#2457d6] hover:text-[#2457d6]"
+          }`}
+        >
+          <SlidersHorizontal size={16} /> 마감된 정책도 보기
+        </button>
+      </div>
+
+      <div className="mb-3">
+        <div className="mb-2 text-[11px] font-extrabold uppercase tracking-[.1em] text-slate-400">지역</div>
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            onClick={() => {
+              setSelectedRegion(null);
+              setPage(1);
+            }}
+            className={`shrink-0 rounded-lg px-3.5 py-2 text-[11px] font-extrabold ${selectedRegion === null ? "bg-[#2457d6] text-white" : "bg-[#eef3f9] text-slate-500"}`}
+          >
+            전체
+          </button>
+          {regions.map((r) => (
+            <button
+              key={r}
+              onClick={() => {
+                setSelectedRegion(r);
+                setPage(1);
+              }}
+              className={`shrink-0 rounded-lg px-3.5 py-2 text-[11px] font-extrabold ${selectedRegion === r ? "bg-[#2457d6] text-white" : "bg-[#eef3f9] text-slate-500"}`}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mb-6 flex gap-1.5 overflow-x-auto rounded-xl bg-[#eef3f9] p-1">
+        <button
+          onClick={() => {
+            setSelectedCategory(null);
+            setPage(1);
+          }}
+          className={`shrink-0 rounded-lg px-3.5 py-2 text-[11px] font-extrabold ${selectedCategory === null ? "bg-white text-[#2457d6] shadow-sm" : "text-slate-500"}`}
+        >
+          전체
+        </button>
+        {categories.map((c) => (
+          <button
+            key={c.name}
+            onClick={() => {
+              setSelectedCategory(c.name);
+              setPage(1);
+            }}
+            className={`shrink-0 rounded-lg px-3.5 py-2 text-[11px] font-extrabold ${selectedCategory === c.name ? "bg-white text-[#2457d6] shadow-sm" : "text-slate-500"}`}
+          >
+            {c.name} ({c.count})
+          </button>
+        ))}
+      </div>
+
+      <SectionLabel>{loading ? "불러오는 중..." : `정책 ${filteredItems.length}개`}</SectionLabel>
+
+      {error && <p className="text-[13px] font-bold text-rose-500">{error}</p>}
+      {!loading && filteredItems.length === 0 && !error && (
+        <div className="rounded-2xl border border-dashed border-slate-300 p-12 text-center text-[13px] font-bold text-slate-400">
+          조건에 맞는 정책이 없어요. 다른 조건으로 찾아보세요.
+        </div>
       )}
-    </>
+
+      <div className="grid gap-3">
+        {filteredItems.map((item, i) => (
+          <div
+            key={i}
+            className="group flex flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 transition hover:-translate-y-0.5 hover:border-[#cddafb] hover:shadow-[0_14px_30px_rgba(28,50,88,.07)] sm:flex-row sm:items-center"
+          >
+            <span className="policy-list-icon sky">
+              <Check size={18} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[15px] font-extrabold tracking-[-.03em] text-ink">{item.policy_name}</span>
+                <StatusPill status={item.status} />
+              </div>
+              <div className="mt-1.5 text-[11px] font-semibold text-slate-400">{item.large_category}</div>
+              <p className="mt-2 text-[12px] leading-5 text-slate-500">{item.benefit_description}</p>
+              <div className="mt-2 text-[11px] font-semibold text-slate-400">신청 기간 {item.application_period}</div>
+            </div>
+            <PolicyDetailLink url={item.reference_url} className="shrink-0" />
+          </div>
+        ))}
+      </div>
+
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+    </div>
+  );
+}
+
+export default function PolicyPage() {
+  const [tab, setTab] = useState<"match" | "browse">("match");
+
+  return (
+    <DashboardLayout eyebrow="POLICY MATCHING" title="정책 매칭">
+      <div className="mb-6 inline-flex gap-1.5 rounded-xl bg-[#eef3f9] p-1">
+        <button
+          onClick={() => setTab("match")}
+          className={`rounded-lg px-4 py-2.5 text-[12px] font-extrabold transition ${tab === "match" ? "bg-white text-[#2457d6] shadow-sm" : "text-slate-500"}`}
+        >
+          맞춤 매칭
+        </button>
+        <button
+          onClick={() => setTab("browse")}
+          className={`rounded-lg px-4 py-2.5 text-[12px] font-extrabold transition ${tab === "browse" ? "bg-white text-[#2457d6] shadow-sm" : "text-slate-500"}`}
+        >
+          전체 탐색
+        </button>
+      </div>
+      {tab === "match" ? <MatchTab /> : <BrowseTab />}
+    </DashboardLayout>
   );
 }
