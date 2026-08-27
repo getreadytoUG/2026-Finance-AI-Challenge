@@ -1,7 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { callTool } from "@/lib/api";
+import { useEffect, useState } from "react";
+import {
+  callTool,
+  getMe,
+  listSavingsLinkedBenefits,
+  unlinkSavingsBenefit,
+  type LinkedBenefit,
+} from "@/lib/api";
 import SubscriptionsSection from "./SubscriptionsSection";
 import CardsSection from "./CardsSection";
 
@@ -13,6 +19,8 @@ type SavingsAllocation = {
 type SavingsPlanOutput = {
   allocations: SavingsAllocation[];
   monthly_required_krw: number;
+  linked_monthly_benefit_krw: number;
+  feasibility_warning: string | null;
 };
 
 const SUB_TABS = [
@@ -30,6 +38,33 @@ function SavingsPlanSection() {
   const [result, setResult] = useState<SavingsPlanOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [linkedBenefits, setLinkedBenefits] = useState<LinkedBenefit[]>([]);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token") ?? "";
+    getMe(token)
+      .then((profile) => {
+        if (profile.annual_income_krw != null) {
+          setMonthlyIncome(String(Math.round(profile.annual_income_krw / 12)));
+        }
+      })
+      .catch(() => {});
+    listSavingsLinkedBenefits(token)
+      .then((res) => setLinkedBenefits(res.items))
+      .catch(() => {});
+  }, []);
+
+  async function handleRemoveLinkedBenefit(id: number) {
+    const token = localStorage.getItem("token") ?? "";
+    try {
+      await unlinkSavingsBenefit(token, id);
+      setLinkedBenefits((prev) => prev.filter((b) => b.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "정책 혜택을 제거하지 못했습니다.");
+    }
+  }
+
+  const linkedBenefitTotal = linkedBenefits.reduce((sum, b) => sum + b.estimated_monthly_benefit_krw, 0);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -53,6 +88,28 @@ function SavingsPlanSection() {
 
   return (
     <>
+      {linkedBenefits.length > 0 && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, marginBottom: 10 }}>
+            연결된 정책 혜택 · 월 {linkedBenefitTotal.toLocaleString()}원
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {linkedBenefits.map((b) => (
+              <span key={b.id} className="filter-chip">
+                {b.policy_name} · {b.estimated_monthly_benefit_krw.toLocaleString()}원/월
+                <button
+                  type="button"
+                  onClick={() => handleRemoveLinkedBenefit(b.id)}
+                  aria-label={`${b.policy_name} 혜택 제거`}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="card">
         <form onSubmit={handleSubmit}>
           <label className="field">
@@ -81,6 +138,16 @@ function SavingsPlanSection() {
             <span>월 저축 필요액</span>
             <span className="amount">{result.monthly_required_krw.toLocaleString()}원</span>
           </div>
+          {result.linked_monthly_benefit_krw > 0 && (
+            <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 8 }}>
+              정책 혜택 월 {result.linked_monthly_benefit_krw.toLocaleString()}원이 반영되었습니다.
+            </p>
+          )}
+          {result.feasibility_warning && (
+            <p className="error-text" style={{ marginTop: 8 }}>
+              {result.feasibility_warning}
+            </p>
+          )}
           <div className="result-list">
             {result.allocations.map((allocation, i) => (
               <div key={i} className="result-item">

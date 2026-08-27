@@ -14,11 +14,12 @@ const TABS = [
   { href: "/recommendations", label: "추천", icon: "🔔" },
 ];
 
-// 관리자 계정은 일반 사용자용 탭이 필요 없다 — 대시보드 전용 탭 3개만 보여준다.
+// 관리자 계정은 일반 사용자용 탭이 필요 없다 — 대시보드 전용 탭만 보여준다.
 const ADMIN_TABS = [
   { href: "/admin", label: "개요", icon: "📊" },
   { href: "/admin/users", label: "회원", icon: "👥" },
   { href: "/admin/policies", label: "정책", icon: "🗂️" },
+  { href: "/admin/policies/list", label: "정책 목록", icon: "📋" },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {

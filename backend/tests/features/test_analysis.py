@@ -67,6 +67,7 @@ def test_generate_policy_report_calls_llm_once_via_tool_call(monkeypatch):
                         "benefit_summary": "월 20만원 지원",
                         "application_notes": "재직 증명서를 준비하세요.",
                         "required_documents": ["재직증명서", "주민등록등본"],
+                        "estimated_monthly_benefit_krw": 200_000,
                     },
                 )
             ],
@@ -82,6 +83,7 @@ def test_generate_policy_report_calls_llm_once_via_tool_call(monkeypatch):
         benefit_summary="월 20만원 지원",
         application_notes="재직 증명서를 준비하세요.",
         required_documents=["재직증명서", "주민등록등본"],
+        estimated_monthly_benefit_krw=200_000,
     )
     assert len(fake.calls) == 1
     messages, tools = fake.calls[0]
@@ -112,6 +114,29 @@ def test_generate_policy_report_defaults_required_documents_to_empty_list_when_o
     result = analysis.generate_policy_report(_user(), _policy())
 
     assert result.required_documents == []
+
+
+def test_generate_policy_report_defaults_estimated_monthly_benefit_to_none_when_omitted(monkeypatch):
+    fake = _FakeProvider(
+        LLMResponse(
+            content=None,
+            tool_calls=[
+                ToolCallRequest(
+                    name="policy_analysis_result",
+                    arguments={
+                        "fit": "적합",
+                        "benefit_summary": "우선 입주 자격 부여",
+                        "application_notes": "특별한 유의사항 없음",
+                    },
+                )
+            ],
+        )
+    )
+    monkeypatch.setattr(analysis, "get_provider", lambda: fake)
+
+    result = analysis.generate_policy_report(_user(), _policy())
+
+    assert result.estimated_monthly_benefit_krw is None
 
 
 def test_generate_policy_report_falls_back_when_no_tool_call(monkeypatch):

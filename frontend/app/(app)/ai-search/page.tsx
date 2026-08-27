@@ -5,6 +5,8 @@ import {
   analyzePolicy,
   fetchAiSearchResults,
   getMe,
+  linkSavingsBenefit,
+  listSavingsLinkedBenefits,
   sendAiSearchMessage,
   type AiSearchFilters,
   type PolicyAnalysisResult,
@@ -49,7 +51,14 @@ function StatusDot({ status }: { status: string }) {
 
 type ChatTurn = { role: "user" | "assistant"; content: string };
 
-type AnalysisState = { loading: boolean; result: PolicyAnalysisResult | null; error: string | null; open: boolean };
+type AnalysisState = {
+  loading: boolean;
+  result: PolicyAnalysisResult | null;
+  error: string | null;
+  open: boolean;
+  linked: boolean;
+  linking: boolean;
+};
 
 const WELCOME_MESSAGE: ChatTurn = {
   role: "assistant",
@@ -84,6 +93,7 @@ export default function AiSearchPage() {
   const [resultsLoading, setResultsLoading] = useState(false);
   const [resultsError, setResultsError] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<Record<string, AnalysisState>>({});
+  const [linkedPolicyKeys, setLinkedPolicyKeys] = useState<Set<string>>(new Set());
 
   const [turns, setTurns] = useState<ChatTurn[]>([WELCOME_MESSAGE]);
   const [chatInput, setChatInput] = useState("");
@@ -114,6 +124,10 @@ export default function AiSearchPage() {
         return refetch(initial, 1, false);
       })
       .catch((err) => setResultsError(err instanceof Error ? err.message : "정보를 불러오지 못했습니다."));
+
+    listSavingsLinkedBenefits(token)
+      .then((res) => setLinkedPolicyKeys(new Set(res.items.map((b) => b.policy_key))))
+      .catch(() => {});
   }, []);
 
   async function refetch(nextFilters: AiSearchFilters, nextPage: number, nextIncludeClosed: boolean) {
@@ -156,11 +170,24 @@ export default function AiSearchPage() {
       setAnalysis((prev) => ({ ...prev, [policyKey]: { ...existing, open: !existing.open } }));
       return;
     }
-    setAnalysis((prev) => ({ ...prev, [policyKey]: { loading: true, result: null, error: null, open: true } }));
+    setAnalysis((prev) => ({
+      ...prev,
+      [policyKey]: { loading: true, result: null, error: null, open: true, linked: false, linking: false },
+    }));
     try {
       const token = localStorage.getItem("token") ?? "";
       const result = await analyzePolicy(token, policyKey);
-      setAnalysis((prev) => ({ ...prev, [policyKey]: { loading: false, result, error: null, open: true } }));
+      setAnalysis((prev) => ({
+        ...prev,
+        [policyKey]: {
+          loading: false,
+          result,
+          error: null,
+          open: true,
+          linked: linkedPolicyKeys.has(policyKey),
+          linking: false,
+        },
+      }));
     } catch (err) {
       setAnalysis((prev) => ({
         ...prev,
@@ -169,6 +196,30 @@ export default function AiSearchPage() {
           result: null,
           error: err instanceof Error ? err.message : "분석 리포트를 불러오지 못했습니다.",
           open: true,
+          linked: false,
+          linking: false,
+        },
+      }));
+    }
+  }
+
+  async function handleLinkBenefit(item: PolicyBrowseItem) {
+    const state = analysis[item.policy_key];
+    const amount = state?.result?.estimated_monthly_benefit_krw;
+    if (amount == null) return;
+    setAnalysis((prev) => ({ ...prev, [item.policy_key]: { ...prev[item.policy_key], linking: true } }));
+    try {
+      const token = localStorage.getItem("token") ?? "";
+      await linkSavingsBenefit(token, item.policy_key, item.policy_name, amount);
+      setLinkedPolicyKeys((prev) => new Set(prev).add(item.policy_key));
+      setAnalysis((prev) => ({ ...prev, [item.policy_key]: { ...prev[item.policy_key], linking: false, linked: true } }));
+    } catch (err) {
+      setAnalysis((prev) => ({
+        ...prev,
+        [item.policy_key]: {
+          ...prev[item.policy_key],
+          linking: false,
+          error: err instanceof Error ? err.message : "저축플랜에 반영하지 못했습니다.",
         },
       }));
     }
@@ -399,6 +450,21 @@ export default function AiSearchPage() {
                       <div className="analysis-report-section">
                         <div className="analysis-report-label">예상 혜택</div>
                         <div>{state.result.benefit_summary}</div>
+                        {state.result.estimated_monthly_benefit_krw != null && (
+                          <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                            <span style={{ fontSize: 13, fontWeight: 700 }}>
+                              💰 예상 월 혜택: {state.result.estimated_monthly_benefit_krw.toLocaleString()}원
+                            </span>
+                            <button
+                              type="button"
+                              className="btn-analyze"
+                              disabled={state.linking || state.linked}
+                              onClick={() => handleLinkBenefit(item)}
+                            >
+                              {state.linked ? "✅ 저축플랜에 반영됨" : state.linking ? "반영 중..." : "저축플랜에 반영하기"}
+                            </button>
+                          </div>
+                        )}
                       </div>
                       <div className="analysis-report-section">
                         <div className="analysis-report-label">신청 시 유의사항</div>

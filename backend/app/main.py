@@ -16,6 +16,8 @@ from app.features.policy_matcher.cache import seed_policy_cache_if_empty
 from app.features.policy_matcher.models import PolicyRecommendation  # noqa: F401
 from app.features.policy_matcher.recommender import register_daily_recommendation_job, scheduler
 from app.features.policy_matcher.router import router as policy_matcher_router
+from app.features.savings_planner.models import SavingsLinkedBenefit  # noqa: F401
+from app.features.savings_planner.router import router as savings_planner_router
 from app.shared.models import Account, Transaction  # noqa: F401
 from app.tools.router import router as tools_router
 
@@ -50,6 +52,7 @@ app.include_router(tools_router, prefix="/tools", tags=["tools"])
 app.include_router(policy_matcher_router, prefix="/policy_matcher", tags=["policy_matcher"])
 app.include_router(policy_chat_router, prefix="/policy_chat", tags=["policy_chat"])
 app.include_router(admin_router, prefix="/admin", tags=["admin"])
+app.include_router(savings_planner_router, prefix="/savings_planner", tags=["savings_planner"])
 
 
 @app.get("/health")

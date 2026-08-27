@@ -75,7 +75,9 @@ def test_admin_endpoints_reject_normal_user(client):
     for method, path in [
         ("get", "/admin/overview"),
         ("get", "/admin/users"),
+        ("get", "/admin/users/signup-trend"),
         ("get", "/admin/policies/stats"),
+        ("get", "/admin/policies/list"),
         ("post", "/admin/policies/refresh"),
     ]:
         response = getattr(client, method)(path, headers={"Authorization": f"Bearer {token}"})
@@ -117,6 +119,58 @@ def test_admin_users_lists_all_users(client, db_session):
     assert body["total"] == 3  # 일반 유저 2명 + 관리자 자신
     emails = {u["email"] for u in body["users"]}
     assert {"u1@example.com", "u2@example.com", settings.admin_email} == emails
+    assert all(u["created_at"] is not None for u in body["users"])
+
+
+def test_admin_users_reports_null_created_at_for_legacy_rows_without_signup_date(client, db_session):
+    from app.auth.models import User
+
+    admin_token = _admin_login(client, db_session)
+    db_session.add(
+        User(email="legacy@example.com", hashed_password="x", created_at=None)
+    )
+    db_session.commit()
+
+    response = client.get("/admin/users", headers={"Authorization": f"Bearer {admin_token}"})
+    body = response.json()
+    legacy = next(u for u in body["users"] if u["email"] == "legacy@example.com")
+    assert legacy["created_at"] is None
+
+
+def test_admin_signup_trend_buckets_signups_by_kst_date(client, db_session):
+    from app.auth.models import User
+
+    admin_token = _admin_login(client, db_session)
+    today = datetime.now(timezone.utc)
+    db_session.add_all(
+        [
+            User(email="today1@example.com", hashed_password="x", created_at=today),
+            User(email="today2@example.com", hashed_password="x", created_at=today),
+            User(email="yesterday@example.com", hashed_password="x", created_at=today - timedelta(days=1)),
+            User(email="legacy@example.com", hashed_password="x", created_at=None),
+        ]
+    )
+    db_session.commit()
+
+    response = client.get(
+        "/admin/users/signup-trend", params={"days": 7}, headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    assert response.status_code == 200
+    body = response.json()
+    points = {p["date"]: p["count"] for p in body["points"]}
+    assert len(points) == 7
+    # 관리자 계정 자신도 오늘 가입한 것으로 잡히므로 today는 admin 포함 3명이다.
+    kst = timezone(timedelta(hours=9))
+    today_key = today.astimezone(kst).date().isoformat()
+    assert points[today_key] == 3
+    assert body["unknown_signup_date_count"] == 1
+
+
+def test_admin_signup_trend_defaults_to_last_14_days(client, db_session):
+    admin_token = _admin_login(client, db_session)
+    response = client.get("/admin/users/signup-trend", headers={"Authorization": f"Bearer {admin_token}"})
+    assert response.status_code == 200
+    assert len(response.json()["points"]) == 14
 
 
 def test_admin_policy_stats_breaks_down_by_category_and_status(client, db_session):
@@ -133,6 +187,69 @@ def test_admin_policy_stats_breaks_down_by_category_and_status(client, db_sessio
     assert categories["일자리"] == 1
     statuses = {s["status"]: s["count"] for s in body["by_status"]}
     assert statuses["상시"] == 2
+
+
+def test_admin_policy_list_filters_by_keyword_category_and_status(client, db_session):
+    _seed_policy(db_session, policy_name="전세자금 대출", large_category="주거")
+    _seed_policy(db_session, policy_name="창업 지원금", large_category="일자리")
+    admin_token = _admin_login(client, db_session)
+
+    response = client.get(
+        "/admin/policies/list",
+        params={"keyword": "전세"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    body = response.json()
+    assert body["total"] == 1
+    assert body["items"][0]["policy_name"] == "전세자금 대출"
+
+    response = client.get(
+        "/admin/policies/list",
+        params={"category": "일자리"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    body = response.json()
+    assert body["total"] == 1
+    assert body["items"][0]["policy_name"] == "창업 지원금"
+
+    response = client.get(
+        "/admin/policies/list",
+        params={"status": "상시"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert response.json()["total"] == 2
+
+
+def test_admin_policy_list_paginates(client, db_session):
+    for i in range(25):
+        _seed_policy(db_session, policy_name=f"정책{i}")
+    admin_token = _admin_login(client, db_session)
+
+    response = client.get(
+        "/admin/policies/list",
+        params={"page": 2, "page_size": 20},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    body = response.json()
+    assert body["total"] == 25
+    assert len(body["items"]) == 5
+    assert body["page"] == 2
+
+
+def test_admin_policy_list_includes_description(client, db_session):
+    _seed_policy(db_session, policy_name="월세 지원", description="월 20만원씩 최대 12개월 지원")
+    admin_token = _admin_login(client, db_session)
+
+    response = client.get("/admin/policies/list", headers={"Authorization": f"Bearer {admin_token}"})
+    assert response.json()["items"][0]["description"] == "월 20만원씩 최대 12개월 지원"
+
+
+def test_admin_policy_list_shows_region_code_as_전국_when_blank(client, db_session):
+    _seed_policy(db_session, policy_name="전국 정책", region_code="")
+    admin_token = _admin_login(client, db_session)
+
+    response = client.get("/admin/policies/list", headers={"Authorization": f"Bearer {admin_token}"})
+    assert response.json()["items"][0]["region_code"] == "전국"
 
 
 def test_admin_policy_refresh_triggers_cache_refresh(client, db_session, monkeypatch):

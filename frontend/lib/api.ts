@@ -334,6 +334,7 @@ export type PolicyAnalysisResult = {
   benefit_summary: string;
   application_notes: string;
   required_documents: string[];
+  estimated_monthly_benefit_krw: number | null;
 };
 
 export async function analyzePolicy(token: string, policyKey: string): Promise<PolicyAnalysisResult> {
@@ -342,6 +343,45 @@ export async function analyzePolicy(token: string, policyKey: string): Promise<P
     body: JSON.stringify({ policy_key: policyKey }),
   });
   return res.json();
+}
+
+export type LinkedBenefit = {
+  id: number;
+  policy_key: string;
+  policy_name: string;
+  estimated_monthly_benefit_krw: number;
+  linked_at: string;
+};
+
+export type LinkedBenefitListResponse = {
+  items: LinkedBenefit[];
+  total_monthly_benefit_krw: number;
+};
+
+export async function listSavingsLinkedBenefits(token: string): Promise<LinkedBenefitListResponse> {
+  const res = await authedFetch("/savings_planner/linked_benefits", token);
+  return res.json();
+}
+
+export async function linkSavingsBenefit(
+  token: string,
+  policyKey: string,
+  policyName: string,
+  estimatedMonthlyBenefitKrw: number
+): Promise<LinkedBenefit> {
+  const res = await authedFetch("/savings_planner/linked_benefits", token, {
+    method: "POST",
+    body: JSON.stringify({
+      policy_key: policyKey,
+      policy_name: policyName,
+      estimated_monthly_benefit_krw: estimatedMonthlyBenefitKrw,
+    }),
+  });
+  return res.json();
+}
+
+export async function unlinkSavingsBenefit(token: string, id: number): Promise<void> {
+  await authedFetch(`/savings_planner/linked_benefits/${id}`, token, { method: "DELETE" });
 }
 
 export type AdminOverview = {
@@ -364,11 +404,19 @@ export type AdminUserItem = {
   annual_income_krw: number | null;
   region: string | null;
   occupation: OccupationType | null;
+  created_at: string | null;
 };
 
 export type AdminUserListResponse = {
   users: AdminUserItem[];
   total: number;
+};
+
+export type AdminSignupTrendPoint = { date: string; count: number };
+
+export type AdminSignupTrendResponse = {
+  points: AdminSignupTrendPoint[];
+  unknown_signup_date_count: number;
 };
 
 export type AdminCategoryStat = { name: string; count: number };
@@ -383,6 +431,25 @@ export type AdminPolicyStatsResponse = {
   last_refreshed_at: string | null;
 };
 
+export type AdminPolicyItem = {
+  policy_key: string;
+  policy_name: string;
+  description: string;
+  large_category: string;
+  status: string;
+  application_period: string;
+  region_code: string;
+  apply_url: string;
+  refreshed_at: string;
+};
+
+export type AdminPolicyListResponse = {
+  items: AdminPolicyItem[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
 export async function getAdminOverview(token: string): Promise<AdminOverview> {
   const res = await authedFetch("/admin/overview", token);
   return res.json();
@@ -393,8 +460,27 @@ export async function getAdminUsers(token: string): Promise<AdminUserListRespons
   return res.json();
 }
 
+export async function getAdminSignupTrend(token: string, days = 14): Promise<AdminSignupTrendResponse> {
+  const res = await authedFetch(`/admin/users/signup-trend?days=${days}`, token);
+  return res.json();
+}
+
 export async function getAdminPolicyStats(token: string): Promise<AdminPolicyStatsResponse> {
   const res = await authedFetch("/admin/policies/stats", token);
+  return res.json();
+}
+
+export async function getAdminPolicyList(
+  token: string,
+  params: { keyword?: string; category?: string; status?: string; page?: number; pageSize?: number } = {}
+): Promise<AdminPolicyListResponse> {
+  const search = new URLSearchParams();
+  if (params.keyword) search.set("keyword", params.keyword);
+  if (params.category) search.set("category", params.category);
+  if (params.status) search.set("status", params.status);
+  search.set("page", String(params.page ?? 1));
+  search.set("page_size", String(params.pageSize ?? 20));
+  const res = await authedFetch(`/admin/policies/list?${search.toString()}`, token);
   return res.json();
 }
 

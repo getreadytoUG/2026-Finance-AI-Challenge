@@ -90,3 +90,4 @@ class PolicyAnalysisResponse(BaseModel):
     benefit_summary: str
     application_notes: str
     required_documents: list[str] = []
+    estimated_monthly_benefit_krw: int | None = None

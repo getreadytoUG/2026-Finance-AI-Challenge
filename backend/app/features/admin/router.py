@@ -1,4 +1,5 @@
 import logging
+from datetime import timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -9,8 +10,12 @@ from app.core.db import get_db
 from app.features.admin.schemas import (
     AdminCategoryStat,
     AdminOverview,
+    AdminPolicyItem,
+    AdminPolicyListResponse,
     AdminPolicyStatsResponse,
     AdminRefreshResponse,
+    AdminSignupTrendPoint,
+    AdminSignupTrendResponse,
     AdminStatusStat,
     AdminUserItem,
     AdminUserListResponse,
@@ -23,6 +28,10 @@ from app.features.policy_matcher.status import STATUS_ORDER, compute_policy_stat
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+# status.py에 동일한 상수가 있지만 그쪽은 모듈 비공개(_KST)라 여기서 다시 정의한다 —
+# 가입 시각(UTC로 저장됨)을 관리자 화면 기준 날짜(KST)로 묶어 집계하는 데 쓴다.
+_KST = timezone(timedelta(hours=9))
 
 
 def _raise_as_http_500(endpoint: str, e: Exception) -> None:
@@ -77,6 +86,7 @@ def list_users(
                     annual_income_krw=u.annual_income_krw,
                     region=u.region,
                     occupation=u.occupation,
+                    created_at=u.created_at,
                 )
                 for u in users
             ],
@@ -84,6 +94,40 @@ def list_users(
         )
     except Exception as e:
         _raise_as_http_500("/admin/users", e)
+
+
+@router.get("/users/signup-trend", response_model=AdminSignupTrendResponse)
+def get_signup_trend(
+    days: int = 14,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    # created_at은 이 컬럼을 추가하기 전에 가입한 유저에겐 없다(User.created_at
+    # 주석 참고) — 그런 유저는 추이 집계에서 빼고 별도로 개수만 알려준다.
+    try:
+        users = db.query(User).all()
+        today = today_kst()
+        counts: dict[str, int] = {}
+        d = today - timedelta(days=days - 1)
+        while d <= today:
+            counts[d.isoformat()] = 0
+            d += timedelta(days=1)
+
+        unknown = 0
+        for u in users:
+            if u.created_at is None:
+                unknown += 1
+                continue
+            key = u.created_at.astimezone(_KST).date().isoformat()
+            if key in counts:
+                counts[key] += 1
+
+        return AdminSignupTrendResponse(
+            points=[AdminSignupTrendPoint(date=date, count=count) for date, count in counts.items()],
+            unknown_signup_date_count=unknown,
+        )
+    except Exception as e:
+        _raise_as_http_500("/admin/users/signup-trend", e)
 
 
 @router.get("/policies/stats", response_model=AdminPolicyStatsResponse)
@@ -123,6 +167,59 @@ def get_policy_stats(
         )
     except Exception as e:
         _raise_as_http_500("/admin/policies/stats", e)
+
+
+@router.get("/policies/list", response_model=AdminPolicyListResponse)
+def list_policies(
+    keyword: str | None = None,
+    category: str | None = None,
+    status: str | None = None,
+    page: int = 1,
+    page_size: int = 20,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    try:
+        today = today_kst()
+        matched: list[tuple[CachedPolicy, list[str], str]] = []
+        for p in db.query(CachedPolicy).all():
+            if keyword and keyword not in p.policy_name:
+                continue
+            tags = category_tags(p.large_category)
+            if category and category not in tags:
+                continue
+            status_value, _ = compute_policy_status(p.apply_start_ymd, p.apply_end_ymd, today)
+            if status and status_value != status:
+                continue
+            matched.append((p, tags, status_value))
+
+        matched.sort(key=lambda entry: STATUS_ORDER[entry[2]])
+
+        total = len(matched)
+        start = (page - 1) * page_size
+        page_rows = matched[start : start + page_size]
+
+        return AdminPolicyListResponse(
+            items=[
+                AdminPolicyItem(
+                    policy_key=p.policy_key,
+                    policy_name=p.policy_name,
+                    description=p.description,
+                    large_category=", ".join(tags) or "기타",
+                    status=status_value,
+                    application_period=p.application_period,
+                    region_code=p.region_code or "전국",
+                    apply_url=p.apply_url,
+                    refreshed_at=p.refreshed_at,
+                )
+                for p, tags, status_value in page_rows
+            ],
+            total=total,
+            page=page,
+            page_size=page_size,
+        )
+    except Exception as e:
+        _raise_as_http_500("/admin/policies/list", e)
 
 
 @router.post("/policies/refresh", response_model=AdminRefreshResponse)

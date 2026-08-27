@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from sqlalchemy.orm import Session
 
 from app.auth.models import User
@@ -33,6 +35,7 @@ def create_user(
         spouse_age=spouse_age,
         spouse_annual_income_krw=spouse_annual_income_krw,
         spouse_occupation=spouse_occupation,
+        created_at=datetime.now(timezone.utc),
     )
     db.add(user)
     db.commit()

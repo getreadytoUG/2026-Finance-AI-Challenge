@@ -25,11 +25,22 @@ class AdminUserItem(BaseModel):
     annual_income_krw: int | None
     region: str | None
     occupation: OccupationType | None
+    created_at: datetime | None
 
 
 class AdminUserListResponse(BaseModel):
     users: list[AdminUserItem]
     total: int
+
+
+class AdminSignupTrendPoint(BaseModel):
+    date: str
+    count: int
+
+
+class AdminSignupTrendResponse(BaseModel):
+    points: list[AdminSignupTrendPoint]
+    unknown_signup_date_count: int
 
 
 class AdminCategoryStat(BaseModel):
@@ -53,3 +64,22 @@ class AdminPolicyStatsResponse(BaseModel):
 
 class AdminRefreshResponse(BaseModel):
     upserted: int
+
+
+class AdminPolicyItem(BaseModel):
+    policy_key: str
+    policy_name: str
+    description: str
+    large_category: str
+    status: str
+    application_period: str
+    region_code: str
+    apply_url: str
+    refreshed_at: datetime
+
+
+class AdminPolicyListResponse(BaseModel):
+    items: list[AdminPolicyItem]
+    total: int
+    page: int
+    page_size: int

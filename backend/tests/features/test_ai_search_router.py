@@ -260,6 +260,7 @@ def test_ai_search_analyze_calls_llm_once_and_returns_structured_result(client, 
                             "benefit_summary": "월 20만원 지원",
                             "application_notes": "재직 증명서를 준비하세요.",
                             "required_documents": ["재직증명서", "주민등록등본"],
+                            "estimated_monthly_benefit_krw": 200_000,
                         },
                     )
                 ],
@@ -280,6 +281,7 @@ def test_ai_search_analyze_calls_llm_once_and_returns_structured_result(client, 
     assert body["benefit_summary"] == "월 20만원 지원"
     assert body["application_notes"] == "재직 증명서를 준비하세요."
     assert body["required_documents"] == ["재직증명서", "주민등록등본"]
+    assert body["estimated_monthly_benefit_krw"] == 200_000
     assert len(fake.calls) == 1
 
 

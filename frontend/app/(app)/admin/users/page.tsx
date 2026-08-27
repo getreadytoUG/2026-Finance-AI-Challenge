@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { getAdminUsers, type AdminUserItem } from "@/lib/api";
 import AdminGuard from "@/components/AdminGuard";
-import { OCCUPATION_LABELS } from "@/components/AdminWidgets";
+import { OCCUPATION_LABELS, formatDateTime } from "@/components/AdminWidgets";
 
 function UsersContent() {
   const [users, setUsers] = useState<AdminUserItem[]>([]);
@@ -34,6 +34,7 @@ function UsersContent() {
                 <th>연소득</th>
                 <th>지역</th>
                 <th>직업</th>
+                <th>가입일</th>
               </tr>
             </thead>
             <tbody>
@@ -46,6 +47,7 @@ function UsersContent() {
                   <td>{u.annual_income_krw != null ? `${u.annual_income_krw.toLocaleString()}원` : "-"}</td>
                   <td>{u.region ?? "-"}</td>
                   <td>{u.occupation ? OCCUPATION_LABELS[u.occupation] ?? u.occupation : "-"}</td>
+                  <td>{formatDateTime(u.created_at)}</td>
                 </tr>
               ))}
             </tbody>
