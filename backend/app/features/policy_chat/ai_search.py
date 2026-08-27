@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from app.features.policy_chat.schemas import PolicyChatSearchInput
+from app.features.policy_chat.schemas import PolicyAiFilterDelta, PolicyChatSearchInput
 from app.features.policy_chat.tool import _matches
 from app.features.policy_matcher.categories import category_tags
 from app.features.policy_matcher.matching import is_newlywed_policy
@@ -75,9 +75,11 @@ FILTER_DELTA_SPEC = ToolSpec(
     name="policy_ai_filter_delta",
     description=(
         "대화에서 사용자가 이번 턴에 새로 언급하거나 바꾸고 싶어한 검색 조건만 담아 호출합니다. "
-        "언급하지 않은 필드는 생략하세요 — 생략한 필드는 이전 값이 그대로 유지됩니다."
+        "언급하지 않은 필드는 생략하세요 — 생략한 필드는 이전 값이 그대로 유지됩니다. "
+        "반대로 이전에 적용된 조건을 이제 없애고 싶다면(사용자가 새 값을 안 주고 그냥 지워달라고 "
+        "하는 경우) 그 필드 이름을 clear_fields 배열에 넣어서 호출하세요."
     ),
-    input_schema=PolicyChatSearchInput,
+    input_schema=PolicyAiFilterDelta,
     output_schema=PolicyChatSearchInput,
     entrypoint=lambda input, ctx: input,
 )

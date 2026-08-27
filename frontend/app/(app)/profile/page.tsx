@@ -2,7 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getMe, updateProfile, type UserProfile } from "@/lib/api";
+import Link from "next/link";
+import {
+  getMe,
+  listSavingsLinkedBenefits,
+  unlinkSavingsBenefit,
+  updateProfile,
+  type LinkedBenefit,
+  type UserProfile,
+} from "@/lib/api";
 import {
   OCCUPATION_OPTIONS,
   REGIONS,
@@ -20,6 +28,9 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [showWithdrawNotice, setShowWithdrawNotice] = useState(false);
+  const [linkedBenefits, setLinkedBenefits] = useState<LinkedBenefit[]>([]);
+  const [totalLinkedBenefitKrw, setTotalLinkedBenefitKrw] = useState(0);
+  const [unlinkingId, setUnlinkingId] = useState<number | null>(null);
   const router = useRouter();
 
   const [age, setAge] = useState("");
@@ -40,7 +51,29 @@ export default function ProfilePage() {
       })
       .catch((err) => setError(err instanceof Error ? err.message : "정보를 불러오지 못했습니다."))
       .finally(() => setLoading(false));
+
+    listSavingsLinkedBenefits(token)
+      .then((res) => {
+        setLinkedBenefits(res.items);
+        setTotalLinkedBenefitKrw(res.total_monthly_benefit_krw);
+      })
+      .catch(() => {});
   }, []);
+
+  async function handleUnlinkBenefit(id: number) {
+    setUnlinkingId(id);
+    try {
+      const token = localStorage.getItem("token") ?? "";
+      await unlinkSavingsBenefit(token, id);
+      setLinkedBenefits((prev) => {
+        const next = prev.filter((b) => b.id !== id);
+        setTotalLinkedBenefitKrw(next.reduce((sum, b) => sum + b.estimated_monthly_benefit_krw, 0));
+        return next;
+      });
+    } finally {
+      setUnlinkingId(null);
+    }
+  }
 
   function fillFormFrom(me: UserProfile) {
     setAge(me.age?.toString() ?? "");
@@ -279,6 +312,37 @@ export default function ProfilePage() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {linkedBenefits.length > 0 && (
+        <div className="card" style={{ marginTop: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
+            <h3 style={{ margin: 0 }}>💰 저축플랜에 반영된 정책</h3>
+            <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
+              합계 월 {totalLinkedBenefitKrw.toLocaleString()}원
+            </span>
+          </div>
+          {linkedBenefits.map((b) => (
+            <div key={b.id} className="result-item-row" style={{ marginTop: 0, marginBottom: 12 }}>
+              <span>{b.policy_name}</span>
+              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <strong>{b.estimated_monthly_benefit_krw.toLocaleString()}원/월</strong>
+                <button
+                  type="button"
+                  className="link"
+                  style={{ fontSize: 12, background: "none", border: "none", padding: 0, cursor: "pointer" }}
+                  disabled={unlinkingId === b.id}
+                  onClick={() => handleUnlinkBenefit(b.id)}
+                >
+                  {unlinkingId === b.id ? "제거 중..." : "제거"}
+                </button>
+              </span>
+            </div>
+          ))}
+          <Link href="/savings" className="btn btn-ghost" style={{ marginTop: 8, display: "inline-block", width: "auto" }}>
+            저축플랜에서 보기 →
+          </Link>
         </div>
       )}
 

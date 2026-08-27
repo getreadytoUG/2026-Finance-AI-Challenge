@@ -27,6 +27,27 @@ class PolicyChatSearchInput(BaseModel):
     status: PolicyStatusLabel | None = None
 
 
+FilterFieldName = Literal[
+    "age",
+    "is_married",
+    "annual_income_krw",
+    "spouse_annual_income_krw",
+    "region",
+    "keyword",
+    "category",
+    "status",
+]
+
+
+class PolicyAiFilterDelta(PolicyChatSearchInput):
+    # 언급 안 된 필드는 "생략"(JSON에 키 자체가 없음)으로 표현해 이전 값을 유지하는
+    # 방식이라, "이 필드를 명시적으로 지워라"는 의도를 표현할 방법이 따로 없었다
+    # (2026-08-27 실사용 중 발견 — 이전 keyword가 계속 AND로 남아 새 검색이 계속
+    # 0건으로 나오는데도 사용자가 채팅으로 지울 방법이 없었다). 값 필드와 별도로
+    # 두어, "새 값으로 바꾼다"와 "그냥 지운다"를 구분할 수 있게 한다.
+    clear_fields: list[FilterFieldName] | None = None
+
+
 class PolicyChatSearchOption(BaseModel):
     policy_name: str
     benefit_description: str

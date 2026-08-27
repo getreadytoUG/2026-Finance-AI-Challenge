@@ -73,7 +73,12 @@ def test_ai_search_results_requires_auth(client):
 
 def test_ai_search_message_first_turn_uses_profile_as_initial_filters(client, monkeypatch):
     token = _signup_login(client, age=33, is_married=True, region="부산")
-    fake = _FakeProvider([LLMResponse(content="안녕하세요!", tool_calls=[])])
+    fake = _FakeProvider(
+        [
+            LLMResponse(content="안녕하세요!", tool_calls=[]),
+            LLMResponse(content="안녕하세요! 무엇을 도와드릴까요?", tool_calls=[]),
+        ]
+    )
     monkeypatch.setattr(policy_chat_router, "get_provider", lambda: fake)
 
     response = client.post(
@@ -86,7 +91,10 @@ def test_ai_search_message_first_turn_uses_profile_as_initial_filters(client, mo
     assert body["filters"]["age"] == 33
     assert body["filters"]["is_married"] is True
     assert body["filters"]["region"] == "부산"
-    assert len(fake.calls) == 1  # tool_call 없으면 2차 호출 안 함
+    # tool_call이 없어도 화면에 실제로 보일 검색 결과에 근거해 답변을 재생성하려고
+    # 항상 2차 호출을 한다 — 2026-08-27, 근거 없는 1차 응답을 그대로 돌려주다가
+    # 화면 결과와 다른 말을 하는 문제가 있었다.
+    assert len(fake.calls) == 2
 
 
 def test_ai_search_message_merges_only_changed_fields(client, db_session, monkeypatch):
@@ -124,6 +132,45 @@ def test_ai_search_message_merges_only_changed_fields(client, db_session, monkey
     assert body["filters"]["age"] == 29
     assert body["filters"]["keyword"] == "전세"
     assert len(fake.calls) == 2
+
+
+def test_ai_search_message_clear_fields_removes_stale_filter(client, db_session, monkeypatch):
+    # 회귀 테스트: 예전에는 이전 keyword를 없애고 싶어도 델타에서 명시적 null이
+    # "생략"과 구분 없이 걸러졌다 — 채팅으로는 한 번 걸린 keyword를 절대 지울 수
+    # 없었다(2026-08-27 실사용 중 발견). clear_fields로 명시적으로 지울 수 있어야 한다.
+    _seed_policy(db_session, policy_name="월세 지원 정책", description="월세를 지원합니다")
+    token = _signup_login(client)
+    fake = _FakeProvider(
+        [
+            LLMResponse(
+                content=None,
+                tool_calls=[ToolCallRequest(name="policy_ai_filter_delta", arguments={"clear_fields": ["keyword"]})],
+            ),
+            LLMResponse(content="키워드 조건을 지우고 전체를 보여드릴게요!", tool_calls=[]),
+        ]
+    )
+    monkeypatch.setattr(policy_chat_router, "get_provider", lambda: fake)
+
+    current_filters = {
+        "age": 29,
+        "is_married": False,
+        "annual_income_krw": 40_000_000,
+        "spouse_annual_income_krw": None,
+        "region": None,
+        "category": None,
+        "keyword": "청년 수당",
+        "status": None,
+    }
+    response = client.post(
+        "/policy_chat/ai_search/message",
+        json={"messages": [{"role": "user", "content": "조건 초기화해줘"}], "filters": current_filters},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["filters"]["keyword"] is None
+    assert body["filters"]["age"] == 29  # clear_fields에 없는 다른 필드는 유지
+    assert body["total"] == 1
 
 
 def test_ai_search_message_extracts_status_instead_of_free_text_keyword(client, db_session, monkeypatch):
@@ -190,7 +237,12 @@ def test_ai_search_message_ignores_delta_with_value_outside_enum(client, db_sess
 def test_ai_search_message_without_tool_call_keeps_filters_unchanged(client, db_session, monkeypatch):
     _seed_policy(db_session)
     token = _signup_login(client)
-    fake = _FakeProvider([LLMResponse(content="어떤 조건을 찾으세요?", tool_calls=[])])
+    fake = _FakeProvider(
+        [
+            LLMResponse(content="어떤 조건을 찾으세요?", tool_calls=[]),
+            LLMResponse(content="지금 조건에 맞는 정책이 없어요.", tool_calls=[]),
+        ]
+    )
     monkeypatch.setattr(policy_chat_router, "get_provider", lambda: fake)
 
     current_filters = {
@@ -210,7 +262,8 @@ def test_ai_search_message_without_tool_call_keeps_filters_unchanged(client, db_
     )
     assert response.status_code == 200
     assert response.json()["filters"] == current_filters
-    assert response.json()["reply"] == "어떤 조건을 찾으세요?"
+    # 필터가 안 바뀌어도 답변은 항상 실제 검색 결과에 근거한 2차 호출 결과를 쓴다.
+    assert response.json()["reply"] == "지금 조건에 맞는 정책이 없어요."
 
 
 def test_ai_search_results_filters_by_query_params(client, db_session):

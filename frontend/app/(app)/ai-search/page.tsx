@@ -94,6 +94,7 @@ export default function AiSearchPage() {
   const [resultsError, setResultsError] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<Record<string, AnalysisState>>({});
   const [linkedPolicyKeys, setLinkedPolicyKeys] = useState<Set<string>>(new Set());
+  const [keywordInput, setKeywordInput] = useState("");
 
   const [turns, setTurns] = useState<ChatTurn[]>([WELCOME_MESSAGE]);
   const [chatInput, setChatInput] = useState("");
@@ -153,6 +154,21 @@ export default function AiSearchPage() {
     refetch(next, 1, includeClosed);
   }
 
+  function handleResetFilters() {
+    const next: AiSearchFilters = {
+      age: null,
+      is_married: null,
+      annual_income_krw: null,
+      spouse_annual_income_krw: null,
+      region: null,
+      category: null,
+      keyword: null,
+      status: null,
+    };
+    setFilters(next);
+    refetch(next, 1, includeClosed);
+  }
+
   function handleToggleIncludeClosed() {
     const next = !includeClosed;
     setIncludeClosed(next);
@@ -162,6 +178,20 @@ export default function AiSearchPage() {
   function handlePageChange(nextPage: number) {
     if (!filters) return;
     refetch(filters, nextPage, includeClosed);
+  }
+
+  // 채팅이나 필터 칩 제거로 keyword가 바뀔 수도 있으니, 검색창 값도 항상
+  // 현재 filters.keyword와 맞춰둔다.
+  useEffect(() => {
+    setKeywordInput(filters?.keyword ?? "");
+  }, [filters?.keyword]);
+
+  function handleKeywordSearchSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!filters) return;
+    const next = { ...filters, keyword: keywordInput.trim() || null };
+    setFilters(next);
+    refetch(next, 1, includeClosed);
   }
 
   async function handleAnalyze(policyKey: string) {
@@ -287,7 +317,7 @@ export default function AiSearchPage() {
       <div className="ai-search-grid">
         <div className="card chat-panel">
           {chips.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginBottom: 12 }}>
               {chips.map((chip) => (
                 <span key={chip.key} className="filter-chip">
                   {chip.label}
@@ -296,6 +326,14 @@ export default function AiSearchPage() {
                   </button>
                 </span>
               ))}
+              <button
+                type="button"
+                className="btn-ghost"
+                style={{ fontSize: 12, borderRadius: 999, padding: "4px 10px" }}
+                onClick={handleResetFilters}
+              >
+                조건 전체 초기화
+              </button>
             </div>
           )}
 
@@ -363,6 +401,19 @@ export default function AiSearchPage() {
         </div>
 
         <div>
+          <form onSubmit={handleKeywordSearchSubmit} style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+            <input
+              className="input"
+              placeholder="정책명/내용 검색"
+              value={keywordInput}
+              onChange={(e) => setKeywordInput(e.target.value)}
+              disabled={!filters}
+            />
+            <button type="submit" className="btn-ghost" disabled={!filters}>
+              검색
+            </button>
+          </form>
+
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
             <div style={{ fontWeight: 700, fontSize: 16 }}>
               맞춤 검색 결과: <span style={{ color: "var(--primary)" }}>{total}개</span>

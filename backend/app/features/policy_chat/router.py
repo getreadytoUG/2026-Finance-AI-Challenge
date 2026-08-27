@@ -162,6 +162,14 @@ def _build_ai_search_system_prompt(filters: PolicyChatSearchInput) -> str:
         "region/category/status는 반드시 도구 스키마에 정의된 목록 중 하나여야 합니다 — 목록에 "
         "없는 값을 만들어내지 마세요. 특히 '마감 임박', '곧 마감' 같은 표현은 keyword가 아니라 "
         "status='임박'으로, '마감된 것도/지난 것도 보여줘'는 status='만료'로 담으세요.\n\n"
+        "keyword는 '지금 사용자가 찾고 있는 검색어 하나'를 뜻합니다 — 사용자가 이전과 다른 "
+        "대상/단어를 새로 언급하면 이전 keyword에 더하지 말고 새 값으로 완전히 교체해서 "
+        "호출하세요. 옛 keyword가 그대로 남아있으면 새 검색어와 AND로 겹쳐져서 결과가 계속 "
+        "0건으로 나올 수 있습니다.\n\n"
+        "사용자가 특정 조건을 새 값으로 바꾸는 게 아니라 그냥 없애고 싶어하면(예: '조건 초기화해줘', "
+        "'키워드 지워줘', '전체 정책 다 보여줘', '그 조건 말고 그냥 검색해줘') 그 필드 이름을 "
+        "clear_fields 배열에 담아 호출하세요. 무엇을 지워야 할지 모호하면 keyword/category/status처럼 "
+        "이번 대화에서 최근에 언급된 검색 조건부터 지우는 쪽으로 판단하세요.\n\n"
         f"[현재 적용된 조건]\n{_describe_filters(filters)}\n\n"
         "답변은 짧고 친절한 한국어로, 조건이 바뀌었으면 어떻게 좁혀졌는지 한두 문장으로 알려주세요."
     )
@@ -184,33 +192,30 @@ def send_ai_search_message(
 
         first = provider.chat(messages, tools=[FILTER_DELTA_SPEC])
 
-        if not first.tool_calls:
-            # 조건 변경이 아니라 단순 질문 — 필터는 그대로, LLM도 한 번만 호출한다
-            # (기존 /message 엔드포인트와 동일한 단축 경로).
-            items, total = search_policies(
-                db, base_filters, include_closed=payload.include_closed, page=1, page_size=payload.page_size
-            )
-            return AiSearchMessageResponse(
-                reply=first.content or "",
-                filters=base_filters,
-                items=items,
-                total=total,
-                page=1,
-                page_size=payload.page_size,
-            )
+        new_filters = base_filters
+        if first.tool_calls:
+            call = first.tool_calls[0]
+            raw_args = dict(call.arguments)
+            clear_fields = raw_args.pop("clear_fields", None) or []
+            delta = {k: v for k, v in raw_args.items() if v is not None}
+            try:
+                # model_copy(update=...)는 검증을 건너뛰므로, 모델이 스키마에 없는 값을
+                # 잘못 내놓더라도 여기서 다시 PolicyChatSearchInput(**...)로 만들어 Literal
+                # 제약을 실제로 재검증한다. 드물게 모델이 enum 밖 값을 내면(공급자가 tool
+                # 스키마의 enum을 완벽히 지키지 못하는 경우) 이번 턴은 필터를 바꾸지 않는다.
+                merged = {**base_filters.model_dump(), **delta}
+                for field in clear_fields:
+                    merged[field] = None
+                new_filters = PolicyChatSearchInput(**merged)
+            except ValidationError as e:
+                logger.warning(f"[WARN] /policy_chat/ai_search/message got invalid filter delta {delta}: {e}")
+                new_filters = base_filters
 
-        call = first.tool_calls[0]
-        delta = {k: v for k, v in dict(call.arguments).items() if v is not None}
-        try:
-            # model_copy(update=...)는 검증을 건너뛰므로, 모델이 스키마에 없는 값을
-            # 잘못 내놓더라도 여기서 다시 PolicyChatSearchInput(**...)로 만들어 Literal
-            # 제약을 실제로 재검증한다. 드물게 모델이 enum 밖 값을 내면(공급자가 tool
-            # 스키마의 enum을 완벽히 지키지 못하는 경우) 이번 턴은 필터를 바꾸지 않는다.
-            new_filters = PolicyChatSearchInput(**{**base_filters.model_dump(), **delta})
-        except ValidationError as e:
-            logger.warning(f"[WARN] /policy_chat/ai_search/message got invalid filter delta {delta}: {e}")
-            new_filters = base_filters
-
+        # 도구를 호출하지 않은 턴(단순 질문)도 항상 실제 검색 결과로 답변을 재생성한다 —
+        # 예전에는 이 경우 LLM의 1차 응답 텍스트를 그대로 믿고 돌려줬는데, 그 텍스트는
+        # 실제 검색 결과를 전혀 보지 못한 채 나온 추측이라 화면에 뜨는 결과와 다른 말을
+        # 하는 경우가 있었다(2026-08-27 실사용 중 발견 — 옛 keyword가 안 지워진 채로
+        # "찾을 수 없다"고 답하는데 실제로는 다른 필터 조합 때문에 0건이었음).
         items, total = search_policies(
             db, new_filters, include_closed=payload.include_closed, page=1, page_size=payload.page_size
         )
