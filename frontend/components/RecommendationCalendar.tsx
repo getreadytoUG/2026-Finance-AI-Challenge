@@ -1,13 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { SectionLabel } from "@/components/DashboardLayout";
+import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import PolicyDetailLink from "@/components/PolicyDetailLink";
 import StatusPill from "@/components/StatusPill";
 import type { Recommendation } from "@/lib/api";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+
+// status.py의 STATUS_ORDER(임박-여유-상시-예정-만료)와 동일한 우선순위.
+const STATUS_PRIORITY: Record<string, number> = { 임박: 0, 여유: 1, 상시: 2, 예정: 3, 만료: 4 };
 
 function pad2(n: number): string {
   return String(n).padStart(2, "0");
@@ -18,16 +20,22 @@ function monthPrefix(year: number, month: number): string {
   return `${year}${pad2(month + 1)}`;
 }
 
-function RecommendationCard({ rec }: { rec: Recommendation }) {
+function matchesQuery(rec: Recommendation, query: string): boolean {
+  if (!query) return true;
+  const haystack = (rec.policy_name + rec.benefit_description).toLowerCase();
+  return haystack.includes(query.toLowerCase());
+}
+
+function RecommendationRow({ rec }: { rec: Recommendation }) {
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-white p-5">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[15px] font-extrabold tracking-[-.03em] text-ink">{rec.policy_name}</span>
+    <div className="rounded-xl border border-slate-200/80 bg-white p-4">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-[13px] font-extrabold tracking-[-.02em] text-ink">{rec.policy_name}</span>
         <StatusPill status={rec.status} />
       </div>
-      <p className="mt-2 text-[12px] leading-5 text-slate-500">{rec.benefit_description}</p>
-      <div className="mt-2 text-[11px] font-semibold text-slate-400">신청 기간 {rec.application_period}</div>
-      <PolicyDetailLink url={rec.reference_url} className="mt-2" />
+      <p className="mt-1.5 line-clamp-2 text-[11px] leading-5 text-slate-500">{rec.benefit_description}</p>
+      <div className="mt-1.5 text-[10px] font-semibold text-slate-400">신청 기간 {rec.application_period}</div>
+      <PolicyDetailLink url={rec.reference_url} className="mt-1.5 text-[12px]" />
     </div>
   );
 }
@@ -37,8 +45,9 @@ export default function RecommendationCalendar({ recommendations }: { recommenda
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth()); // 0-indexed
   const [selectedDay, setSelectedDay] = useState<string | null>(null); // "YYYYMMDD"
+  const [query, setQuery] = useState("");
 
-  const alwaysOpen = useMemo(() => recommendations.filter((r) => !r.apply_end_ymd), [recommendations]);
+  const filtered = useMemo(() => recommendations.filter((r) => matchesQuery(r, query)), [recommendations, query]);
 
   const byDay = useMemo(() => {
     const map = new Map<string, Recommendation[]>();
@@ -50,6 +59,14 @@ export default function RecommendationCalendar({ recommendations }: { recommenda
     }
     return map;
   }, [recommendations]);
+
+  const alwaysOpen = useMemo(() => filtered.filter((r) => !r.apply_end_ymd), [filtered]);
+
+  const allSorted = useMemo(
+    () =>
+      [...filtered].sort((a, b) => (STATUS_PRIORITY[a.status] ?? 9) - (STATUS_PRIORITY[b.status] ?? 9)),
+    [filtered]
+  );
 
   const prefix = monthPrefix(viewYear, viewMonth);
   const firstOfMonth = new Date(viewYear, viewMonth, 1);
@@ -70,10 +87,10 @@ export default function RecommendationCalendar({ recommendations }: { recommenda
     setSelectedDay(null);
   }
 
-  const selectedList = selectedDay ? (byDay.get(selectedDay) ?? []) : [];
+  const selectedList = selectedDay ? (byDay.get(selectedDay) ?? []).filter((r) => matchesQuery(r, query)) : [];
 
   return (
-    <div>
+    <div className="grid gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
       <div className="rounded-[22px] border border-slate-200/80 bg-white p-5">
         <div className="mb-4 flex items-center justify-between">
           <div className="text-[15px] font-extrabold tracking-[-.03em] text-ink">
@@ -138,27 +155,65 @@ export default function RecommendationCalendar({ recommendations }: { recommenda
         </div>
       </div>
 
-      {selectedDay && (
-        <div className="mt-6">
-          <SectionLabel>{selectedDay.slice(4, 6)}월 {selectedDay.slice(6, 8)}일 마감 정책</SectionLabel>
-          <div className="grid gap-3">
-            {selectedList.map((rec) => (
-              <RecommendationCard key={rec.id} rec={rec} />
-            ))}
-          </div>
+      <div className="flex max-h-[720px] flex-col rounded-[22px] border border-slate-200/80 bg-white p-4 lg:sticky lg:top-24">
+        <div className="relative mb-3 shrink-0">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="정책명, 지원 내용으로 검색"
+            className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-[12px] font-semibold outline-none transition focus:border-[#2457d6] focus:ring-4 focus:ring-[#2457d6]/10"
+          />
         </div>
-      )}
 
-      {alwaysOpen.length > 0 && (
-        <div className="mt-6">
-          <SectionLabel>상시 모집 정책 ({alwaysOpen.length})</SectionLabel>
-          <div className="grid gap-3">
-            {alwaysOpen.map((rec) => (
-              <RecommendationCard key={rec.id} rec={rec} />
-            ))}
-          </div>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {selectedDay ? (
+            <>
+              <div className="mb-2 flex items-center justify-between">
+                <div className="text-[12px] font-extrabold text-ink">
+                  {selectedDay.slice(4, 6)}월 {selectedDay.slice(6, 8)}일 마감 ({selectedList.length})
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDay(null)}
+                  className="text-[11px] font-bold text-[#2457d6] hover:underline"
+                >
+                  전체보기
+                </button>
+              </div>
+              <div className="grid gap-2.5">
+                {selectedList.length === 0 ? (
+                  <p className="text-[12px] font-bold text-slate-400">검색 조건에 맞는 정책이 없어요.</p>
+                ) : (
+                  selectedList.map((rec) => <RecommendationRow key={rec.id} rec={rec} />)
+                )}
+              </div>
+
+              {alwaysOpen.length > 0 && (
+                <>
+                  <div className="mb-2 mt-5 text-[12px] font-extrabold text-ink">상시 모집 ({alwaysOpen.length})</div>
+                  <div className="grid gap-2.5">
+                    {alwaysOpen.map((rec) => (
+                      <RecommendationRow key={rec.id} rec={rec} />
+                    ))}
+                  </div>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="mb-2 text-[12px] font-extrabold text-ink">전체 추천 ({allSorted.length})</div>
+              <div className="grid gap-2.5">
+                {allSorted.length === 0 ? (
+                  <p className="text-[12px] font-bold text-slate-400">검색 조건에 맞는 정책이 없어요.</p>
+                ) : (
+                  allSorted.map((rec) => <RecommendationRow key={rec.id} rec={rec} />)
+                )}
+              </div>
+            </>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
