@@ -239,9 +239,15 @@ export default function RecommendationsPage() {
                         className="cursor-pointer rounded-2xl border border-slate-200/80 bg-white p-5 transition hover:border-[#cddafb] hover:shadow-[0_14px_30px_rgba(28,50,88,.07)]"
                       >
                         <div className="flex flex-wrap items-center gap-2 text-[15px] font-extrabold text-ink">
-                          {!rec.is_read && <span className="h-2 w-2 shrink-0 rounded-full bg-rose-500" />}
                           {rec.policy_name}
                           <StatusPill status={rec.status} />
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold ${
+                              rec.is_read ? "bg-slate-100 text-slate-400" : "bg-ink text-white"
+                            }`}
+                          >
+                            {rec.is_read ? "읽음" : "안읽음"}
+                          </span>
                         </div>
                         <p className="mt-2 text-[12px] leading-5 text-slate-500">{rec.benefit_description}</p>
                         <div className="mt-2 text-[11px] font-semibold text-slate-400">신청 기간 {rec.application_period}</div>
