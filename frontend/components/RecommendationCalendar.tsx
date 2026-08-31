@@ -30,14 +30,16 @@ function matchesQuery(rec: Recommendation, query: string): boolean {
 
 function RecommendationRow({ rec }: { rec: Recommendation }) {
   return (
-    <div className="rounded-xl border border-slate-200/80 bg-white p-4">
+    <div className="rounded-xl border border-slate-200/80 bg-white p-3">
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-[13px] font-extrabold tracking-[-.02em] text-ink">{rec.policy_name}</span>
         <StatusPill status={rec.status} />
       </div>
-      <p className="mt-1.5 line-clamp-2 text-[11px] leading-5 text-slate-500">{rec.benefit_description}</p>
-      <div className="mt-1.5 text-[10px] font-semibold text-slate-400">신청 기간 {rec.application_period}</div>
-      <PolicyDetailLink url={rec.reference_url} className="mt-1.5 text-[12px]" />
+      {/* 실제 줄 수와 무관하게 항상 2줄 높이를 확보해 카드 높이를 균일하게 유지한다
+          (짧은 설명이어도 빈 줄만큼 여백이 생기지만, 4개가 꽉 차 보이는 게 우선순위). */}
+      <p className="mt-1 line-clamp-2 min-h-10 text-[11px] leading-5 text-slate-500">{rec.benefit_description}</p>
+      <div className="mt-1 text-[10px] font-semibold text-slate-400">신청 기간 {rec.application_period}</div>
+      <PolicyDetailLink url={rec.reference_url} className="mt-1 text-[12px]" />
     </div>
   );
 }
@@ -109,7 +111,7 @@ export default function RecommendationCalendar({ recommendations }: { recommenda
   const pageItems = activeList.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+    <div className="grid gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
       <div className="rounded-[22px] border border-slate-200/80 bg-white p-5">
         <div className="mb-4 flex items-center justify-between">
           <div className="text-[15px] font-extrabold tracking-[-.03em] text-ink">
@@ -154,7 +156,7 @@ export default function RecommendationCalendar({ recommendations }: { recommenda
                 key={cell.ymd}
                 onClick={() => (dayRecs.length > 0 ? selectDay(cell.ymd) : undefined)}
                 disabled={dayRecs.length === 0}
-                className={`flex aspect-square flex-col items-center justify-center gap-1 rounded-xl text-[12px] font-bold transition ${
+                className={`flex h-24 flex-col items-center justify-center gap-1 rounded-xl text-[12px] font-bold transition ${
                   isSelected
                     ? "bg-[#2457d6] text-white"
                     : isToday
@@ -174,8 +176,8 @@ export default function RecommendationCalendar({ recommendations }: { recommenda
         </div>
       </div>
 
-      <div className="flex h-full flex-col rounded-[22px] border border-slate-200/80 bg-white p-4">
-        <div className="relative mb-3 shrink-0">
+      <div className="rounded-[22px] border border-slate-200/80 bg-white p-4">
+        <div className="relative mb-2.5">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
           <input
             value={query}
@@ -185,7 +187,7 @@ export default function RecommendationCalendar({ recommendations }: { recommenda
           />
         </div>
 
-        <div className="mb-2 flex shrink-0 items-center justify-between">
+        <div className="mb-2 flex items-center justify-between">
           <div className="text-[12px] font-extrabold text-ink">
             {selectedDay ? `${selectedDay.slice(4, 6)}월 ${selectedDay.slice(6, 8)}일 마감 (${activeList.length})` : `전체 추천 (${activeList.length})`}
           </div>
@@ -196,7 +198,7 @@ export default function RecommendationCalendar({ recommendations }: { recommenda
           )}
         </div>
 
-        <div className="grid flex-1 content-start gap-2.5">
+        <div className="grid gap-2">
           {pageItems.length === 0 ? (
             <p className="text-[12px] font-bold text-slate-400">검색 조건에 맞는 정책이 없어요.</p>
           ) : (
