@@ -106,3 +106,20 @@ class MarriageComparisonOutput(BaseModel):
     married_only: list[MarriagePolicyItem]
     unmarried_only: list[MarriagePolicyItem]
     both: list[MarriagePolicyItem]
+
+
+class PolicyRankingInput(MarriageComparisonInput):
+    policy_keys: list[str]
+    # 프롬프트에 "이 목록이 어떤 버킷인지" 알려주기 위한 설명 텍스트(프론트가 고정된
+    # 문구 중 하나를 보냄, 사용자 자유 입력 아님) — 예: "혼인신고 후에만 자격되는 정책".
+    context_label: str
+
+
+class RankedPolicyItem(BaseModel):
+    policy_key: str
+    reason: str
+
+
+class PolicyRankingOutput(BaseModel):
+    # 배열 순서 자체가 우선순위(첫 번째가 가장 우선)다 — 별도 rank 정수 필드를 두지 않는다.
+    ranked: list[RankedPolicyItem]

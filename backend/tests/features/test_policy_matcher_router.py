@@ -2,10 +2,12 @@ from datetime import datetime, timedelta, timezone
 
 from app.auth.service import create_user
 from app.core.security import create_access_token
+from app.features.policy_matcher import ranking as marriage_ranking
 from app.features.policy_matcher import recommender
 from app.features.policy_matcher.categories import FINANCIAL_LARGE_CATEGORY
 from app.features.policy_matcher.models import CachedPolicy
 from app.features.policy_matcher.status import today_kst
+from app.llm.base import LLMResponse, ToolCallRequest
 
 
 def _signup_login_with_profile(client, email="router-user@example.com"):
@@ -219,6 +221,62 @@ def test_marriage_comparison_returns_three_buckets(client, db_session):
     body = response.json()
     assert {"married_only", "unmarried_only", "both"} <= body.keys()
     assert [p["policy_key"] for p in body["unmarried_only"]] == ["P500"]
+
+
+def test_marriage_comparison_rank_requires_auth(client):
+    response = client.post(
+        "/policy_matcher/marriage_comparison/rank",
+        json={"age": 29, "region": "서울", "annual_income_krw": 40_000_000, "policy_keys": [], "context_label": "테스트"},
+    )
+    assert response.status_code == 401
+
+
+class _FakeLLMProvider:
+    def __init__(self, response: LLMResponse):
+        self._response = response
+
+    def chat(self, messages, tools):
+        return self._response
+
+
+def test_marriage_comparison_rank_reorders_by_llm_result(client, db_session, monkeypatch):
+    _seed_policy(db_session, policy_key="P600", policy_name="일반 정책")
+    _seed_policy(db_session, policy_key="P601", policy_name="신혼부부 특화 정책")
+    token = _signup_login_with_profile(client)
+
+    fake = _FakeLLMProvider(
+        LLMResponse(
+            content=None,
+            tool_calls=[
+                ToolCallRequest(
+                    name="policy_ranking_result",
+                    arguments={
+                        "ranked": [
+                            {"policy_key": "P601", "reason": "신혼부부 특화 정책이라 우선입니다."},
+                            {"policy_key": "P600", "reason": "일반 대상 정책입니다."},
+                        ]
+                    },
+                )
+            ],
+        )
+    )
+    monkeypatch.setattr(marriage_ranking, "get_provider", lambda: fake)
+
+    response = client.post(
+        "/policy_matcher/marriage_comparison/rank",
+        json={
+            "age": 29,
+            "region": "서울",
+            "annual_income_krw": 40_000_000,
+            "policy_keys": ["P600", "P601"],
+            "context_label": "혼인신고 후에만 자격되는 정책",
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert [item["policy_key"] for item in body["ranked"]] == ["P601", "P600"]
+    assert body["ranked"][0]["reason"] == "신혼부부 특화 정책이라 우선입니다."
 
 
 def test_mark_recommendation_read_rejects_other_users_recommendation(client, db_session):

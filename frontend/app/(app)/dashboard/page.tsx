@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, ArrowUpRight, Bell, CalendarClock, ChevronRight, PiggyBank, Search, Sparkles, TrendingUp } from "lucide-react";
 import { DashboardLayout, SectionLabel } from "@/components/DashboardLayout";
 import PolicyDetailLink from "@/components/PolicyDetailLink";
+import StatCard from "@/components/StatCard";
 import { callTool, getMe, getRecommendations, listSavingsLinkedBenefits, type Recommendation } from "@/lib/api";
 
 type PolicyOption = {
@@ -18,20 +19,6 @@ type PolicyOption = {
 type PolicyMatchOutput = {
   options: PolicyOption[];
 };
-
-function StatCard({ label, value, detail, tone }: { label: string; value: string; detail: string; tone: "blue" | "mint" | "violet" }) {
-  const orb = { blue: "bg-[#edf3ff]", mint: "bg-[#e8f8f4]", violet: "bg-[#f0eeff]" }[tone];
-  return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5">
-      <div className={`absolute -right-[22px] -top-7 h-[108px] w-[108px] rounded-full opacity-90 ${orb}`} />
-      <div className="relative">
-        <div className="text-[11px] font-bold text-slate-400">{label}</div>
-        <div className="mt-3 text-[26px] font-extrabold tracking-[-.06em] text-ink">{value}</div>
-        <div className="mt-1 text-[11px] font-semibold text-slate-500">{detail}</div>
-      </div>
-    </div>
-  );
-}
 
 export default function DashboardPage() {
   const [label, setLabel] = useState("회원님");

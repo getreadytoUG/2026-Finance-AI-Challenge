@@ -275,6 +275,26 @@ export async function compareMarriageScenarios(
   return res.json();
 }
 
+export type PolicyRankingInput = MarriageComparisonInput & {
+  policy_keys: string[];
+  context_label: string;
+};
+
+export type RankedPolicyItem = { policy_key: string; reason: string };
+
+export type PolicyRankingOutput = { ranked: RankedPolicyItem[] };
+
+export async function rankMarriagePolicies(
+  token: string,
+  input: PolicyRankingInput
+): Promise<PolicyRankingOutput> {
+  const res = await authedFetch("/policy_matcher/marriage_comparison/rank", token, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return res.json();
+}
+
 export type PolicyChatOption = {
   policy_name: string;
   benefit_description: string;
