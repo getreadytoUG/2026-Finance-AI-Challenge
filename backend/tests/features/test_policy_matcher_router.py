@@ -1,9 +1,11 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from app.auth.service import create_user
 from app.core.security import create_access_token
 from app.features.policy_matcher import recommender
+from app.features.policy_matcher.categories import FINANCIAL_LARGE_CATEGORY
 from app.features.policy_matcher.models import CachedPolicy
+from app.features.policy_matcher.status import today_kst
 
 
 def _signup_login_with_profile(client, email="router-user@example.com"):
@@ -138,6 +140,85 @@ def test_mark_recommendation_read_updates_is_read(client, db_session):
 
     listing = client.get("/policy_matcher/recommendations", headers={"Authorization": f"Bearer {token}"})
     assert listing.json()["unread_count"] == 0
+
+
+def test_list_recommendation_status_is_urgent_when_deadline_is_close(client, db_session):
+    end = (today_kst() + timedelta(days=3)).strftime("%Y%m%d")
+    _seed_policy(db_session, policy_key="P400", apply_end_ymd=end, application_period=f"~ {end}")
+    token = _signup_login_with_profile(client)
+    client.post("/policy_matcher/recommendations/refresh", headers={"Authorization": f"Bearer {token}"})
+
+    response = client.get("/policy_matcher/recommendations", headers={"Authorization": f"Bearer {token}"})
+    rec = response.json()["recommendations"][0]
+    assert rec["status"] == "임박"
+    assert rec["apply_end_ymd"] == end
+
+
+def test_list_recommendation_status_is_상시_when_no_deadline(client, db_session):
+    _seed_policy(db_session, policy_key="P401", apply_end_ymd=None)
+    token = _signup_login_with_profile(client)
+    client.post("/policy_matcher/recommendations/refresh", headers={"Authorization": f"Bearer {token}"})
+
+    response = client.get("/policy_matcher/recommendations", headers={"Authorization": f"Bearer {token}"})
+    rec = response.json()["recommendations"][0]
+    assert rec["status"] == "상시"
+    assert rec["apply_start_ymd"] is None
+    assert rec["apply_end_ymd"] is None
+
+
+def test_list_recommendation_falls_back_when_cached_policy_missing(client, db_session):
+    _seed_policy(db_session, policy_key="P402")
+    token = _signup_login_with_profile(client)
+    client.post("/policy_matcher/recommendations/refresh", headers={"Authorization": f"Bearer {token}"})
+
+    # cache.py는 실제로는 delete하지 않지만, 이론상 그런 상황이 와도 안전한지 검증한다.
+    db_session.query(CachedPolicy).filter(CachedPolicy.policy_key == "P402").delete()
+    db_session.commit()
+
+    response = client.get("/policy_matcher/recommendations", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200
+    rec = response.json()["recommendations"][0]
+    assert rec["status"] == "상시"
+    assert rec["apply_end_ymd"] is None
+
+
+def test_marriage_comparison_requires_auth(client):
+    response = client.post("/policy_matcher/marriage_comparison", json={"age": 29, "region": "서울", "annual_income_krw": 40_000_000})
+    assert response.status_code == 401
+
+
+def test_marriage_comparison_rejects_missing_required_fields(client, db_session):
+    token = _signup_login_with_profile(client)
+    response = client.post(
+        "/policy_matcher/marriage_comparison",
+        json={"age": 29},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 422
+
+
+def test_marriage_comparison_returns_three_buckets(client, db_session):
+    _seed_policy(
+        db_session,
+        policy_key="P500",
+        max_income_krw=50_000_000,
+        large_category=FINANCIAL_LARGE_CATEGORY,
+    )
+    token = _signup_login_with_profile(client)
+    response = client.post(
+        "/policy_matcher/marriage_comparison",
+        json={
+            "age": 29,
+            "region": "서울",
+            "annual_income_krw": 40_000_000,
+            "spouse_annual_income_krw": 20_000_000,
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert {"married_only", "unmarried_only", "both"} <= body.keys()
+    assert [p["policy_key"] for p in body["unmarried_only"]] == ["P500"]
 
 
 def test_mark_recommendation_read_rejects_other_users_recommendation(client, db_session):

@@ -8,6 +8,8 @@ import { OCCUPATION_OPTIONS, manwonToKrw, type OccupationType } from "@/lib/prof
 import { DashboardLayout } from "@/components/DashboardLayout";
 import Pagination from "@/components/Pagination";
 import PolicyDetailLink from "@/components/PolicyDetailLink";
+import StatusPill from "@/components/StatusPill";
+import RecommendationCalendar from "@/components/RecommendationCalendar";
 
 const PAGE_SIZE = 10;
 
@@ -32,6 +34,7 @@ export default function RecommendationsPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
+  const [view, setView] = useState<"calendar" | "list">("calendar");
 
   async function loadProfileAndRecommendations() {
     const token = localStorage.getItem("token") ?? "";
@@ -209,24 +212,46 @@ export default function RecommendationsPage() {
 
           {recommendations && recommendations.length > 0 && (
             <>
-              <div className="grid gap-3">
-                {recommendations.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((rec) => (
-                  <div
-                    key={rec.id}
-                    onClick={() => handleItemClick(rec)}
-                    className="cursor-pointer rounded-2xl border border-slate-200/80 bg-white p-5 transition hover:border-[#cddafb] hover:shadow-[0_14px_30px_rgba(28,50,88,.07)]"
-                  >
-                    <div className="flex items-center gap-2 text-[15px] font-extrabold text-ink">
-                      {!rec.is_read && <span className="h-2 w-2 shrink-0 rounded-full bg-rose-500" />}
-                      {rec.policy_name}
-                    </div>
-                    <p className="mt-2 text-[12px] leading-5 text-slate-500">{rec.benefit_description}</p>
-                    <div className="mt-2 text-[11px] font-semibold text-slate-400">신청 기간 {rec.application_period}</div>
-                    <PolicyDetailLink url={rec.reference_url} className="mt-2" />
-                  </div>
-                ))}
+              <div className="mb-6 inline-flex gap-1.5 rounded-xl bg-[#eef3f9] p-1">
+                <button
+                  onClick={() => setView("calendar")}
+                  className={`rounded-lg px-4 py-2.5 text-[12px] font-extrabold transition ${view === "calendar" ? "bg-white text-[#2457d6] shadow-sm" : "text-slate-500"}`}
+                >
+                  캘린더
+                </button>
+                <button
+                  onClick={() => setView("list")}
+                  className={`rounded-lg px-4 py-2.5 text-[12px] font-extrabold transition ${view === "list" ? "bg-white text-[#2457d6] shadow-sm" : "text-slate-500"}`}
+                >
+                  리스트
+                </button>
               </div>
-              <Pagination page={page} totalPages={Math.max(1, Math.ceil(recommendations.length / PAGE_SIZE))} onPageChange={setPage} />
+
+              {view === "calendar" ? (
+                <RecommendationCalendar recommendations={recommendations} />
+              ) : (
+                <>
+                  <div className="grid gap-3">
+                    {recommendations.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((rec) => (
+                      <div
+                        key={rec.id}
+                        onClick={() => handleItemClick(rec)}
+                        className="cursor-pointer rounded-2xl border border-slate-200/80 bg-white p-5 transition hover:border-[#cddafb] hover:shadow-[0_14px_30px_rgba(28,50,88,.07)]"
+                      >
+                        <div className="flex flex-wrap items-center gap-2 text-[15px] font-extrabold text-ink">
+                          {!rec.is_read && <span className="h-2 w-2 shrink-0 rounded-full bg-rose-500" />}
+                          {rec.policy_name}
+                          <StatusPill status={rec.status} />
+                        </div>
+                        <p className="mt-2 text-[12px] leading-5 text-slate-500">{rec.benefit_description}</p>
+                        <div className="mt-2 text-[11px] font-semibold text-slate-400">신청 기간 {rec.application_period}</div>
+                        <PolicyDetailLink url={rec.reference_url} className="mt-2" />
+                      </div>
+                    ))}
+                  </div>
+                  <Pagination page={page} totalPages={Math.max(1, Math.ceil(recommendations.length / PAGE_SIZE))} onPageChange={setPage} />
+                </>
+              )}
             </>
           )}
         </>

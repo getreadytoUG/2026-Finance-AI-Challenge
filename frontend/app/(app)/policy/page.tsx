@@ -5,6 +5,8 @@ import { Check, Search, SlidersHorizontal } from "lucide-react";
 import { DashboardLayout, SectionLabel } from "@/components/DashboardLayout";
 import Pagination from "@/components/Pagination";
 import PolicyDetailLink from "@/components/PolicyDetailLink";
+import StatusPill from "@/components/StatusPill";
+import MarriageComparisonTab from "./MarriageComparisonTab";
 import {
   browsePolicies,
   callTool,
@@ -29,23 +31,6 @@ type PolicyOption = {
 type PolicyMatchOutput = {
   options: PolicyOption[];
 };
-
-const STATUS_PILL: Record<string, string> = {
-  임박: "urgent",
-  만료: "urgent",
-  여유: "available",
-  상시: "available",
-  예정: "neutral",
-};
-
-function StatusPill({ status }: { status: string }) {
-  return (
-    <span className={`policy-status ${STATUS_PILL[status] ?? "neutral"}`}>
-      <span />
-      {status}
-    </span>
-  );
-}
 
 function MatchTab() {
   const [regions, setRegions] = useState<string[]>([]);
@@ -372,7 +357,7 @@ function BrowseTab() {
 }
 
 export default function PolicyPage() {
-  const [tab, setTab] = useState<"match" | "browse">("match");
+  const [tab, setTab] = useState<"match" | "browse" | "marriage">("match");
 
   return (
     <DashboardLayout eyebrow="POLICY MATCHING" title="정책 매칭">
@@ -389,8 +374,14 @@ export default function PolicyPage() {
         >
           전체 탐색
         </button>
+        <button
+          onClick={() => setTab("marriage")}
+          className={`rounded-lg px-4 py-2.5 text-[12px] font-extrabold transition ${tab === "marriage" ? "bg-white text-[#2457d6] shadow-sm" : "text-slate-500"}`}
+        >
+          혼인신고 비교
+        </button>
       </div>
-      {tab === "match" ? <MatchTab /> : <BrowseTab />}
+      {tab === "match" ? <MatchTab /> : tab === "browse" ? <BrowseTab /> : <MarriageComparisonTab />}
     </DashboardLayout>
   );
 }

@@ -5,10 +5,13 @@ from app.auth.models import User
 from app.auth.router import get_current_user
 from app.core.db import get_db
 from app.features.policy_matcher.categories import category_tags
+from app.features.policy_matcher.marriage_comparison import build_marriage_scenarios, compare_marriage_scenarios
 from app.features.policy_matcher.matching import REGIONS, region_matches
 from app.features.policy_matcher.models import CachedPolicy, PolicyRecommendation
 from app.features.policy_matcher.recommender import run_recommendation_batch_for_user
 from app.features.policy_matcher.schemas import (
+    MarriageComparisonInput,
+    MarriageComparisonOutput,
     PolicyBrowseItem,
     PolicyBrowseResponse,
     PolicyCategoryItem,
@@ -63,10 +66,46 @@ def list_my_recommendations(
             .all()
         )
         unread_count = sum(1 for row in rows if not row.is_read)
-        return RecommendationListResponse(
-            recommendations=[RecommendationOut.model_validate(r) for r in rows],
-            unread_count=unread_count,
+
+        # 신청 마감일(D-Day)은 PolicyRecommendation 테이블엔 없고 CachedPolicy에만
+        # 있다 — /browse와 동일하게 policy_key로 조인해서 읽는다. cache.py의
+        # refresh_policy_cache는 upsert만 하고 delete하지 않으므로(cache.py 참고)
+        # 한번 추천된 policy_key는 항상 조회 가능하다는 전제로 안전하다.
+        policy_keys = {row.policy_key for row in rows}
+        cached_by_key = (
+            {p.policy_key: p for p in db.query(CachedPolicy).filter(CachedPolicy.policy_key.in_(policy_keys)).all()}
+            if policy_keys
+            else {}
         )
+        today = today_kst()
+
+        recommendations = []
+        for row in rows:
+            cached = cached_by_key.get(row.policy_key)
+            if cached is not None:
+                status, emoji = compute_policy_status(cached.apply_start_ymd, cached.apply_end_ymd, today)
+                apply_start_ymd, apply_end_ymd = cached.apply_start_ymd, cached.apply_end_ymd
+            else:
+                # 이론상만 발생(위 주석 참고) — 마감일 미상으로 안전하게 폴백한다.
+                status, emoji = "상시", "🟢"
+                apply_start_ymd, apply_end_ymd = None, None
+            recommendations.append(
+                RecommendationOut(
+                    id=row.id,
+                    policy_name=row.policy_name,
+                    benefit_description=row.benefit_description,
+                    application_period=row.application_period,
+                    reference_url=row.reference_url,
+                    matched_at=row.matched_at,
+                    is_read=row.is_read,
+                    apply_start_ymd=apply_start_ymd,
+                    apply_end_ymd=apply_end_ymd,
+                    status=status,
+                    status_emoji=emoji,
+                )
+            )
+
+        return RecommendationListResponse(recommendations=recommendations, unread_count=unread_count)
     except Exception as e:
         _raise_as_http_500("/policy_matcher/recommendations", f" for user_id={current_user.id}", e)
 
@@ -181,3 +220,19 @@ def list_policy_categories(
         return PolicyCategoryListResponse(categories=categories)
     except Exception as e:
         _raise_as_http_500("/policy_matcher/categories", f" for user_id={current_user.id}", e)
+
+
+@router.post("/marriage_comparison", response_model=MarriageComparisonOutput)
+def compare_marriage_scenarios_endpoint(
+    payload: MarriageComparisonInput,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # 저장된 프로필을 읽지 않는 1회성 계산기 — 프론트가 getMe()로 미리 채워주고
+    # 사용자가 그 자리에서 값(특히 배우자 소득)을 바꿔볼 수 있게 한다.
+    try:
+        policies = db.query(CachedPolicy).all()
+        unmarried_input, married_input = build_marriage_scenarios(payload)
+        return compare_marriage_scenarios(policies, unmarried_input, married_input, today_kst())
+    except Exception as e:
+        _raise_as_http_500("/policy_matcher/marriage_comparison", f" for user_id={current_user.id}", e)

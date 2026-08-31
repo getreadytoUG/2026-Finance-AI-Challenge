@@ -109,6 +109,10 @@ export type Recommendation = {
   reference_url: string;
   matched_at: string;
   is_read: boolean;
+  apply_start_ymd: string | null;
+  apply_end_ymd: string | null;
+  status: string;
+  status_emoji: string;
 };
 
 type RecommendationListResponse = {
@@ -234,6 +238,40 @@ export async function getPolicyCategories(
 
 export async function getRegions(token: string): Promise<{ regions: string[] }> {
   const res = await authedFetch("/policy_matcher/regions", token);
+  return res.json();
+}
+
+export type MarriageComparisonInput = {
+  age: number;
+  region: string;
+  annual_income_krw: number;
+  spouse_age?: number | null;
+  spouse_annual_income_krw?: number | null;
+};
+
+export type MarriagePolicyItem = {
+  policy_key: string;
+  policy_name: string;
+  benefit_description: string;
+  application_period: string;
+  reference_url: string;
+  is_newlywed_policy: boolean;
+};
+
+export type MarriageComparisonOutput = {
+  married_only: MarriagePolicyItem[];
+  unmarried_only: MarriagePolicyItem[];
+  both: MarriagePolicyItem[];
+};
+
+export async function compareMarriageScenarios(
+  token: string,
+  input: MarriageComparisonInput
+): Promise<MarriageComparisonOutput> {
+  const res = await authedFetch("/policy_matcher/marriage_comparison", token, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
   return res.json();
 }
 
