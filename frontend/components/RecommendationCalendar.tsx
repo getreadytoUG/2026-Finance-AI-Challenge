@@ -2,11 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
+import Pagination from "@/components/Pagination";
 import PolicyDetailLink from "@/components/PolicyDetailLink";
 import StatusPill from "@/components/StatusPill";
 import type { Recommendation } from "@/lib/api";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+const PAGE_SIZE = 4;
 
 // status.py의 STATUS_ORDER(임박-여유-상시-예정-만료)와 동일한 우선순위.
 const STATUS_PRIORITY: Record<string, number> = { 임박: 0, 여유: 1, 상시: 2, 예정: 3, 만료: 4 };
@@ -46,6 +48,7 @@ export default function RecommendationCalendar({ recommendations }: { recommenda
   const [viewMonth, setViewMonth] = useState(today.getMonth()); // 0-indexed
   const [selectedDay, setSelectedDay] = useState<string | null>(null); // "YYYYMMDD"
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
 
   const filtered = useMemo(() => recommendations.filter((r) => matchesQuery(r, query)), [recommendations, query]);
 
@@ -60,11 +63,8 @@ export default function RecommendationCalendar({ recommendations }: { recommenda
     return map;
   }, [recommendations]);
 
-  const alwaysOpen = useMemo(() => filtered.filter((r) => !r.apply_end_ymd), [filtered]);
-
   const allSorted = useMemo(
-    () =>
-      [...filtered].sort((a, b) => (STATUS_PRIORITY[a.status] ?? 9) - (STATUS_PRIORITY[b.status] ?? 9)),
+    () => [...filtered].sort((a, b) => (STATUS_PRIORITY[a.status] ?? 9) - (STATUS_PRIORITY[b.status] ?? 9)),
     [filtered]
   );
 
@@ -85,12 +85,31 @@ export default function RecommendationCalendar({ recommendations }: { recommenda
     setViewYear(next.getFullYear());
     setViewMonth(next.getMonth());
     setSelectedDay(null);
+    setPage(1);
+  }
+
+  function selectDay(ymd: string) {
+    setSelectedDay(ymd);
+    setPage(1);
+  }
+
+  function clearSelectedDay() {
+    setSelectedDay(null);
+    setPage(1);
+  }
+
+  function handleQueryChange(value: string) {
+    setQuery(value);
+    setPage(1);
   }
 
   const selectedList = selectedDay ? (byDay.get(selectedDay) ?? []).filter((r) => matchesQuery(r, query)) : [];
+  const activeList = selectedDay ? selectedList : allSorted;
+  const totalPages = Math.max(1, Math.ceil(activeList.length / PAGE_SIZE));
+  const pageItems = activeList.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
+    <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
       <div className="rounded-[22px] border border-slate-200/80 bg-white p-5">
         <div className="mb-4 flex items-center justify-between">
           <div className="text-[15px] font-extrabold tracking-[-.03em] text-ink">
@@ -133,7 +152,7 @@ export default function RecommendationCalendar({ recommendations }: { recommenda
               <button
                 type="button"
                 key={cell.ymd}
-                onClick={() => setSelectedDay(dayRecs.length > 0 ? cell.ymd : null)}
+                onClick={() => (dayRecs.length > 0 ? selectDay(cell.ymd) : undefined)}
                 disabled={dayRecs.length === 0}
                 className={`flex aspect-square flex-col items-center justify-center gap-1 rounded-xl text-[12px] font-bold transition ${
                   isSelected
@@ -155,64 +174,37 @@ export default function RecommendationCalendar({ recommendations }: { recommenda
         </div>
       </div>
 
-      <div className="flex max-h-[720px] flex-col rounded-[22px] border border-slate-200/80 bg-white p-4 lg:sticky lg:top-24">
+      <div className="flex h-full flex-col rounded-[22px] border border-slate-200/80 bg-white p-4">
         <div className="relative mb-3 shrink-0">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
           <input
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => handleQueryChange(e.target.value)}
             placeholder="정책명, 지원 내용으로 검색"
             className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-[12px] font-semibold outline-none transition focus:border-[#2457d6] focus:ring-4 focus:ring-[#2457d6]/10"
           />
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          {selectedDay ? (
-            <>
-              <div className="mb-2 flex items-center justify-between">
-                <div className="text-[12px] font-extrabold text-ink">
-                  {selectedDay.slice(4, 6)}월 {selectedDay.slice(6, 8)}일 마감 ({selectedList.length})
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedDay(null)}
-                  className="text-[11px] font-bold text-[#2457d6] hover:underline"
-                >
-                  전체보기
-                </button>
-              </div>
-              <div className="grid gap-2.5">
-                {selectedList.length === 0 ? (
-                  <p className="text-[12px] font-bold text-slate-400">검색 조건에 맞는 정책이 없어요.</p>
-                ) : (
-                  selectedList.map((rec) => <RecommendationRow key={rec.id} rec={rec} />)
-                )}
-              </div>
-
-              {alwaysOpen.length > 0 && (
-                <>
-                  <div className="mb-2 mt-5 text-[12px] font-extrabold text-ink">상시 모집 ({alwaysOpen.length})</div>
-                  <div className="grid gap-2.5">
-                    {alwaysOpen.map((rec) => (
-                      <RecommendationRow key={rec.id} rec={rec} />
-                    ))}
-                  </div>
-                </>
-              )}
-            </>
-          ) : (
-            <>
-              <div className="mb-2 text-[12px] font-extrabold text-ink">전체 추천 ({allSorted.length})</div>
-              <div className="grid gap-2.5">
-                {allSorted.length === 0 ? (
-                  <p className="text-[12px] font-bold text-slate-400">검색 조건에 맞는 정책이 없어요.</p>
-                ) : (
-                  allSorted.map((rec) => <RecommendationRow key={rec.id} rec={rec} />)
-                )}
-              </div>
-            </>
+        <div className="mb-2 flex shrink-0 items-center justify-between">
+          <div className="text-[12px] font-extrabold text-ink">
+            {selectedDay ? `${selectedDay.slice(4, 6)}월 ${selectedDay.slice(6, 8)}일 마감 (${activeList.length})` : `전체 추천 (${activeList.length})`}
+          </div>
+          {selectedDay && (
+            <button type="button" onClick={clearSelectedDay} className="text-[11px] font-bold text-[#2457d6] hover:underline">
+              전체보기
+            </button>
           )}
         </div>
+
+        <div className="grid flex-1 content-start gap-2.5">
+          {pageItems.length === 0 ? (
+            <p className="text-[12px] font-bold text-slate-400">검색 조건에 맞는 정책이 없어요.</p>
+          ) : (
+            pageItems.map((rec) => <RecommendationRow key={rec.id} rec={rec} />)
+          )}
+        </div>
+
+        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
       </div>
     </div>
   );
