@@ -22,6 +22,7 @@ def run_tool(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     tool_registry: ToolRegistry = Depends(get_tool_registry),
+
 ):
     ctx = ToolContext(user_id=current_user.id, db=db)
     try:
