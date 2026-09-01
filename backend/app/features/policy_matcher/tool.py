@@ -18,6 +18,7 @@ def run(input: PolicyMatchInput, ctx: ToolContext) -> PolicyMatchOutput:
         eligible_policies.sort(key=lambda policy: not is_newlywed_policy(policy))
     options = [
         PolicyOption(
+            policy_key=policy.policy_key,
             policy_name=policy.policy_name,
             benefit_description=policy.description,
             application_period=policy.application_period,

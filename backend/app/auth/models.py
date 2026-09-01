@@ -27,6 +27,21 @@ class User(Base):
     spouse_age = Column(Integer, nullable=True)
     spouse_annual_income_krw = Column(Integer, nullable=True)
     spouse_occupation = Column(String, nullable=True)
+    # 2026-09-01 UPGRADE.md 반영: 정책 매칭에 아직 안 쓰지만(수집/표시 전용) 프로필
+    # 화면에 온전히 받아두는 확장 필드들. 전부 nullable — 기존 유저는 값 없이도
+    # 그대로 로그인된다. 운영 DB(Supabase)엔 마이그레이션 스크립트로 컬럼을 추가함
+    # (backend/scripts/migrate_add_profile_fields.py 참고, create_all()은 이미 있는
+    # 테이블에 새 컬럼을 추가해주지 않는다 — created_at 컬럼과 동일한 사정).
+    marital_status = Column(String, nullable=True)  # "single" | "engaged" | "newlywed"
+    marriage_years = Column(Integer, nullable=True)  # newlywed일 때만 의미 있음
+    children_count = Column(Integer, nullable=True)
+    is_pregnant = Column(Boolean, nullable=True)
+    desired_region = Column(String, nullable=True)  # 거주 지역(region)과 별개인 희망 지역
+    employment_type = Column(String, nullable=True)  # "regular" | "gig_freelance" | "business_owner"
+    is_sme_employee = Column(Boolean, nullable=True)
+    housing_status = Column(String, nullable=True)  # "homeless_head" | "homeless_member" | "homeowner"
+    net_worth_krw = Column(Integer, nullable=True)
+    monthly_savings_capacity_krw = Column(Integer, nullable=True)
     # nullable인 이유: 이 컬럼 추가 이전에 가입한 기존 유저는 실제 가입 시각을
     # 알 방법이 없다 — Base.metadata.create_all()은 이미 있는 테이블에 컬럼을
     # 추가해주지 않으므로, 운영 DB에는 별도로 ALTER TABLE을 한 번 실행했다

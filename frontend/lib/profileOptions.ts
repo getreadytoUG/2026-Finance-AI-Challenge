@@ -12,6 +12,43 @@ export function occupationLabel(value: OccupationType | null | undefined): strin
   return OCCUPATION_OPTIONS.find((o) => o.value === value)?.label ?? "-";
 }
 
+// 2026-09-01 UPGRADE.md 반영: 확장 프로필 필드 옵션들.
+export type MaritalStatusType = "single" | "engaged" | "newlywed";
+
+export const MARITAL_STATUS_OPTIONS: { value: MaritalStatusType; label: string }[] = [
+  { value: "single", label: "미혼" },
+  { value: "engaged", label: "예비부부" },
+  { value: "newlywed", label: "신혼부부" },
+];
+
+export function maritalStatusLabel(value: MaritalStatusType | null | undefined): string {
+  return MARITAL_STATUS_OPTIONS.find((o) => o.value === value)?.label ?? "-";
+}
+
+export type EmploymentType = "regular" | "gig_freelance" | "business_owner";
+
+export const EMPLOYMENT_TYPE_OPTIONS: { value: EmploymentType; label: string }[] = [
+  { value: "regular", label: "정규직" },
+  { value: "gig_freelance", label: "특고·프리랜서" },
+  { value: "business_owner", label: "사업자" },
+];
+
+export function employmentTypeLabel(value: EmploymentType | null | undefined): string {
+  return EMPLOYMENT_TYPE_OPTIONS.find((o) => o.value === value)?.label ?? "-";
+}
+
+export type HousingStatusType = "homeless_head" | "homeless_member" | "homeowner";
+
+export const HOUSING_STATUS_OPTIONS: { value: HousingStatusType; label: string }[] = [
+  { value: "homeless_head", label: "무주택 세대주" },
+  { value: "homeless_member", label: "무주택 세대원" },
+  { value: "homeowner", label: "유주택" },
+];
+
+export function housingStatusLabel(value: HousingStatusType | null | undefined): string {
+  return HOUSING_STATUS_OPTIONS.find((o) => o.value === value)?.label ?? "-";
+}
+
 // 백엔드는 연소득을 원 단위(annual_income_krw)로 저장하지만, 입력·표시는 만원 단위가 익숙하므로
 // UI 레이어에서만 변환한다.
 export function krwToManwon(krw: number): number {

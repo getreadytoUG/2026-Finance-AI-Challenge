@@ -2,11 +2,23 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight, Bell, CalendarClock, ChevronRight, PiggyBank, Search, Sparkles, TrendingUp } from "lucide-react";
+import {
+  ArrowRight,
+  Banknote,
+  Bell,
+  Calendar,
+  CalendarClock,
+  ChevronRight,
+  Heart,
+  MapPin,
+  Search,
+  Sparkles,
+  UserRound,
+} from "lucide-react";
 import { DashboardLayout, SectionLabel } from "@/components/DashboardLayout";
 import PolicyDetailLink from "@/components/PolicyDetailLink";
-import StatCard from "@/components/StatCard";
-import { callTool, getMe, getRecommendations, listSavingsLinkedBenefits, type Recommendation } from "@/lib/api";
+import { callTool, getMe, getRecommendations, type Recommendation, type UserProfile } from "@/lib/api";
+import { krwToManwon } from "@/lib/profileOptions";
 
 type PolicyOption = {
   policy_name: string;
@@ -20,11 +32,21 @@ type PolicyMatchOutput = {
   options: PolicyOption[];
 };
 
+function ProfileInfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#f4f8fc] text-[#2457d6]">{icon}</span>
+      <span className="text-[12px] font-bold text-slate-400">{label}</span>
+      <span className="ml-auto text-[13px] font-extrabold text-ink">{value}</span>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const [label, setLabel] = useState("회원님");
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileComplete, setProfileComplete] = useState(true);
   const [policies, setPolicies] = useState<PolicyOption[]>([]);
-  const [linkedTotal, setLinkedTotal] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
   const [recentRecs, setRecentRecs] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,17 +54,18 @@ export default function DashboardPage() {
   useEffect(() => {
     const token = localStorage.getItem("token") ?? "";
     getMe(token)
-      .then((profile) => {
-        setLabel(profile.name || profile.email.split("@")[0]);
-        const complete = profile.age != null && profile.region != null && profile.annual_income_krw != null;
+      .then((me) => {
+        setProfile(me);
+        setLabel(me.name || me.email.split("@")[0]);
+        const complete = me.age != null && me.region != null && me.annual_income_krw != null;
         setProfileComplete(complete);
         if (!complete) return null;
         return callTool<PolicyMatchOutput>(token, "policy_matcher", {
-          age: profile.age,
-          is_married: profile.is_married,
-          annual_income_krw: profile.annual_income_krw,
-          spouse_annual_income_krw: profile.spouse_annual_income_krw,
-          region: profile.region,
+          age: me.age,
+          is_married: me.is_married,
+          annual_income_krw: me.annual_income_krw,
+          spouse_annual_income_krw: me.spouse_annual_income_krw,
+          region: me.region,
         });
       })
       .then((res) => {
@@ -50,10 +73,6 @@ export default function DashboardPage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-
-    listSavingsLinkedBenefits(token)
-      .then((res) => setLinkedTotal(res.total_monthly_benefit_krw))
-      .catch(() => {});
 
     getRecommendations(token)
       .then((res) => {
@@ -88,68 +107,50 @@ export default function DashboardPage() {
       )}
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,.75fr)]">
-        <section className="brief-hero relative overflow-hidden rounded-[24px] bg-[#0d1b36] px-6 py-7 text-white sm:px-8 sm:py-9">
+        <section className="brief-hero relative overflow-hidden rounded-[24px] bg-[#0d1b36] px-6 py-9 text-white sm:px-10 sm:py-14">
           <div className="absolute inset-0 bg-[linear-gradient(105deg,rgba(13,27,54,.96),rgba(36,87,214,.68))]" />
           <div className="relative max-w-[560px]">
             <div className="mb-5 flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[.2em] text-[#9cc5ff]">
               <Sparkles size={13} /> MATCHING COMPLETE
             </div>
-            <h2 className="text-[25px] font-extrabold leading-[1.25] tracking-[-.06em] sm:text-[31px]">
+            <h2 className="text-[27px] font-extrabold leading-[1.25] tracking-[-.06em] sm:text-[34px]">
               지금 신청 가능한 정책
               <br />
               <span className="text-[#9cc5ff]">{policies.length}개</span>를 찾았어요.
             </h2>
             <p className="mt-4 max-w-[450px] text-[13px] leading-6 text-blue-100/75">저장된 프로필 기준으로 지금 조건에 가장 가까운 정책부터 골랐어요.</p>
           </div>
-          <div className="relative mt-8 flex items-center gap-3 border-t border-white/10 pt-5 text-[11px] font-semibold text-blue-100/70">
+          <div className="relative mt-12 flex items-center gap-3 border-t border-white/10 pt-5 text-[11px] font-semibold text-blue-100/70">
             <span className="grid h-8 w-8 place-items-center rounded-lg bg-white/10">
               <CalendarClock size={15} />
             </span>{" "}
             지금 바로 다시 조회 가능
-            <Link href="/ai-search" className="ml-auto inline-flex items-center gap-1 font-extrabold text-white hover:text-[#9cc5ff]">
-              AI 리포트 보기 <ChevronRight size={13} />
+            <Link href="/recommendations?view=ai_search" className="ml-auto inline-flex items-center gap-1 font-extrabold text-white hover:text-[#9cc5ff]">
+              AI 정책 검색 <ChevronRight size={13} />
             </Link>
           </div>
         </section>
         <section className="rounded-[24px] border border-slate-200/80 bg-white p-6 shadow-[0_14px_38px_rgba(28,50,88,.05)]">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-[10px] font-extrabold uppercase tracking-[.16em] text-[#2457d6]">SAVINGS</div>
-              <h2 className="mt-2 text-[17px] font-extrabold tracking-[-.04em]">저축플랜</h2>
-            </div>
-            <Link href="/savings" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-50 hover:text-[#2457d6]" aria-label="저축플랜 자세히 보기">
-              <ArrowUpRight size={16} />
-            </Link>
+          <div className="flex items-center gap-3">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#eef3ff] text-[#2457d6]">
+              <UserRound size={20} />
+            </span>
+            <h2 className="text-[15px] font-extrabold tracking-[-.03em] text-ink">{label}님 프로필 요약</h2>
           </div>
-          {linkedTotal > 0 ? (
-            <>
-              <div className="mt-8 flex items-end gap-2">
-                <span className="text-[30px] font-extrabold tracking-[-.06em] text-ink">{linkedTotal.toLocaleString()}</span>
-                <span className="mb-1 text-[13px] font-extrabold text-[#2457d6]">원 / 월</span>
-              </div>
-              <div className="mt-2 text-[11px] font-semibold text-slate-500">정책 혜택이 저축 목표에 반영돼 있어요.</div>
-              <div className="mt-7 rounded-xl bg-[#f4f8fc] p-3.5">
-                <div className="flex items-center gap-2 text-[11px] font-bold text-slate-500">
-                  <TrendingUp size={14} className="text-[#1eb8a6]" /> 저축플랜에서 실제 필요 금액을 다시 계산해보세요
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="mt-8">
-              <PiggyBank size={26} className="text-[#2457d6]" />
-              <p className="mt-3 text-[13px] font-bold text-slate-500">아직 저축플랜에 반영한 정책이 없어요.</p>
-              <Link href="/savings" className="mt-4 flex items-center justify-between rounded-xl bg-[#f0f4ff] px-3.5 py-3 text-[11px] font-extrabold text-[#2457d6]">
-                저축플랜 만들어보기 <ArrowRight size={14} />
-              </Link>
-            </div>
-          )}
+          <div className="mt-7 grid gap-4">
+            <ProfileInfoRow icon={<Calendar size={15} />} label="나이" value={profile?.age != null ? `${profile.age}세` : "-"} />
+            <ProfileInfoRow icon={<MapPin size={15} />} label="거주 지역" value={profile?.region ?? "-"} />
+            <ProfileInfoRow
+              icon={<Banknote size={15} />}
+              label="소득"
+              value={profile?.annual_income_krw != null ? `연 ${krwToManwon(profile.annual_income_krw).toLocaleString()}만원` : "-"}
+            />
+            <ProfileInfoRow icon={<Heart size={15} />} label="기혼 여부" value={profile?.is_married == null ? "-" : profile.is_married ? "기혼" : "미혼"} />
+          </div>
+          <Link href="/profile" className="mt-6 flex items-center justify-end gap-1 text-[12px] font-extrabold text-[#2457d6] hover:underline">
+            변경사항이 있나요? <ChevronRight size={13} />
+          </Link>
         </section>
-      </div>
-
-      <div className="mt-8 grid gap-3 sm:grid-cols-3">
-        <StatCard label="신청 가능한 정책" value={`${policies.length}개`} detail="지금 조건 기준" tone="blue" />
-        <StatCard label="연결된 정책 혜택" value={linkedTotal > 0 ? `월 ${linkedTotal.toLocaleString()}원` : "0원"} detail="저축플랜에 반영됨" tone="mint" />
-        <StatCard label="안 읽은 추천" value={`${unreadCount}개`} detail="매일 새벽 자동 매칭" tone="violet" />
       </div>
 
       <div className="mt-10 grid gap-8 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,.75fr)]">
@@ -167,7 +168,7 @@ export default function DashboardPage() {
             <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-[13px] font-bold text-slate-400">
               아직 매칭된 정책이 없어요.{" "}
               <Link href="/policy" className="text-[#2457d6]">
-                정책 매칭 하러 가기
+                내 맞춤 정책 보러 가기
               </Link>
             </div>
           ) : (

@@ -7,8 +7,27 @@ from app.auth.service import is_admin_email
 # 학생/직장인 등 직업 구분. 프론트 select와 값이 1:1로 맞아야 한다.
 OccupationType = Literal["student", "employee", "self_employed", "unemployed", "other"]
 
+# 2026-09-01 UPGRADE.md 반영: 확장 프로필 필드용 타입. 전부 선택 입력(None 허용) —
+# 기존 signup/profile 테스트 payload가 이 필드들 없이도 그대로 통과해야 한다.
+MaritalStatusType = Literal["single", "engaged", "newlywed"]
+EmploymentType = Literal["regular", "gig_freelance", "business_owner"]
+HousingStatusType = Literal["homeless_head", "homeless_member", "homeowner"]
 
-class SignupRequest(BaseModel):
+
+class ExtendedProfileFields(BaseModel):
+    marital_status: MaritalStatusType | None = None
+    marriage_years: int | None = None
+    children_count: int | None = None
+    is_pregnant: bool | None = None
+    desired_region: str | None = None
+    employment_type: EmploymentType | None = None
+    is_sme_employee: bool | None = None
+    housing_status: HousingStatusType | None = None
+    net_worth_krw: int | None = None
+    monthly_savings_capacity_krw: int | None = None
+
+
+class SignupRequest(ExtendedProfileFields):
     email: EmailStr
     password: str
     age: int
@@ -36,7 +55,14 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
-class ProfileUpdateRequest(BaseModel):
+class AccountDeleteRequest(BaseModel):
+    # 소셜 전용 계정(hashed_password가 없는)은 확인할 비밀번호가 없으므로 생략 가능 —
+    # 이미 유효한 JWT로 인증됐다는 사실 자체가 본인 확인이다. 로컬(이메일/비밀번호)
+    # 계정은 router에서 이 값을 필수로 검증한다.
+    password: str | None = None
+
+
+class ProfileUpdateRequest(ExtendedProfileFields):
     age: int
     is_married: bool
     annual_income_krw: int
@@ -47,7 +73,7 @@ class ProfileUpdateRequest(BaseModel):
     spouse_occupation: OccupationType | None = None
 
 
-class UserOut(BaseModel):
+class UserOut(ExtendedProfileFields):
     model_config = ConfigDict(from_attributes=True)
 
     id: int

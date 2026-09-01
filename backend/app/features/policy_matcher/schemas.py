@@ -14,6 +14,9 @@ class PolicyMatchInput(BaseModel):
 
 
 class PolicyOption(BaseModel):
+    # "내 맞춤 정책 보기" 탭에서 정책별 챗봇(policy_qa)을 열려면 policy_key가 필요해서
+    # 추가했다(2026-09-01) — 정책별 챗봇은 policy_key로 CachedPolicy를 조회한다.
+    policy_key: str
     policy_name: str
     benefit_description: str
     application_period: str
@@ -63,6 +66,10 @@ class PolicyBrowseItem(BaseModel):
     large_category: str
     status: str
     status_emoji: str
+    # 추천 탭 캘린더가 AI 검색 결과를 날짜별로 배치할 수 있도록 원본 마감일도
+    # 함께 내려준다(status/status_emoji는 이미 계산된 요약값이라 날짜 자체는 없었음).
+    apply_start_ymd: str | None = None
+    apply_end_ymd: str | None = None
 
 
 class PolicyBrowseResponse(BaseModel):

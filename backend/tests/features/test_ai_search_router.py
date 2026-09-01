@@ -282,6 +282,19 @@ def test_ai_search_results_filters_by_query_params(client, db_session):
     assert body["items"][0]["policy_name"] == "서울 정책"
 
 
+def test_ai_search_results_includes_raw_apply_ymd_fields(client, db_session):
+    # 추천 탭 캘린더가 이 검색 결과를 날짜별로 배치하려면 계산된 status뿐 아니라
+    # 원본 마감일도 필요하다.
+    _seed_policy(db_session, policy_name="마감일 있는 정책", apply_start_ymd="20260101", apply_end_ymd="20261231")
+    token = _signup_login(client)
+
+    response = client.get("/policy_chat/ai_search/results", headers={"Authorization": f"Bearer {token}"})
+
+    body = response.json()
+    assert body["items"][0]["apply_start_ymd"] == "20260101"
+    assert body["items"][0]["apply_end_ymd"] == "20261231"
+
+
 def test_ai_search_analyze_requires_auth(client):
     response = client.post("/policy_chat/ai_search/analyze", json={"policy_key": "P1"})
     assert response.status_code == 401
@@ -353,3 +366,39 @@ def test_ai_search_results_paginates(client, db_session):
     assert body["total"] == 12
     assert len(body["items"]) == 2
     assert body["page"] == 2
+
+
+def test_policy_qa_message_requires_auth(client):
+    response = client.post(
+        "/policy_chat/policy_qa/message",
+        json={"policy_key": "P1", "messages": [{"role": "user", "content": "신청 자격이 뭐야?"}]},
+    )
+    assert response.status_code == 401
+
+
+def test_policy_qa_message_returns_404_for_unknown_policy(client):
+    token = _signup_login(client)
+    response = client.post(
+        "/policy_chat/policy_qa/message",
+        json={"policy_key": "does-not-exist", "messages": [{"role": "user", "content": "신청 자격이 뭐야?"}]},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 404
+
+
+def test_policy_qa_message_returns_llm_reply(client, db_session, monkeypatch):
+    policy = _seed_policy(db_session, policy_name="청년 월세 지원")
+    token = _signup_login(client)
+    fake = _FakeProvider([LLMResponse(content="이 정책은 만 19~34세 무주택 청년이 신청할 수 있어요.", tool_calls=[])])
+    monkeypatch.setattr(policy_chat_router, "get_provider", lambda: fake)
+
+    response = client.post(
+        "/policy_chat/policy_qa/message",
+        json={"policy_key": policy.policy_key, "messages": [{"role": "user", "content": "신청 자격이 뭐야?"}]},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    assert response.json()["reply"] == "이 정책은 만 19~34세 무주택 청년이 신청할 수 있어요."
+    assert len(fake.calls) == 1
+    system_message = fake.calls[0][0][0]
+    assert "청년 월세 지원" in system_message.content

@@ -58,6 +58,21 @@ def test_browse_returns_open_policy_by_default(client, db_session):
     assert body["total"] == 1
     assert body["items"][0]["policy_name"] == "상시 정책"
     assert body["items"][0]["status"] == "상시"
+    assert body["items"][0]["apply_start_ymd"] is None
+    assert body["items"][0]["apply_end_ymd"] is None
+
+
+def test_browse_includes_raw_apply_ymd_fields(client, db_session):
+    # 추천 탭 캘린더가 AI 검색 결과를 날짜별로 배치하려면 계산된 status뿐 아니라
+    # 원본 마감일도 필요하다.
+    _seed_cached_policy(db_session, policy_key="P2", policy_name="마감일 있는 정책", apply_start_ymd="20260101", apply_end_ymd="20261231")
+    token = _signup_login(client)
+
+    response = client.get("/policy_matcher/browse", headers={"Authorization": f"Bearer {token}"})
+
+    body = response.json()
+    assert body["items"][0]["apply_start_ymd"] == "20260101"
+    assert body["items"][0]["apply_end_ymd"] == "20261231"
 
 
 def test_browse_excludes_closed_policy_by_default(client, db_session):

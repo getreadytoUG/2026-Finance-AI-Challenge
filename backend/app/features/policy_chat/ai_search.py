@@ -61,6 +61,8 @@ def search_policies(
             large_category=", ".join(category_tags(row.large_category)) or "기타",
             status=status,
             status_emoji=emoji,
+            apply_start_ymd=row.apply_start_ymd,
+            apply_end_ymd=row.apply_end_ymd,
         )
         for row, status, emoji in page_rows
     ]

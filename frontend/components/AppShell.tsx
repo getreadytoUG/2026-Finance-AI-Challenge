@@ -10,29 +10,34 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   BarChart3,
   Bell,
-  ChevronRight,
   ClipboardList,
   FolderOpen,
+  Heart,
   Home,
   LogOut,
   PiggyBank,
   Search,
   Settings,
-  Sparkles,
   Users,
   X,
 } from "lucide-react";
 import { BrandMark } from "./BrandMark";
 import { SiteHeader } from "./SiteHeader";
 import ChatWidget from "./ChatWidget";
-import { getMe, getRecommendations, isTokenExpired, listSavingsLinkedBenefits } from "@/lib/api";
+import { getMe, getRecommendations, isTokenExpired } from "@/lib/api";
 
+// 2026-09-01 UPGRADE.md 반영: "AI 분석 리포트"는 독립 탭이 아니라 "정책 달력" 안의
+// "AI 정책 검색" 기능으로 흡수됐다(RecommendationCalendar 옆 세 번째 서브탭 참고) —
+// 그래서 여기 더 이상 /ai-search 항목이 없다. "저축플랜"은 정책연계형 저축/주거
+// 시뮬레이터로 내용이 바뀌었을 뿐 탭 자체는 되살아났다. "정책 매칭"이라는 상위
+// 탭도 폐기되고, 그 아래 있던 두 기능이 각자 독립 탭으로 분리됐다(같은 날 사용자
+// 재지시) — "내 맞춤 정책 보기"(/policy)와 "혼인신고 계산기"(/marriage).
 const NAV_ITEMS = [
   { href: "/dashboard", label: "한눈에 보기", icon: Home },
-  { href: "/policy", label: "정책 매칭", icon: Search },
-  { href: "/ai-search", label: "AI 분석 리포트", icon: Sparkles },
+  { href: "/policy", label: "내 맞춤 정책 보기", icon: Search },
+  { href: "/marriage", label: "혼인신고 계산기", icon: Heart },
   { href: "/savings", label: "저축플랜", icon: PiggyBank },
-  { href: "/recommendations", label: "추천", icon: Bell },
+  { href: "/recommendations", label: "정책 달력", icon: Bell },
 ];
 
 const ADMIN_NAV_ITEMS = [
@@ -47,7 +52,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [userLabel, setUserLabel] = useState("");
   const [unreadCount, setUnreadCount] = useState(0);
-  const [linkedTotal, setLinkedTotal] = useState(0);
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
@@ -95,14 +99,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [ready]);
 
   useEffect(() => {
-    if (!ready) return;
-    const token = localStorage.getItem("token") ?? "";
-    listSavingsLinkedBenefits(token)
-      .then((res) => setLinkedTotal(res.total_monthly_benefit_krw))
-      .catch(() => {});
-  }, [ready]);
-
-  useEffect(() => {
     const toggle = () => setOpen((value) => !value);
     window.addEventListener("toggle-sidebar", toggle);
     return () => window.removeEventListener("toggle-sidebar", toggle);
@@ -117,7 +113,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const navItems = isAdmin ? ADMIN_NAV_ITEMS : NAV_ITEMS;
   const homeHref = isAdmin ? "/admin" : "/dashboard";
-  const showChatWidget = !isAdmin && pathname !== "/ai-search";
+  // 정책 달력 페이지엔 이미 챗봇이 내장돼 있다(캘린더 탭의 범용 챗봇 + AI 정책
+  // 검색 탭의 정책별 챗봇) — 떠다니는 ChatWidget까지 겹치면 중복이라 숨긴다.
+  const showChatWidget = !isAdmin && pathname !== "/recommendations";
 
   return (
     <div className="app-shell min-h-screen bg-[#f7f9fc] text-ink">
@@ -175,21 +173,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </>
         )}
         <div className="mt-auto">
-          {!isAdmin && linkedTotal > 0 && (
-            <div className="mb-5 rounded-2xl bg-[#f5f8fd] p-4">
-              <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-[10px] bg-[#e2edff] text-[#2457d6]">
-                <PiggyBank size={16} />
-              </div>
-              <p className="text-[12px] font-extrabold leading-5 text-ink">
-                저축플랜에 반영된 정책 혜택
-                <br />
-                <span className="text-[#2457d6]">월 {linkedTotal.toLocaleString()}원</span>
-              </p>
-              <Link href="/savings" className="mt-3 flex items-center justify-between text-[11px] font-bold text-slate-500 hover:text-[#2457d6]">
-                저축플랜 보기 <ChevronRight size={13} />
-              </Link>
-            </div>
-          )}
           <button className="flex items-center gap-3 px-3 text-[12px] font-bold text-slate-400 hover:text-slate-600" onClick={handleLogout}>
             <LogOut size={16} strokeWidth={1.8} />
             로그아웃

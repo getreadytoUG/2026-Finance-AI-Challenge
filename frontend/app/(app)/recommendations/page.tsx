@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Bell, Clock } from "lucide-react";
 import { getMe, getRecommendations, markRecommendationRead, refreshRecommendations, updateProfile } from "@/lib/api";
 import type { Recommendation, UserProfile } from "@/lib/api";
@@ -10,6 +11,7 @@ import Pagination from "@/components/Pagination";
 import PolicyDetailLink from "@/components/PolicyDetailLink";
 import StatusPill from "@/components/StatusPill";
 import RecommendationCalendar from "@/components/RecommendationCalendar";
+import AiPolicySearchSection from "@/components/AiPolicySearchSection";
 
 const PAGE_SIZE = 10;
 
@@ -34,7 +36,12 @@ export default function RecommendationsPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
-  const [view, setView] = useState<"calendar" | "list">("calendar");
+  const searchParams = useSearchParams();
+  // 대시보드의 "AI 정책 검색 →" 딥링크가 캘린더가 아니라 바로 이 서브탭으로
+  // 떨어지도록 ?view=ai_search 쿼리를 초기값으로 반영한다.
+  const [view, setView] = useState<"calendar" | "list" | "ai_search">(
+    searchParams.get("view") === "ai_search" ? "ai_search" : "calendar"
+  );
 
   async function loadProfileAndRecommendations() {
     const token = localStorage.getItem("token") ?? "";
@@ -103,8 +110,8 @@ export default function RecommendationsPage() {
 
   return (
     <DashboardLayout
-      eyebrow="RECOMMENDATIONS"
-      title="맞춤 추천"
+      eyebrow="POLICY CALENDAR"
+      title="정책 달력"
       action={
         hasCompleteProfile(profile) ? (
           <button
@@ -225,10 +232,18 @@ export default function RecommendationsPage() {
                 >
                   리스트
                 </button>
+                <button
+                  onClick={() => setView("ai_search")}
+                  className={`rounded-lg px-4 py-2.5 text-[12px] font-extrabold transition ${view === "ai_search" ? "bg-white text-[#2457d6] shadow-sm" : "text-slate-500"}`}
+                >
+                  AI 정책 검색
+                </button>
               </div>
 
               {view === "calendar" ? (
-                <RecommendationCalendar recommendations={recommendations} />
+                <RecommendationCalendar />
+              ) : view === "ai_search" ? (
+                <AiPolicySearchSection />
               ) : (
                 <>
                   <div className="grid gap-3">

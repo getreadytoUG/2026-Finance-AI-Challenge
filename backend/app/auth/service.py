@@ -5,6 +5,18 @@ from sqlalchemy.orm import Session
 from app.auth.models import User
 from app.core.config import settings
 from app.core.security import hash_password, verify_password
+from app.features.policy_matcher.models import PolicyRecommendation
+from app.features.savings_planner.models import SavingsLinkedBenefit
+
+
+def derive_is_married(marital_status: str | None, explicit_is_married: bool | None) -> bool | None:
+    # marital_status(미혼/예비부부/신혼부부)가 주어지면 그걸 우선한다 — "예비부부"는
+    # 아직 혼인신고 전이라 정책 매칭 로직(is_married 기준) 상으로는 미혼과 동일하게
+    # 취급해야 한다. marital_status가 없으면(구버전 클라이언트, 관리자 등) 기존처럼
+    # is_married 값을 그대로 쓴다.
+    if marital_status is not None:
+        return marital_status == "newlywed"
+    return explicit_is_married
 
 
 def create_user(
@@ -20,6 +32,16 @@ def create_user(
     spouse_age: int | None = None,
     spouse_annual_income_krw: int | None = None,
     spouse_occupation: str | None = None,
+    marital_status: str | None = None,
+    marriage_years: int | None = None,
+    children_count: int | None = None,
+    is_pregnant: bool | None = None,
+    desired_region: str | None = None,
+    employment_type: str | None = None,
+    is_sme_employee: bool | None = None,
+    housing_status: str | None = None,
+    net_worth_krw: int | None = None,
+    monthly_savings_capacity_krw: int | None = None,
 ) -> User:
     existing = db.query(User).filter(User.email == email).first()
     if existing is not None:
@@ -28,13 +50,23 @@ def create_user(
         email=email,
         hashed_password=hash_password(password),
         age=age,
-        is_married=is_married,
+        is_married=derive_is_married(marital_status, is_married),
         annual_income_krw=annual_income_krw,
         region=region,
         occupation=occupation,
         spouse_age=spouse_age,
         spouse_annual_income_krw=spouse_annual_income_krw,
         spouse_occupation=spouse_occupation,
+        marital_status=marital_status,
+        marriage_years=marriage_years,
+        children_count=children_count,
+        is_pregnant=is_pregnant,
+        desired_region=desired_region,
+        employment_type=employment_type,
+        is_sme_employee=is_sme_employee,
+        housing_status=housing_status,
+        net_worth_krw=net_worth_krw,
+        monthly_savings_capacity_krw=monthly_savings_capacity_krw,
         created_at=datetime.now(timezone.utc),
     )
     db.add(user)
@@ -125,6 +157,17 @@ def get_or_create_social_user(
     db.commit()
     db.refresh(user)
     return user, True
+
+
+def delete_user(db: Session, user: User) -> None:
+    # 이 코드베이스는 ORM relationship/cascade를 쓰지 않고 전부 명시적 쿼리로
+    # 처리한다(모델 파일 어디에도 relationship() 호출이 없음) — 그래서 회원탈퇴 시
+    # user_id로 이 유저를 참조하는 다른 feature의 테이블도 여기서 직접 지워야 한다.
+    # 새 per-user 테이블이 생기면 이 목록도 같이 갱신해야 한다.
+    db.query(PolicyRecommendation).filter(PolicyRecommendation.user_id == user.id).delete()
+    db.query(SavingsLinkedBenefit).filter(SavingsLinkedBenefit.user_id == user.id).delete()
+    db.delete(user)
+    db.commit()
 
 
 def email_exists(db: Session, email: str) -> bool:

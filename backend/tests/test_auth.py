@@ -231,3 +231,188 @@ def test_me_reflects_profile_after_update(client):
     assert response.json()["region"] == "부산"
 
 
+def test_delete_account_requires_auth(client):
+    response = client.request("DELETE", "/auth/me", json={"password": "secret123"})
+    assert response.status_code == 401
+
+
+def test_delete_account_rejects_wrong_password(client):
+    client.post("/auth/signup", json=_signup_payload("wrong-pw-delete@example.com"))
+    login = client.post("/auth/login", json={"email": "wrong-pw-delete@example.com", "password": "secret123"})
+    token = login.json()["access_token"]
+
+    response = client.request(
+        "DELETE",
+        "/auth/me",
+        json={"password": "not-the-password"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 403
+
+    # 삭제 안 됐으니 여전히 로그인 가능해야 한다.
+    relogin = client.post("/auth/login", json={"email": "wrong-pw-delete@example.com", "password": "secret123"})
+    assert relogin.status_code == 200
+
+
+def test_delete_account_rejects_missing_password(client):
+    client.post("/auth/signup", json=_signup_payload("missing-pw-delete@example.com"))
+    login = client.post("/auth/login", json={"email": "missing-pw-delete@example.com", "password": "secret123"})
+    token = login.json()["access_token"]
+
+    response = client.request("DELETE", "/auth/me", json={}, headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 403
+
+
+def test_delete_account_with_correct_password_removes_user_and_data(client, db_session):
+    from app.auth.models import User
+    from app.features.policy_matcher.models import CachedPolicy, PolicyRecommendation
+    from app.features.savings_planner.models import SavingsLinkedBenefit
+    from datetime import datetime, timezone
+
+    signup = client.post("/auth/signup", json=_signup_payload("delete-me@example.com"))
+    user_id = signup.json()["id"]
+    login = client.post("/auth/login", json={"email": "delete-me@example.com", "password": "secret123"})
+    token = login.json()["access_token"]
+
+    # 이 유저를 참조하는 다른 feature 테이블에도 데이터를 남겨서, 탈퇴 시 같이
+    # 지워지는지 검증한다.
+    db_session.add(
+        CachedPolicy(
+            policy_key="DEL-P1",
+            policy_name="테스트 정책",
+            description="설명",
+            apply_url="https://example.com",
+            application_period="상시",
+            large_category="기타",
+            mid_category="",
+            marital_status="",
+            region_code="",
+            refreshed_at=datetime.now(timezone.utc),
+        )
+    )
+    db_session.add(
+        PolicyRecommendation(
+            user_id=user_id,
+            policy_key="DEL-P1",
+            policy_name="테스트 정책",
+            benefit_description="설명",
+            application_period="상시",
+            reference_url="https://example.com",
+            matched_at=datetime.now(timezone.utc),
+        )
+    )
+    db_session.add(
+        SavingsLinkedBenefit(
+            user_id=user_id,
+            policy_key="DEL-P1",
+            policy_name="테스트 정책",
+            estimated_monthly_benefit_krw=100_000,
+            linked_at=datetime.now(timezone.utc),
+        )
+    )
+    db_session.commit()
+
+    response = client.request(
+        "DELETE",
+        "/auth/me",
+        json={"password": "secret123"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 204
+
+    assert db_session.query(User).filter(User.id == user_id).first() is None
+    assert db_session.query(PolicyRecommendation).filter(PolicyRecommendation.user_id == user_id).count() == 0
+    assert db_session.query(SavingsLinkedBenefit).filter(SavingsLinkedBenefit.user_id == user_id).count() == 0
+
+    # 탈퇴 후엔 같은 이메일로 다시 로그인할 수 없어야 한다.
+    relogin = client.post("/auth/login", json={"email": "delete-me@example.com", "password": "secret123"})
+    assert relogin.status_code == 401
+
+
+def test_signup_stores_extended_profile_fields(client):
+    response = client.post(
+        "/auth/signup",
+        json=_signup_payload(
+            "extended@example.com",
+            marital_status="newlywed",
+            marriage_years=1,
+            children_count=0,
+            is_pregnant=False,
+            desired_region="경기",
+            employment_type="regular",
+            is_sme_employee=True,
+            housing_status="homeless_head",
+            net_worth_krw=50_000_000,
+            monthly_savings_capacity_krw=1_000_000,
+        ),
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert body["marital_status"] == "newlywed"
+    assert body["marriage_years"] == 1
+    assert body["desired_region"] == "경기"
+    assert body["employment_type"] == "regular"
+    assert body["is_sme_employee"] is True
+    assert body["housing_status"] == "homeless_head"
+    assert body["net_worth_krw"] == 50_000_000
+    assert body["monthly_savings_capacity_krw"] == 1_000_000
+    # marital_status가 있으면 is_married는 marital_status에서 파생된다("newlywed" → True).
+    assert body["is_married"] is True
+
+
+def test_signup_without_extended_fields_defaults_to_null(client):
+    response = client.post("/auth/signup", json=_signup_payload("no-extended@example.com"))
+    assert response.status_code == 201
+    body = response.json()
+    assert body["marital_status"] is None
+    assert body["net_worth_krw"] is None
+    # marital_status가 없으면 기존 is_married 값을 그대로 쓴다(하위 호환).
+    assert body["is_married"] is False
+
+
+def test_signup_marital_status_engaged_keeps_is_married_false(client):
+    # "예비부부"는 아직 혼인신고 전이라 정책 매칭 상으로는 미혼과 동일하게 취급한다.
+    response = client.post(
+        "/auth/signup",
+        json=_signup_payload("engaged@example.com", is_married=True, marital_status="engaged"),
+    )
+    assert response.status_code == 201
+    assert response.json()["is_married"] is False
+
+
+def test_update_profile_sets_extended_fields(client):
+    client.post("/auth/signup", json=_signup_payload("extended-update@example.com"))
+    login = client.post(
+        "/auth/login", json={"email": "extended-update@example.com", "password": "secret123"}
+    )
+    token = login.json()["access_token"]
+    response = client.put(
+        "/auth/profile",
+        json=_profile_payload(
+            marital_status="engaged",
+            children_count=1,
+            housing_status="homeowner",
+        ),
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["marital_status"] == "engaged"
+    assert body["children_count"] == 1
+    assert body["housing_status"] == "homeowner"
+    assert body["is_married"] is False
+
+
+def test_delete_account_allows_social_only_user_without_password(client, db_session):
+    from app.auth.service import get_or_create_social_user
+    from app.core.security import create_access_token
+
+    user, _created = get_or_create_social_user(
+        db_session, provider="kakao", provider_user_id="social-delete-1", email="social-delete@example.com"
+    )
+    token = create_access_token(subject=str(user.id))
+
+    response = client.request("DELETE", "/auth/me", json={}, headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 204
+
+

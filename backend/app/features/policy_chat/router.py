@@ -9,7 +9,7 @@ from app.auth.models import User
 from app.auth.router import get_current_user
 from app.core.db import get_db
 from app.features.policy_chat.ai_search import FILTER_DELTA_SPEC, search_policies
-from app.features.policy_chat.analysis import generate_policy_report
+from app.features.policy_chat.analysis import _policy_text, _profile_text, generate_policy_report
 from app.features.policy_chat.schemas import (
     AiSearchMessageRequest,
     AiSearchMessageResponse,
@@ -19,6 +19,8 @@ from app.features.policy_chat.schemas import (
     PolicyAnalysisRequest,
     PolicyAnalysisResponse,
     PolicyChatSearchInput,
+    PolicyQaRequest,
+    PolicyQaResponse,
 )
 from app.features.policy_chat.tool import TOOL_SPEC
 from app.features.policy_matcher.categories import PolicyCategoryTag
@@ -294,3 +296,38 @@ def analyze_ai_search_policy(
         raise
     except Exception as e:
         _raise_as_http_500("/policy_chat/ai_search/analyze", f" for user_id={current_user.id}", e)
+
+
+def _build_policy_qa_system_prompt(user: User, policy: CachedPolicy) -> str:
+    return (
+        "당신은 청년/신혼부부를 위한 정책 QA 도우미입니다. 사용자는 지금 아래 정책 하나를 보고 "
+        "있고, 이 정책에 대해서만 질문합니다. 아래 정책 정보에 근거해 친절한 한국어로 답변하세요. "
+        "정책 정보에 없는 내용은 추측해서 지어내지 말고 모른다고 솔직히 답하세요. 사용자 프로필을 "
+        "참고해 자격 여부, 준비할 서류 같은 개인화된 조언도 자연스럽게 곁들이세요.\n\n"
+        f"[정책 정보]\n{_policy_text(policy)}\n\n"
+        f"[사용자 프로필]\n{_profile_text(user)}"
+    )
+
+
+@router.post("/policy_qa/message", response_model=PolicyQaResponse)
+def send_policy_qa_message(
+    payload: PolicyQaRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        policy = db.query(CachedPolicy).filter(CachedPolicy.policy_key == payload.policy_key).first()
+        if policy is None:
+            raise HTTPException(status_code=404, detail="정책을 찾을 수 없습니다.")
+
+        provider = get_provider()
+        history = payload.messages[-MAX_HISTORY:]
+        messages = [Message(role="system", content=_build_policy_qa_system_prompt(current_user, policy))] + [
+            Message(role=m.role, content=m.content) for m in history
+        ]
+        response = provider.chat(messages, tools=[])
+        return PolicyQaResponse(reply=response.content or "")
+    except HTTPException:
+        raise
+    except Exception as e:
+        _raise_as_http_500("/policy_chat/policy_qa/message", f" for user_id={current_user.id}", e)

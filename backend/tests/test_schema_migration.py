@@ -70,3 +70,20 @@ def test_noop_on_current_schema():
 def test_noop_when_users_table_absent():
     engine = create_engine("sqlite://", poolclass=StaticPool)
     ensure_schema(engine)  # 예외 없이 그냥 리턴
+
+
+def test_adds_extended_profile_columns():
+    engine = _legacy_users_engine()
+    ensure_schema(engine)
+    assert {
+        "marital_status",
+        "marriage_years",
+        "children_count",
+        "is_pregnant",
+        "desired_region",
+        "employment_type",
+        "is_sme_employee",
+        "housing_status",
+        "net_worth_krw",
+        "monthly_savings_capacity_krw",
+    } <= _columns(engine)

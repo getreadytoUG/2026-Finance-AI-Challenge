@@ -8,7 +8,18 @@ import { signup, login, checkEmailAvailable } from "@/lib/api";
 import PasswordField from "@/components/PasswordField";
 import SocialLoginButtons from "@/components/SocialLoginButtons";
 import { BrandMark } from "@/components/BrandMark";
-import { OCCUPATION_OPTIONS, REGIONS, manwonToKrw, type OccupationType } from "@/lib/profileOptions";
+import {
+  EMPLOYMENT_TYPE_OPTIONS,
+  HOUSING_STATUS_OPTIONS,
+  MARITAL_STATUS_OPTIONS,
+  OCCUPATION_OPTIONS,
+  REGIONS,
+  manwonToKrw,
+  type EmploymentType,
+  type HousingStatusType,
+  type MaritalStatusType,
+  type OccupationType,
+} from "@/lib/profileOptions";
 
 function pillClass(active: boolean) {
   return `rounded-lg px-3.5 py-2 text-[11px] font-extrabold transition ${
@@ -23,10 +34,22 @@ export default function SignupPage() {
   const [income, setIncome] = useState("");
   const [occupation, setOccupation] = useState<OccupationType | "">("");
   const [region, setRegion] = useState<string | null>(null);
-  const [isMarried, setIsMarried] = useState(false);
   const [spouseAge, setSpouseAge] = useState("");
   const [spouseIncome, setSpouseIncome] = useState("");
   const [spouseOccupation, setSpouseOccupation] = useState<OccupationType | "">("");
+  // 2026-09-01 UPGRADE.md 반영: 확장 프로필 필드. 전부 선택 입력이라 미입력이어도
+  // 제출을 막지 않는다(아래 disabled 조건에 안 들어감).
+  const [maritalStatus, setMaritalStatus] = useState<MaritalStatusType | "">("");
+  const [marriageYears, setMarriageYears] = useState("");
+  const [childrenCount, setChildrenCount] = useState("");
+  const [isPregnant, setIsPregnant] = useState(false);
+  const [desiredRegion, setDesiredRegion] = useState<string | null>(null);
+  const [employmentType, setEmploymentType] = useState<EmploymentType | "">("");
+  const [isSmeEmployee, setIsSmeEmployee] = useState(false);
+  const [housingStatus, setHousingStatus] = useState<HousingStatusType | "">("");
+  const [netWorth, setNetWorth] = useState("");
+  const [monthlySavings, setMonthlySavings] = useState("");
+  const isMarried = maritalStatus === "engaged" || maritalStatus === "newlywed";
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [emailCheckStatus, setEmailCheckStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
@@ -54,13 +77,23 @@ export default function SignupPage() {
         email,
         password,
         age: Number(age),
-        is_married: isMarried,
+        is_married: maritalStatus === "newlywed",
         annual_income_krw: manwonToKrw(Number(income)),
         region,
         occupation,
         spouse_age: isMarried && spouseAge ? Number(spouseAge) : null,
         spouse_annual_income_krw: isMarried && spouseIncome ? manwonToKrw(Number(spouseIncome)) : null,
         spouse_occupation: isMarried && spouseOccupation ? spouseOccupation : null,
+        marital_status: maritalStatus || null,
+        marriage_years: maritalStatus === "newlywed" && marriageYears ? Number(marriageYears) : null,
+        children_count: childrenCount ? Number(childrenCount) : null,
+        is_pregnant: isPregnant,
+        desired_region: desiredRegion,
+        employment_type: employmentType || null,
+        is_sme_employee: isSmeEmployee,
+        housing_status: housingStatus || null,
+        net_worth_krw: netWorth ? manwonToKrw(Number(netWorth)) : null,
+        monthly_savings_capacity_krw: monthlySavings ? manwonToKrw(Number(monthlySavings)) : null,
       });
       const token = await login(email, password);
       localStorage.setItem("token", token);
@@ -150,59 +183,41 @@ export default function SignupPage() {
             </label>
             <PasswordField label="비밀번호" value={password} onChange={setPassword} />
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="grid gap-2 text-[12px] font-extrabold text-slate-700">
-                나이
-                <input
-                  type="number"
-                  min={0}
-                  placeholder="29"
-                  value={age}
-                  onChange={(e) => setAge(e.target.value)}
-                  required
-                  className="h-12 rounded-xl border border-slate-200 px-4 text-[13px] font-semibold outline-none focus:border-[#2457d6] focus:ring-4 focus:ring-[#2457d6]/10"
-                />
-              </label>
-              <label className="grid gap-2 text-[12px] font-extrabold text-slate-700">
-                연소득 (만원)
-                <input
-                  type="number"
-                  min={0}
-                  placeholder="4000"
-                  value={income}
-                  onChange={(e) => setIncome(e.target.value)}
-                  required
-                  className="h-12 rounded-xl border border-slate-200 px-4 text-[13px] font-semibold outline-none focus:border-[#2457d6] focus:ring-4 focus:ring-[#2457d6]/10"
-                />
-              </label>
-            </div>
+            {/* 기본 인적사항 */}
+            <div className="border-t border-slate-100 pt-5 text-[11px] font-extrabold uppercase tracking-[.1em] text-slate-400">기본 인적사항</div>
+            <label className="grid gap-2 text-[12px] font-extrabold text-slate-700">
+              나이
+              <input
+                type="number"
+                min={0}
+                placeholder="29"
+                value={age}
+                onChange={(e) => setAge(e.target.value)}
+                required
+                className="h-12 rounded-xl border border-slate-200 px-4 text-[13px] font-semibold outline-none focus:border-[#2457d6] focus:ring-4 focus:ring-[#2457d6]/10"
+              />
+            </label>
 
             <div>
-              <div className="mb-2 text-[12px] font-extrabold text-slate-700">직업 구분</div>
+              <div className="mb-2 text-[12px] font-extrabold text-slate-700">혼인 여부</div>
               <div className="flex flex-wrap gap-2">
-                {OCCUPATION_OPTIONS.map((o) => (
-                  <button key={o.value} type="button" className={pillClass(occupation === o.value)} onClick={() => setOccupation(o.value)}>
+                {MARITAL_STATUS_OPTIONS.map((o) => (
+                  <button key={o.value} type="button" className={pillClass(maritalStatus === o.value)} onClick={() => setMaritalStatus(o.value)}>
                     {o.label}
                   </button>
                 ))}
               </div>
+              {maritalStatus === "newlywed" && (
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="신혼 몇 년차인가요? (예: 1)"
+                  value={marriageYears}
+                  onChange={(e) => setMarriageYears(e.target.value)}
+                  className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-4 text-[13px] font-semibold outline-none focus:border-[#2457d6]"
+                />
+              )}
             </div>
-
-            <div>
-              <div className="mb-2 text-[12px] font-extrabold text-slate-700">지역</div>
-              <div className="flex flex-wrap gap-2">
-                {REGIONS.map((r) => (
-                  <button key={r} type="button" className={pillClass(region === r)} onClick={() => setRegion(r)}>
-                    {r}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <label className="flex items-center gap-2 text-[13px] font-bold text-slate-700">
-              <input type="checkbox" checked={isMarried} onChange={(e) => setIsMarried(e.target.checked)} className="h-4 w-4 accent-[#2457d6]" />
-              기혼
-            </label>
 
             {isMarried && (
               <div className="rounded-xl bg-[#f5f8fd] p-4">
@@ -244,6 +259,125 @@ export default function SignupPage() {
                 </div>
               </div>
             )}
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="grid gap-2 text-[12px] font-extrabold text-slate-700">
+                자녀 수
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="0"
+                  value={childrenCount}
+                  onChange={(e) => setChildrenCount(e.target.value)}
+                  className="h-12 rounded-xl border border-slate-200 px-4 text-[13px] font-semibold outline-none focus:border-[#2457d6] focus:ring-4 focus:ring-[#2457d6]/10"
+                />
+              </label>
+              <label className="flex items-center gap-2 self-end pb-1 text-[13px] font-bold text-slate-700">
+                <input type="checkbox" checked={isPregnant} onChange={(e) => setIsPregnant(e.target.checked)} className="h-4 w-4 accent-[#2457d6]" />
+                임신 중이에요
+              </label>
+            </div>
+
+            <div>
+              <div className="mb-2 text-[12px] font-extrabold text-slate-700">거주 지역</div>
+              <div className="flex flex-wrap gap-2">
+                {REGIONS.map((r) => (
+                  <button key={r} type="button" className={pillClass(region === r)} onClick={() => setRegion(r)}>
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="mb-2 text-[12px] font-extrabold text-slate-700">희망 지역 (선택, 거주 지역과 다를 경우)</div>
+              <div className="flex flex-wrap gap-2">
+                {REGIONS.map((r) => (
+                  <button key={r} type="button" className={pillClass(desiredRegion === r)} onClick={() => setDesiredRegion(desiredRegion === r ? null : r)}>
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 소득 및 직업 */}
+            <div className="border-t border-slate-100 pt-5 text-[11px] font-extrabold uppercase tracking-[.1em] text-slate-400">소득 및 직업</div>
+            <label className="grid gap-2 text-[12px] font-extrabold text-slate-700">
+              연소득 (만원)
+              <input
+                type="number"
+                min={0}
+                placeholder="4000"
+                value={income}
+                onChange={(e) => setIncome(e.target.value)}
+                required
+                className="h-12 rounded-xl border border-slate-200 px-4 text-[13px] font-semibold outline-none focus:border-[#2457d6] focus:ring-4 focus:ring-[#2457d6]/10"
+              />
+            </label>
+
+            <div>
+              <div className="mb-2 text-[12px] font-extrabold text-slate-700">직업 구분</div>
+              <div className="flex flex-wrap gap-2">
+                {OCCUPATION_OPTIONS.map((o) => (
+                  <button key={o.value} type="button" className={pillClass(occupation === o.value)} onClick={() => setOccupation(o.value)}>
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="mb-2 text-[12px] font-extrabold text-slate-700">근로 형태 (선택)</div>
+              <div className="flex flex-wrap gap-2">
+                {EMPLOYMENT_TYPE_OPTIONS.map((o) => (
+                  <button key={o.value} type="button" className={pillClass(employmentType === o.value)} onClick={() => setEmploymentType(o.value)}>
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <label className="flex items-center gap-2 text-[13px] font-bold text-slate-700">
+              <input type="checkbox" checked={isSmeEmployee} onChange={(e) => setIsSmeEmployee(e.target.checked)} className="h-4 w-4 accent-[#2457d6]" />
+              중소기업 재직 중이에요
+            </label>
+
+            {/* 자산 및 주거 */}
+            <div className="border-t border-slate-100 pt-5 text-[11px] font-extrabold uppercase tracking-[.1em] text-slate-400">자산 및 주거</div>
+            <div>
+              <div className="mb-2 text-[12px] font-extrabold text-slate-700">무주택 여부 (선택)</div>
+              <div className="flex flex-wrap gap-2">
+                {HOUSING_STATUS_OPTIONS.map((o) => (
+                  <button key={o.value} type="button" className={pillClass(housingStatus === o.value)} onClick={() => setHousingStatus(o.value)}>
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="grid gap-2 text-[12px] font-extrabold text-slate-700">
+                순자산 (만원, 선택)
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="부동산·금융자산 합산"
+                  value={netWorth}
+                  onChange={(e) => setNetWorth(e.target.value)}
+                  className="h-12 rounded-xl border border-slate-200 px-4 text-[13px] font-semibold outline-none focus:border-[#2457d6] focus:ring-4 focus:ring-[#2457d6]/10"
+                />
+              </label>
+              <label className="grid gap-2 text-[12px] font-extrabold text-slate-700">
+                월 저축 가능 여력 (만원, 선택)
+                <input
+                  type="number"
+                  min={0}
+                  value={monthlySavings}
+                  onChange={(e) => setMonthlySavings(e.target.value)}
+                  className="h-12 rounded-xl border border-slate-200 px-4 text-[13px] font-semibold outline-none focus:border-[#2457d6] focus:ring-4 focus:ring-[#2457d6]/10"
+                />
+              </label>
+            </div>
 
             <div className="flex items-start gap-2 rounded-xl bg-[#f5f8fd] p-3.5 text-[11px] leading-5 text-slate-500">
               <CircleHelp size={15} className="mt-0.5 shrink-0 text-[#2457d6]" />

@@ -1,4 +1,19 @@
-import type { OccupationType } from "@/lib/profileOptions";
+import type { EmploymentType, HousingStatusType, MaritalStatusType, OccupationType } from "@/lib/profileOptions";
+
+// 2026-09-01 UPGRADE.md 반영: 확장 프로필 필드. 전부 선택 입력 — 안 채워도 로그인/
+// 매칭에 영향 없음(백엔드도 전부 nullable).
+export type ExtendedProfileFields = {
+  marital_status?: MaritalStatusType | null;
+  marriage_years?: number | null;
+  children_count?: number | null;
+  is_pregnant?: boolean | null;
+  desired_region?: string | null;
+  employment_type?: EmploymentType | null;
+  is_sme_employee?: boolean | null;
+  housing_status?: HousingStatusType | null;
+  net_worth_krw?: number | null;
+  monthly_savings_capacity_krw?: number | null;
+};
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
 
@@ -102,7 +117,7 @@ export type UserProfile = {
   spouse_annual_income_krw: number | null;
   spouse_occupation: OccupationType | null;
   is_admin: boolean;
-};
+} & ExtendedProfileFields;
 
 export type ProfileInput = {
   age: number;
@@ -113,7 +128,7 @@ export type ProfileInput = {
   spouse_age?: number | null;
   spouse_annual_income_krw?: number | null;
   spouse_occupation?: OccupationType | null;
-};
+} & ExtendedProfileFields;
 
 export type Recommendation = {
   id: number;
@@ -189,6 +204,13 @@ export async function updateProfile(token: string, profile: ProfileInput): Promi
   return res.json();
 }
 
+export async function deleteAccount(token: string, password?: string): Promise<void> {
+  await authedFetch("/auth/me", token, {
+    method: "DELETE",
+    body: JSON.stringify({ password: password ?? null }),
+  });
+}
+
 export async function getRecommendations(token: string): Promise<RecommendationListResponse> {
   const res = await authedFetch("/policy_matcher/recommendations", token);
   return res.json();
@@ -212,6 +234,8 @@ export type PolicyBrowseItem = {
   large_category: string;
   status: string;
   status_emoji: string;
+  apply_start_ymd: string | null;
+  apply_end_ymd: string | null;
 };
 
 export type PolicyBrowseResponse = {
@@ -417,43 +441,81 @@ export async function analyzePolicy(token: string, policyKey: string): Promise<P
   return res.json();
 }
 
-export type LinkedBenefit = {
-  id: number;
-  policy_key: string;
-  policy_name: string;
-  estimated_monthly_benefit_krw: number;
-  linked_at: string;
-};
+export type PolicyQaMessage = { role: "user" | "assistant"; content: string };
 
-export type LinkedBenefitListResponse = {
-  items: LinkedBenefit[];
-  total_monthly_benefit_krw: number;
-};
-
-export async function listSavingsLinkedBenefits(token: string): Promise<LinkedBenefitListResponse> {
-  const res = await authedFetch("/savings_planner/linked_benefits", token);
-  return res.json();
-}
-
-export async function linkSavingsBenefit(
+// 정책별 챗봇: 사용자가 지금 보고 있는 정책 하나에 대해서만 자유롭게 질문한다
+// (sendAiSearchMessage와 달리 필터를 바꾸지 않고, 정책 문서를 프롬프트로 넣은
+// 순수 Q&A).
+export async function sendPolicyQaMessage(
   token: string,
   policyKey: string,
-  policyName: string,
-  estimatedMonthlyBenefitKrw: number
-): Promise<LinkedBenefit> {
-  const res = await authedFetch("/savings_planner/linked_benefits", token, {
+  messages: PolicyQaMessage[]
+): Promise<{ reply: string }> {
+  const res = await authedFetch("/policy_chat/policy_qa/message", token, {
     method: "POST",
-    body: JSON.stringify({
-      policy_key: policyKey,
-      policy_name: policyName,
-      estimated_monthly_benefit_krw: estimatedMonthlyBenefitKrw,
-    }),
+    body: JSON.stringify({ policy_key: policyKey, messages }),
   });
   return res.json();
 }
 
-export async function unlinkSavingsBenefit(token: string, id: number): Promise<void> {
-  await authedFetch(`/savings_planner/linked_benefits/${id}`, token, { method: "DELETE" });
+// 2026-09-01 UPGRADE.md 반영: 저축플랜 → 정책연계형 시뮬레이터. ⚠️ 백엔드 계산에
+// 쓰인 매칭비율/금리/LTV는 전부 예시 수치 — 프론트도 결과 카드에 이 사실을 항상
+// 표시한다(simulator.py 상단 주석 참고).
+export type YouthLeapAccountInput = {
+  monthly_amount_krw: number;
+  goal_years: 3 | 5;
+  annual_income_krw: number;
+  seed_money_krw?: number;
+};
+
+export type YouthLeapAccountOutput = {
+  eligible: boolean;
+  matching_rate: number;
+  eligibility_note: string;
+  policy_total_krw: number;
+  market_total_krw: number;
+  benefit_diff_krw: number;
+  summary: string;
+};
+
+export async function simulateYouthLeapAccount(
+  token: string,
+  input: YouthLeapAccountInput
+): Promise<YouthLeapAccountOutput> {
+  const res = await authedFetch("/savings_simulator/youth_leap_account", token, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return res.json();
+}
+
+export type HousingLoanInput = {
+  housing_type: "jeonse" | "purchase";
+  target_price_krw: number;
+  self_capital_krw: number;
+  household_annual_income_krw: number;
+  marriage_years?: number | null;
+};
+
+export type HousingLoanOutput = {
+  eligible: boolean;
+  product_name: string;
+  ltv_rate: number;
+  policy_rate: number;
+  market_rate: number;
+  loan_amount_krw: number;
+  monthly_interest_krw: number;
+  market_monthly_interest_krw: number;
+  monthly_saving_krw: number;
+  summary: string;
+};
+
+export async function simulateHousingLoan(token: string, input: HousingLoanInput): Promise<HousingLoanOutput> {
+  const res = await authedFetch("/savings_simulator/housing_loan", token, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return res.json();
 }
 
 export type AdminOverview = {

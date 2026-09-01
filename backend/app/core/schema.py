@@ -45,6 +45,23 @@ def ensure_schema(engine: Engine) -> None:
     if is_postgres and hashed_pw is not None and hashed_pw.get("nullable") is False:
         ddl.append("ALTER TABLE users ALTER COLUMN hashed_password DROP NOT NULL")
 
+    # --- 2026-09-01 UPGRADE.md 확장 프로필 필드 ---
+    extended_profile_columns = {
+        "marital_status": "VARCHAR",
+        "marriage_years": "INTEGER",
+        "children_count": "INTEGER",
+        "is_pregnant": "BOOLEAN",
+        "desired_region": "VARCHAR",
+        "employment_type": "VARCHAR",
+        "is_sme_employee": "BOOLEAN",
+        "housing_status": "VARCHAR",
+        "net_worth_krw": "INTEGER",
+        "monthly_savings_capacity_krw": "INTEGER",
+    }
+    for column, col_type in extended_profile_columns.items():
+        if column not in columns:
+            ddl.append(f"ALTER TABLE users ADD COLUMN {column} {col_type}")
+
     if not ddl:
         return
 

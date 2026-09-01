@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.auth import oauth, service
 from app.auth.models import User
 from app.auth.schemas import (
+    AccountDeleteRequest,
     EmailAvailabilityOut,
     LoginRequest,
     ProfileUpdateRequest,
@@ -18,7 +19,7 @@ from app.auth.schemas import (
 )
 from app.core.config import settings
 from app.core.db import get_db
-from app.core.security import create_access_token, decode_access_token
+from app.core.security import create_access_token, decode_access_token, verify_password
 
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
@@ -44,6 +45,16 @@ def signup(payload: SignupRequest, db: Session = Depends(get_db)):
             spouse_age=payload.spouse_age,
             spouse_annual_income_krw=payload.spouse_annual_income_krw,
             spouse_occupation=payload.spouse_occupation,
+            marital_status=payload.marital_status,
+            marriage_years=payload.marriage_years,
+            children_count=payload.children_count,
+            is_pregnant=payload.is_pregnant,
+            desired_region=payload.desired_region,
+            employment_type=payload.employment_type,
+            is_sme_employee=payload.is_sme_employee,
+            housing_status=payload.housing_status,
+            net_worth_krw=payload.net_worth_krw,
+            monthly_savings_capacity_krw=payload.monthly_savings_capacity_krw,
         )
     except ValueError as e:
         print(f"[ERROR] /auth/signup failed for email={payload.email!r}: {e}")
@@ -144,13 +155,41 @@ def update_profile(
     db: Session = Depends(get_db),
 ):
     current_user.age = payload.age
-    current_user.is_married = payload.is_married
+    current_user.is_married = service.derive_is_married(payload.marital_status, payload.is_married)
     current_user.annual_income_krw = payload.annual_income_krw
     current_user.region = payload.region
     current_user.occupation = payload.occupation
     current_user.spouse_age = payload.spouse_age
     current_user.spouse_annual_income_krw = payload.spouse_annual_income_krw
     current_user.spouse_occupation = payload.spouse_occupation
+    current_user.marital_status = payload.marital_status
+    current_user.marriage_years = payload.marriage_years
+    current_user.children_count = payload.children_count
+    current_user.is_pregnant = payload.is_pregnant
+    current_user.desired_region = payload.desired_region
+    current_user.employment_type = payload.employment_type
+    current_user.is_sme_employee = payload.is_sme_employee
+    current_user.housing_status = payload.housing_status
+    current_user.net_worth_krw = payload.net_worth_krw
+    current_user.monthly_savings_capacity_krw = payload.monthly_savings_capacity_krw
     db.commit()
     db.refresh(current_user)
     return current_user
+
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+def delete_account(
+    payload: AccountDeleteRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # 로컬(이메일/비밀번호) 계정은 되돌릴 수 없는 작업이라 비밀번호 재확인을 요구한다.
+    # 소셜 전용 계정(hashed_password 없음)은 확인할 비밀번호가 없으므로 건너뛴다 —
+    # 유효한 JWT 자체가 이미 본인 확인이다.
+    # 401이 아니라 403을 쓴다 — 프론트 authedFetch()가 401을 "세션 만료"로 해석해
+    # 토큰을 지우고 강제 로그아웃시키는데, 비밀번호를 잘못 입력한 것뿐인 상황에서
+    # 그 동작은 원치 않는다(사용자가 다시 시도할 수 있어야 한다).
+    if current_user.hashed_password is not None:
+        if not payload.password or not verify_password(payload.password, current_user.hashed_password):
+            raise HTTPException(status_code=403, detail="비밀번호가 일치하지 않습니다.")
+    service.delete_user(db, current_user)

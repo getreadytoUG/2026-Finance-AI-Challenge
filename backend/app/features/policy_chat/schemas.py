@@ -112,3 +112,14 @@ class PolicyAnalysisResponse(BaseModel):
     application_notes: str
     required_documents: list[str] = []
     estimated_monthly_benefit_krw: int | None = None
+
+
+class PolicyQaRequest(BaseModel):
+    # 정책별 챗봇: 사용자가 지금 보고 있는 정책 하나에 대해서만 자유롭게 질문/답변한다
+    # (ai_search/message의 필터 변경 챗봇과 달리 도구 호출 없이 순수 대화).
+    policy_key: str
+    messages: list[ChatMessage]
+
+
+class PolicyQaResponse(BaseModel):
+    reply: str
