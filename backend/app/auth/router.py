@@ -101,6 +101,8 @@ def social_callback(
         provider=provider,
         provider_user_id=social.provider_user_id,
         email=social.email,
+        name=social.nickname,
+        age=social.age,
     )
     token = create_access_token(subject=str(user.id))
     fragment = urlencode({"token": token, "new": "1" if created else "0"})

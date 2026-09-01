@@ -56,6 +56,8 @@ class UserOut(BaseModel):
     # .local 도메인을 거부하기 때문. 입력(SignupRequest/LoginRequest)은 EmailStr 유지.
     email: str
     provider: str = "local"
+    # 표시용 이름 (소셜 닉네임). 이메일 가입은 None → 프론트가 이메일 아이디로 폴백.
+    name: str | None = None
     age: int | None = None
     is_married: bool | None = None
     annual_income_krw: int | None = None

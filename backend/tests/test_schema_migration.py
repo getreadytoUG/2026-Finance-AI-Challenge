@@ -31,7 +31,7 @@ def _columns(engine):
 def test_adds_missing_social_columns():
     engine = _legacy_users_engine()
     ensure_schema(engine)
-    assert {"provider", "provider_user_id"} <= _columns(engine)
+    assert {"provider", "provider_user_id", "name"} <= _columns(engine)
 
 
 def test_backfills_provider_default_for_existing_rows():
@@ -55,7 +55,7 @@ def test_is_idempotent():
     engine = _legacy_users_engine()
     ensure_schema(engine)
     ensure_schema(engine)  # 두 번째는 no-op, 에러 없이 지나가야 한다
-    assert {"provider", "provider_user_id"} <= _columns(engine)
+    assert {"provider", "provider_user_id", "name"} <= _columns(engine)
 
 
 def test_noop_on_current_schema():
@@ -64,7 +64,7 @@ def test_noop_on_current_schema():
     )
     User.__table__.create(bind=engine)  # 모델대로 만든 최신 테이블
     ensure_schema(engine)  # 손대지 않아야 한다
-    assert {"provider", "provider_user_id"} <= _columns(engine)
+    assert {"provider", "provider_user_id", "name"} <= _columns(engine)
 
 
 def test_noop_when_users_table_absent():

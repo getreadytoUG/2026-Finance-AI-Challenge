@@ -88,6 +88,8 @@ export type UserProfile = {
   id: number;
   email: string;
   provider: string;
+  // 표시용 이름 (소셜 닉네임). 이메일 가입은 null → 이메일 아이디로 폴백.
+  name: string | null;
   // 나이/소득/지역/직업이 모두 채워졌는지(관리자는 항상 true). 소셜 로그인 유저는
   // 이 값이 false인 채로 생성되므로 프론트가 온보딩 페이지로 보낸다.
   profile_complete: boolean;

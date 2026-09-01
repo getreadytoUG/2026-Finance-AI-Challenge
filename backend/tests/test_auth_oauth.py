@@ -134,6 +134,49 @@ def test_callback_without_email_uses_placeholder(client, monkeypatch):
     assert body["provider"] == "kakao"
 
 
+def test_callback_stores_social_nickname_as_name(client, monkeypatch):
+    location = _callback(
+        client, monkeypatch, profile_fn=_fake_profile(email="named@example.com", nickname="희건")
+    )
+    token = _token_from_fragment(location)
+    body = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"}).json()
+    assert body["name"] == "희건"
+
+
+def test_callback_prefills_age_from_naver_birthyear(client, monkeypatch):
+    profile = _fake_profile(
+        provider="naver", provider_user_id="naver-7", email="birth@example.com", nickname="네이버유저", age=33
+    )
+    location = _callback(client, monkeypatch, profile_fn=profile, provider="naver")
+    token = _token_from_fragment(location)
+    body = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"}).json()
+    assert body["age"] == 33
+    assert body["profile_complete"] is False  # 나이만으론 완성 아님
+
+
+def test_link_does_not_overwrite_existing_profile_age_or_name(client, monkeypatch, db_session):
+    _local_signup(client, "keep@example.com")  # age=29, name=None
+    location = _callback(
+        client,
+        monkeypatch,
+        profile_fn=_fake_profile(
+            provider="naver", provider_user_id="naver-9", email="keep@example.com", nickname="다른이름", age=99
+        ),
+        provider="naver",
+    )
+    token = _token_from_fragment(location)
+    body = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"}).json()
+    assert body["age"] == 29  # 기존 값 유지 (99로 덮어쓰지 않음)
+    assert body["name"] == "다른이름"  # 비어있던 name은 채움
+
+
+def test_age_from_birthyear_bounds():
+    assert oauth._age_from_birthyear("1990") and oauth._age_from_birthyear("1990") > 20
+    assert oauth._age_from_birthyear(None) is None
+    assert oauth._age_from_birthyear("not-a-year") is None
+    assert oauth._age_from_birthyear("1200") is None  # 비현실적 → None
+
+
 def test_callback_with_provider_error_redirects_to_login(client):
     res = client.get(
         "/auth/kakao/callback", params={"error": "access_denied"}, follow_redirects=False

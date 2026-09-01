@@ -33,7 +33,7 @@ export default function DashboardPage() {
     const token = localStorage.getItem("token") ?? "";
     getMe(token)
       .then((profile) => {
-        setLabel(profile.email.split("@")[0]);
+        setLabel(profile.name || profile.email.split("@")[0]);
         const complete = profile.age != null && profile.region != null && profile.annual_income_krw != null;
         setProfileComplete(complete);
         if (!complete) return null;

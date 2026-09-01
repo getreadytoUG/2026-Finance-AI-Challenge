@@ -35,6 +35,8 @@ def ensure_schema(engine: Engine) -> None:
         ddl.append(
             "CREATE INDEX IF NOT EXISTS ix_users_provider_user_id ON users (provider_user_id)"
         )
+    if "name" not in columns:
+        ddl.append("ALTER TABLE users ADD COLUMN name VARCHAR")
 
     # 소셜 전용 계정은 비밀번호가 없다 → hashed_password NOT NULL 해제.
     # SQLite는 컬럼 제약 변경을 지원하지 않지만, 기존 SQLite 파일엔 전부 값이

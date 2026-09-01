@@ -76,7 +76,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           return;
         }
         setIsAdmin(profile.is_admin);
-        setUserLabel(profile.email);
+        setUserLabel(profile.name || profile.email);
       })
       .catch(() => {});
   }, [ready, router]);

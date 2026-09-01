@@ -16,6 +16,9 @@ class User(Base):
     # 프로바이더가 발급한 그 사용자 고유 ID(문자열). local 계정은 NULL.
     # (provider, provider_user_id) 조합으로 소셜 계정을 식별한다.
     provider_user_id = Column(String, nullable=True, index=True)
+    # 표시용 이름. 소셜 로그인 시 프로바이더 닉네임으로 채워진다. 이메일 가입은 NULL
+    # → 프론트가 이메일 아이디(앞부분)로 폴백한다.
+    name = Column(String, nullable=True)
     age = Column(Integer, nullable=True)
     is_married = Column(Boolean, nullable=True)
     annual_income_krw = Column(Integer, nullable=True)

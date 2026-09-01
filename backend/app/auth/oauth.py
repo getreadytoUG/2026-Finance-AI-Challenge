@@ -42,6 +42,25 @@ class SocialProfile:
     provider_user_id: str
     email: str | None
     nickname: str | None
+    # 네이버가 출생연도(birthyear) 동의를 준 경우 대략적인 나이. 온보딩 폼 프리필용.
+    age: int | None = None
+
+
+def _age_from_birthyear(birthyear: str | None) -> int | None:
+    # 생월/생일은 무시한 근사치 — 사용자가 온보딩에서 고칠 수 있는 프리필 값이다.
+    if not birthyear:
+        return None
+    try:
+        age = _now_year() - int(birthyear)
+    except (TypeError, ValueError):
+        return None
+    return age if 0 < age < 150 else None
+
+
+def _now_year() -> int:
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).year
 
 
 def provider_configured(provider: str) -> bool:
@@ -176,4 +195,5 @@ def _naver_profile(code: str, state: str) -> SocialProfile:
         provider_user_id=str(response["id"]),
         email=response.get("email"),
         nickname=response.get("nickname") or response.get("name"),
+        age=_age_from_birthyear(response.get("birthyear")),
     )
