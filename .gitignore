@@ -15,3 +15,5 @@ venv/
 .env.local
 md_files/
 test/
+package-lock.json
+.idea
