@@ -70,16 +70,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const token = localStorage.getItem("token") ?? "";
     getMe(token)
       .then((profile) => {
-        // 소셜 로그인 유저는 프로필을 채우기 전까지 앱 탭에 접근할 수 없다.
-        if (!profile.is_admin && !profile.profile_complete) {
-          router.replace("/onboarding");
-          return;
-        }
         setIsAdmin(profile.is_admin);
         setUserLabel(profile.email);
       })
       .catch(() => {});
-  }, [ready, router]);
+  }, [ready]);
 
   useEffect(() => {
     if (!ready) return;

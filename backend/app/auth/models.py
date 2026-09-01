@@ -8,14 +8,7 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
-    # 소셜 전용 계정은 비밀번호가 없으므로 nullable. 값이 NULL이면
-    # authenticate_user()가 비밀번호 로그인을 거부한다.
-    hashed_password = Column(String, nullable=True)
-    # "local"(이메일/비밀번호) | "kakao" | "naver".
-    provider = Column(String, nullable=False, server_default="local", default="local")
-    # 프로바이더가 발급한 그 사용자 고유 ID(문자열). local 계정은 NULL.
-    # (provider, provider_user_id) 조합으로 소셜 계정을 식별한다.
-    provider_user_id = Column(String, nullable=True, index=True)
+    hashed_password = Column(String, nullable=False)
     age = Column(Integer, nullable=True)
     is_married = Column(Boolean, nullable=True)
     annual_income_krw = Column(Integer, nullable=True)

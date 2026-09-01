@@ -51,11 +51,7 @@ class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    # EmailStr가 아니라 str — 카카오가 이메일 동의를 안 준 소셜 계정은
-    # 합성 자리표시자 주소(...@social.trinity.local)를 갖는데 email-validator가
-    # .local 도메인을 거부하기 때문. 입력(SignupRequest/LoginRequest)은 EmailStr 유지.
-    email: str
-    provider: str = "local"
+    email: EmailStr
     age: int | None = None
     is_married: bool | None = None
     annual_income_krw: int | None = None
@@ -71,18 +67,3 @@ class UserOut(BaseModel):
     @property
     def is_admin(self) -> bool:
         return is_admin_email(self.email)
-
-    # 소셜 로그인 유저는 프로필 필드 없이 생성되므로, 프론트가 이 값으로
-    # 온보딩 페이지 강제 여부를 판단한다. 관리자 계정은 프로필이 의미 없어 예외.
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def profile_complete(self) -> bool:
-        if self.is_admin:
-            return True
-        return (
-            self.age is not None
-            and self.is_married is not None
-            and self.annual_income_krw is not None
-            and self.region is not None
-            and self.occupation is not None
-        )

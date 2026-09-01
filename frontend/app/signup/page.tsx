@@ -6,7 +6,6 @@ import Link from "next/link";
 import { ArrowRight, Check, CircleHelp, ShieldCheck } from "lucide-react";
 import { signup, login, checkEmailAvailable } from "@/lib/api";
 import PasswordField from "@/components/PasswordField";
-import SocialLoginButtons from "@/components/SocialLoginButtons";
 import { BrandMark } from "@/components/BrandMark";
 import { OCCUPATION_OPTIONS, REGIONS, manwonToKrw, type OccupationType } from "@/lib/profileOptions";
 
@@ -116,10 +115,6 @@ export default function SignupPage() {
           <div className="mb-8">
             <div className="text-[10px] font-extrabold uppercase tracking-[.18em] text-[#2457d6]">PROFILE</div>
             <h2 className="mt-2 text-[22px] font-extrabold tracking-[-.05em]">기본 프로필을 입력해 주세요</h2>
-          </div>
-          <div className="mb-7">
-            <SocialLoginButtons action="가입" />
-            <p className="mt-2 text-[11px] text-slate-400">소셜 계정으로 가입하면 다음 화면에서 프로필만 입력하면 돼요.</p>
           </div>
           <form onSubmit={handleSubmit} className="grid gap-5">
             <label className="grid gap-2 text-[12px] font-extrabold text-slate-700">
