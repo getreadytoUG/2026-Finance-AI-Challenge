@@ -9,6 +9,7 @@ from app.auth.router import router as auth_router
 from app.auth.service import seed_admin_user
 from app.core.config import settings
 from app.core.db import Base, SessionLocal, engine
+from app.core.schema import ensure_schema
 from app.features import register_all_tools
 from app.features.admin.router import router as admin_router
 from app.features.policy_chat.router import router as policy_chat_router
@@ -27,6 +28,7 @@ register_all_tools()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    ensure_schema(engine)  # 기존 테이블에 누락된 컬럼 보충 (Alembic 대체)
     db = SessionLocal()
     try:
         seed_policy_cache_if_empty(db)

@@ -59,7 +59,9 @@ def test_social_login_redirects_to_provider(client, kakao_configured):
     assert query["state"]  # CSRF state present
 
 
-def test_social_login_unconfigured_returns_503(client):
+def test_social_login_unconfigured_returns_503(client, monkeypatch):
+    # 개발용 .env에 실제 키가 들어있을 수 있으므로 명시적으로 비운다.
+    monkeypatch.setattr(oauth.settings, "naver_client_id", "")
     res = client.get("/auth/naver/login", follow_redirects=False)
     assert res.status_code == 503
 
