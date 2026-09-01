@@ -45,9 +45,63 @@ def create_user(
 
 def authenticate_user(db: Session, email: str, password: str) -> User | None:
     user = db.query(User).filter(User.email == email).first()
-    if user is None or not verify_password(password, user.hashed_password):
+    # hashed_password가 None이면 소셜 전용 계정 — 비밀번호 로그인 불가.
+    if user is None or user.hashed_password is None:
+        return None
+    if not verify_password(password, user.hashed_password):
         return None
     return user
+
+
+def _placeholder_social_email(provider: str, provider_user_id: str) -> str:
+    # 카카오가 이메일 동의를 안 준 경우 email 컬럼(NOT NULL·UNIQUE)을 채우기 위한
+    # 자리표시자. 실제 수신 불가 주소이며, 온보딩에서 사용자가 고치도록 유도한다.
+    return f"{provider}_{provider_user_id}@social.trinity.local"
+
+
+def get_or_create_social_user(
+    db: Session,
+    *,
+    provider: str,
+    provider_user_id: str,
+    email: str | None,
+) -> tuple[User, bool]:
+    """소셜 로그인 사용자를 조회하거나 생성한다. ``(user, created)`` 반환.
+
+    우선순위:
+      1. ``(provider, provider_user_id)`` 로 기존 소셜 계정을 찾으면 그대로 사용.
+      2. 검증된 ``email`` 이 있고 같은 이메일의 기존 계정이 있으면 그 계정에
+         이 provider를 붙여 **자동 연동**한다.
+      3. 둘 다 아니면 비밀번호 없는 새 계정을 만든다.
+    """
+    existing = (
+        db.query(User)
+        .filter(User.provider == provider, User.provider_user_id == provider_user_id)
+        .first()
+    )
+    if existing is not None:
+        return existing, False
+
+    if email:
+        by_email = db.query(User).filter(User.email == email).first()
+        if by_email is not None:
+            by_email.provider = provider
+            by_email.provider_user_id = provider_user_id
+            db.commit()
+            db.refresh(by_email)
+            return by_email, False
+
+    user = User(
+        email=email or _placeholder_social_email(provider, provider_user_id),
+        hashed_password=None,
+        provider=provider,
+        provider_user_id=provider_user_id,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user, True
 
 
 def email_exists(db: Session, email: str) -> bool:

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, Check, Mail, ShieldCheck } from "lucide-react";
 import { getMe, login } from "@/lib/api";
 import PasswordField from "@/components/PasswordField";
+import SocialLoginButtons from "@/components/SocialLoginButtons";
 import { BrandMark } from "@/components/BrandMark";
 
 export default function LoginPage() {
@@ -14,6 +15,16 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    // 소셜 로그인 실패 시 백엔드가 /login?error=oauth 로 돌려보낸다.
+    // (useSearchParams는 Suspense 경계를 요구하므로 window에서 직접 읽는다.)
+    if (new URLSearchParams(window.location.search).get("error") === "oauth") {
+      // 마운트 시 1회만 실행되는 URL 파싱 — 외부(브라우저 URL) 상태를 React로 끌어오는 것.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setError("소셜 로그인에 실패했습니다. 다시 시도해주세요.");
+    }
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -98,6 +109,9 @@ export default function LoginPage() {
                 {loading ? "로그인 중..." : "로그인"} <ArrowRight size={16} className="transition group-hover:translate-x-1" />
               </button>
             </form>
+            <div className="mt-6">
+              <SocialLoginButtons action="로그인" />
+            </div>
             <div className="mt-7 flex items-center justify-center gap-1.5 text-[11px] font-semibold text-slate-400">
               <Check size={14} className="text-[#1eb8a6]" />
               안전한 로그인
