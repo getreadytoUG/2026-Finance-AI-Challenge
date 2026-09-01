@@ -2,6 +2,14 @@ import type { OccupationType } from "@/lib/profileOptions";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
 
+export type SocialProvider = "kakao" | "naver";
+
+// 백엔드가 프로바이더 인증 페이지로 302 리다이렉트해준다. SPA 라우팅이 아니라
+// 브라우저 전체 이동이어야 하므로 window.location.href에 그대로 넣어 쓴다.
+export function socialLoginUrl(provider: SocialProvider): string {
+  return `${API_BASE}/auth/${provider}/login`;
+}
+
 export async function login(email: string, password: string): Promise<string> {
   const res = await fetch(`${API_BASE}/auth/login`, {
     method: "POST",
@@ -79,6 +87,10 @@ export async function callTool<TOutput>(
 export type UserProfile = {
   id: number;
   email: string;
+  provider: string;
+  // 나이/소득/지역/직업이 모두 채워졌는지(관리자는 항상 true). 소셜 로그인 유저는
+  // 이 값이 false인 채로 생성되므로 프론트가 온보딩 페이지로 보낸다.
+  profile_complete: boolean;
   age: number | null;
   is_married: boolean | null;
   annual_income_krw: number | null;
