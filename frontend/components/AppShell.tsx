@@ -112,7 +112,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (!ready) return null;
 
   const navItems = isAdmin ? ADMIN_NAV_ITEMS : NAV_ITEMS;
-  const homeHref = isAdmin ? "/admin" : "/dashboard";
+  // 사이드바 상단 브랜드마크는 "대시보드로 돌아가기"가 아니라 "홈페이지로 나가기"다
+  // (사용자 요청, 2026-09-02) — 대시보드로 들어가는 진입점은 이제 상단 "한눈에 보기"
+  // 탭과 공개 헤더의 "대시보드" 링크가 맡는다. 관리자는 별도 공개 랜딩이 없으므로
+  // 그대로 /admin 유지.
+  const homeHref = isAdmin ? "/admin" : "/";
   // 정책 달력 페이지엔 이미 챗봇이 내장돼 있다(캘린더 탭의 범용 챗봇 + AI 정책
   // 검색 탭의 정책별 챗봇) — 떠다니는 ChatWidget까지 겹치면 중복이라 숨긴다.
   const showChatWidget = !isAdmin && pathname !== "/recommendations";

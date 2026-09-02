@@ -65,3 +65,10 @@ export const REGIONS: string[] = [
   "서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종",
   "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주",
 ];
+
+// 백엔드 PolicyCategoryTag(app/features/policy_matcher/categories.py)와 동일한 8개
+// 대분류 태그 목록. AI 정책 검색의 클릭형 필터(AiSearchFilterBar)가 쓴다 — 백엔드
+// 목록이 바뀌면 이것도 같이 갱신해야 한다.
+export const POLICY_CATEGORY_OPTIONS: string[] = [
+  "일자리", "금융･복지･문화", "복지문화", "주거", "교육", "참여･기반", "교육･직업훈련", "참여권리",
+];

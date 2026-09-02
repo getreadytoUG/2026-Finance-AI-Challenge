@@ -111,6 +111,16 @@ export function useAiPolicySearch(pageSize: number = 10) {
     refetch(next, 1, includeClosed);
   }
 
+  // 채팅으로 조건을 "말해야만" 바뀌는 게 아니라, 드롭다운/칩을 직접 클릭해서도
+  // 바로 바뀌도록 하는 범용 setter(사용자 요청, 2026-09-02) — handleRemoveChip과
+  // 달리 여러 필드를 한 번에 바꿀 수도 있고 null이 아닌 값도 넣을 수 있다.
+  function handleSetFilters(patch: Partial<AiSearchFilters>) {
+    if (!filters) return;
+    const next = { ...filters, ...patch };
+    setFilters(next);
+    refetch(next, 1, includeClosed);
+  }
+
   function handleResetFilters() {
     const next: AiSearchFilters = {
       age: null,
@@ -248,6 +258,7 @@ export function useAiPolicySearch(pageSize: number = 10) {
     handleSend,
     handleInputKeyDown,
     handleRemoveChip,
+    handleSetFilters,
     handleResetFilters,
     filters,
     // results panel

@@ -1,6 +1,7 @@
 "use client";
 
 import { Search, Sparkles, WalletCards } from "lucide-react";
+import AiSearchFilterBar from "@/components/AiSearchFilterBar";
 import Pagination from "@/components/Pagination";
 import PolicyDetailLink from "@/components/PolicyDetailLink";
 import StatusPill from "@/components/StatusPill";
@@ -56,6 +57,8 @@ export default function AiSearchResultsPanel({
           검색
         </button>
       </form>
+
+      <AiSearchFilterBar state={state} compact={compact} />
 
       <div className={`mb-4 flex shrink-0 flex-wrap items-center justify-between gap-2 ${compact ? "text-[13px]" : "text-[15px]"} font-extrabold text-ink`}>
         <div>

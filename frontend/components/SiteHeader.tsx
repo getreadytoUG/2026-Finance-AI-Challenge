@@ -97,6 +97,14 @@ export function SiteHeader({
           <a href="#service" className="text-[13px] font-bold text-slate-500 transition hover:text-ink">
             서비스
           </a>
+          {/* 예전엔 로그인 상태면 이 랜딩 페이지 자체를 건너뛰고 /dashboard로
+              리다이렉트해서 별도 링크가 필요 없었다 — 이제 로그인해도 이 페이지가
+              먼저 뜨므로, 로그인 후 화면(대시보드)으로 들어가는 진입점을 헤더에
+              따로 둔다(사용자 요청, 2026-09-02). 비로그인 상태로 눌러도 기존
+              AppShell의 인증 가드가 알아서 /login으로 돌려보낸다. */}
+          <Link href="/dashboard" className="text-[13px] font-bold text-slate-500 transition hover:text-ink">
+            대시보드
+          </Link>
           <a href="#how" className="text-[13px] font-bold text-slate-500 transition hover:text-ink">
             이용 방법
           </a>
@@ -127,6 +135,9 @@ export function SiteHeader({
             <a href="#service" onClick={() => setMobileOpen(false)} className="rounded-xl px-3 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50">
               서비스
             </a>
+            <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="rounded-xl px-3 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50">
+              대시보드
+            </Link>
             <a href="#how" onClick={() => setMobileOpen(false)} className="rounded-xl px-3 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50">
               이용 방법
             </a>

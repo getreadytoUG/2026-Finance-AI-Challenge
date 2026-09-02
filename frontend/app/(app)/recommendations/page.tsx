@@ -211,68 +211,71 @@ export default function RecommendationsPage() {
 
       {hasCompleteProfile(profile) && (
         <>
-          {recommendations && recommendations.length === 0 && (
+          {/* 예전엔 이 탭 스위처 자체가 recommendations.length > 0 뒤에 숨어 있어서,
+              배치 추천이 한 번도 안 쌓인 유저는 "지금 갱신"을 누르기 전엔 캘린더도
+              AI 정책 검색도 아예 볼 수 없었다 — 근데 이 둘은 recommendations(배치가
+              쌓아둔 알림 목록)와 무관하게 자기가 직접 정책을 불러오는 화면이라
+              갱신 여부와 상관없이 항상 열려야 한다(사용자 요청, 2026-09-02). "리스트"
+              탭만 recommendations를 그대로 보여주는 화면이라 비어있으면 그 탭 안에서만
+              안내 문구를 보여준다. */}
+          <div className="mb-6 inline-flex gap-1.5 rounded-xl bg-[#eef3f9] p-1">
+            <button
+              onClick={() => setView("calendar")}
+              className={`rounded-lg px-4 py-2.5 text-[12px] font-extrabold transition ${view === "calendar" ? "bg-white text-[#2457d6] shadow-sm" : "text-slate-500"}`}
+            >
+              캘린더
+            </button>
+            <button
+              onClick={() => setView("list")}
+              className={`rounded-lg px-4 py-2.5 text-[12px] font-extrabold transition ${view === "list" ? "bg-white text-[#2457d6] shadow-sm" : "text-slate-500"}`}
+            >
+              리스트
+            </button>
+            <button
+              onClick={() => setView("ai_search")}
+              className={`rounded-lg px-4 py-2.5 text-[12px] font-extrabold transition ${view === "ai_search" ? "bg-white text-[#2457d6] shadow-sm" : "text-slate-500"}`}
+            >
+              AI 정책 검색
+            </button>
+          </div>
+
+          {view === "calendar" ? (
+            <RecommendationCalendar />
+          ) : view === "ai_search" ? (
+            <AiPolicySearchSection />
+          ) : recommendations === null ? (
+            <p className="text-[13px] text-slate-400">불러오는 중...</p>
+          ) : recommendations.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-300 p-10 text-center text-[13px] font-bold text-slate-400">
               아직 추천된 정책이 없습니다. &quot;지금 갱신&quot;을 눌러보세요.
             </div>
-          )}
-
-          {recommendations && recommendations.length > 0 && (
+          ) : (
             <>
-              <div className="mb-6 inline-flex gap-1.5 rounded-xl bg-[#eef3f9] p-1">
-                <button
-                  onClick={() => setView("calendar")}
-                  className={`rounded-lg px-4 py-2.5 text-[12px] font-extrabold transition ${view === "calendar" ? "bg-white text-[#2457d6] shadow-sm" : "text-slate-500"}`}
-                >
-                  캘린더
-                </button>
-                <button
-                  onClick={() => setView("list")}
-                  className={`rounded-lg px-4 py-2.5 text-[12px] font-extrabold transition ${view === "list" ? "bg-white text-[#2457d6] shadow-sm" : "text-slate-500"}`}
-                >
-                  리스트
-                </button>
-                <button
-                  onClick={() => setView("ai_search")}
-                  className={`rounded-lg px-4 py-2.5 text-[12px] font-extrabold transition ${view === "ai_search" ? "bg-white text-[#2457d6] shadow-sm" : "text-slate-500"}`}
-                >
-                  AI 정책 검색
-                </button>
-              </div>
-
-              {view === "calendar" ? (
-                <RecommendationCalendar />
-              ) : view === "ai_search" ? (
-                <AiPolicySearchSection />
-              ) : (
-                <>
-                  <div className="grid gap-3">
-                    {recommendations.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((rec) => (
-                      <div
-                        key={rec.id}
-                        onClick={() => handleItemClick(rec)}
-                        className="cursor-pointer rounded-2xl border border-slate-200/80 bg-white p-5 transition hover:border-[#cddafb] hover:shadow-[0_14px_30px_rgba(28,50,88,.07)]"
+              <div className="grid gap-3">
+                {recommendations.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((rec) => (
+                  <div
+                    key={rec.id}
+                    onClick={() => handleItemClick(rec)}
+                    className="cursor-pointer rounded-2xl border border-slate-200/80 bg-white p-5 transition hover:border-[#cddafb] hover:shadow-[0_14px_30px_rgba(28,50,88,.07)]"
+                  >
+                    <div className="flex flex-wrap items-center gap-2 text-[15px] font-extrabold text-ink">
+                      {rec.policy_name}
+                      <StatusPill status={rec.status} />
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold ${
+                          rec.is_read ? "bg-slate-100 text-slate-400" : "bg-ink text-white"
+                        }`}
                       >
-                        <div className="flex flex-wrap items-center gap-2 text-[15px] font-extrabold text-ink">
-                          {rec.policy_name}
-                          <StatusPill status={rec.status} />
-                          <span
-                            className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold ${
-                              rec.is_read ? "bg-slate-100 text-slate-400" : "bg-ink text-white"
-                            }`}
-                          >
-                            {rec.is_read ? "읽음" : "안읽음"}
-                          </span>
-                        </div>
-                        <p className="mt-2 text-[12px] leading-5 text-slate-500">{rec.benefit_description}</p>
-                        <div className="mt-2 text-[11px] font-semibold text-slate-400">신청 기간 {rec.application_period}</div>
-                        <PolicyDetailLink url={rec.reference_url} className="mt-2" />
-                      </div>
-                    ))}
+                        {rec.is_read ? "읽음" : "안읽음"}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-[12px] leading-5 text-slate-500">{rec.benefit_description}</p>
+                    <div className="mt-2 text-[11px] font-semibold text-slate-400">신청 기간 {rec.application_period}</div>
+                    <PolicyDetailLink url={rec.reference_url} className="mt-2" />
                   </div>
-                  <Pagination page={page} totalPages={Math.max(1, Math.ceil(recommendations.length / PAGE_SIZE))} onPageChange={setPage} />
-                </>
-              )}
+                ))}
+              </div>
+              <Pagination page={page} totalPages={Math.max(1, Math.ceil(recommendations.length / PAGE_SIZE))} onPageChange={setPage} />
             </>
           )}
         </>

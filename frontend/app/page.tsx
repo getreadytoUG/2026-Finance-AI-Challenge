@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -39,23 +37,11 @@ const STEPS = [
   { n: "03", title: "저축플랜에 반영", body: "정책 혜택을 목표에 반영해 내가 실제로 더 모아야 할 금액을 계산해요." },
 ];
 
+// 2026-09-02: 예전엔 로그인 상태면 이 랜딩 페이지를 건너뛰고 바로 /dashboard로
+// 리다이렉트했는데, 사용자 요청으로 이제 로그인 여부와 상관없이 누구나 이 페이지를
+// 먼저 보게 한다 — 이 페이지가 곧 메인 페이지다. 로그인한 사용자가 기존 대시보드로
+// 들어가려면 헤더의 "대시보드" 링크(SiteHeader.tsx)를 누르면 된다.
 export default function Home() {
-  const router = useRouter();
-  const [checkingAuth, setCheckingAuth] = useState(true);
-
-  useEffect(() => {
-    if (localStorage.getItem("token")) {
-      router.push("/dashboard");
-      return;
-    }
-    // localStorage only exists client-side, so this check can't move out of
-    // the effect without breaking SSR — same one-time gate as app/(app)/layout.tsx.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCheckingAuth(false);
-  }, [router]);
-
-  if (checkingAuth) return null;
-
   return (
     <div className="landing min-h-screen overflow-hidden bg-[#f7f9fc] text-ink">
       <SiteHeader />
