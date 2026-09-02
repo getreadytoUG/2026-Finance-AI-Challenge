@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.cors import CORSMiddleware 
 
 from app.auth.models import User  # noqa: F401
 from app.auth.router import router as auth_router
