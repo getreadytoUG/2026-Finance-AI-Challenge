@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check, CircleHelp, Mail, ShieldCheck } from "lucide-react";
@@ -54,6 +54,11 @@ export default function SignupPage() {
   const [isVeteran, setIsVeteran] = useState(false);
   const isMarried = maritalStatus === "engaged" || maritalStatus === "newlywed";
   const [error, setError] = useState<string | null>(null);
+  // 예전엔 필수값이 비면 "회원가입" 버튼 자체를 disabled 처리해서, 사용자가 뭘
+  // 안 채웠는지 알 수 없었다(사용자 요청, 2026-09-02: 버튼은 항상 누를 수 있게
+  // 하고, 누르면 빠진 항목을 알려주는 방향). validate()가 채우는 안내 목록.
+  const [fieldErrors, setFieldErrors] = useState<string[]>([]);
+  const errorSummaryRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(false);
   const [emailCheckStatus, setEmailCheckStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
   // 회원가입 방식을 먼저 고르게 한다 — "이메일로 가입하기"를 눌러야 아래 프로필
@@ -73,10 +78,43 @@ export default function SignupPage() {
     }
   }
 
+  // 빠졌거나 범위를 벗어난 필수 항목을 폼 위에서 아래 순서대로 모아 문장으로 돌려준다.
+  function validate(): string[] {
+    const msgs: string[] = [];
+    const emailFormatOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+
+    if (!email.trim()) msgs.push("이메일을 입력해주세요.");
+    else if (!emailFormatOk) msgs.push("이메일 형식이 올바르지 않습니다.");
+    else if (emailCheckStatus === "taken") msgs.push("이미 가입된 이메일입니다. 다른 이메일을 사용해주세요.");
+    else if (emailCheckStatus !== "available") msgs.push("이메일 중복확인을 완료해주세요.");
+
+    if (!password) msgs.push("비밀번호를 입력해주세요.");
+
+    const ageNum = Number(age);
+    if (!age.trim()) msgs.push("나이를 입력해주세요.");
+    else if (!Number.isFinite(ageNum) || ageNum < 0 || ageNum > 130) msgs.push("나이는 0~130세 사이로 입력해주세요.");
+
+    const incomeNum = Number(income);
+    if (!income.trim()) msgs.push("연소득을 입력해주세요.");
+    else if (!Number.isFinite(incomeNum) || incomeNum < 0 || incomeNum > 200000) msgs.push("연소득은 0~200,000만원 사이로 입력해주세요.");
+
+    if (!region) msgs.push("거주 지역을 선택해주세요.");
+    if (!occupation) msgs.push("직업 구분을 선택해주세요.");
+
+    return msgs;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!region || !occupation || emailCheckStatus !== "available") return;
     setError(null);
+    const problems = validate();
+    setFieldErrors(problems);
+    if (problems.length > 0) {
+      requestAnimationFrame(() => errorSummaryRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }));
+      return;
+    }
+    // validate()가 이미 보장하지만, region/occupation 타입을 좁히기 위해 한 번 더.
+    if (!region || !occupation) return;
     setLoading(true);
     try {
       await signup({
@@ -197,7 +235,9 @@ export default function SignupPage() {
                 <div className="text-[10px] font-extrabold uppercase tracking-[.18em] text-[#2457d6]">PROFILE</div>
                 <h2 className="mt-2 text-[22px] font-extrabold tracking-[-.05em]">기본 프로필을 입력해 주세요</h2>
               </div>
-              <form onSubmit={handleSubmit} className="grid gap-5">
+              {/* noValidate: 브라우저 네이티브 검증 툴팁이 첫 빈 칸에서 제출을 가로채면
+                  "빠진 항목 전체를 한 번에 보여준다"가 안 되므로 끄고, validate()로 직접 안내한다. */}
+              <form onSubmit={handleSubmit} noValidate className="grid gap-5">
             <label className="grid gap-2 text-[12px] font-extrabold text-slate-700">
               이메일
               <div className="flex gap-2">
@@ -454,10 +494,23 @@ export default function SignupPage() {
               입력한 정보는 정책 매칭·저축플랜 계산에만 쓰이고, 언제든 내 정보 화면에서 다시 수정할 수 있어요.
             </div>
 
+            {fieldErrors.length > 0 && (
+              <div
+                ref={errorSummaryRef}
+                className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-[12px] font-bold text-rose-600"
+              >
+                <p className="mb-1.5">아래 항목을 확인해주세요.</p>
+                <ul className="list-disc space-y-0.5 pl-4 font-semibold">
+                  {fieldErrors.map((msg) => (
+                    <li key={msg}>{msg}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {error && <p className="text-[12px] font-bold text-rose-500">{error}</p>}
             <button
               type="submit"
-              disabled={loading || !region || !occupation || emailCheckStatus !== "available"}
+              disabled={loading}
               className="group mt-1 flex h-12 items-center justify-center gap-2 rounded-xl bg-[#2457d6] text-[13px] font-extrabold text-white shadow-[0_12px_22px_rgba(36,87,214,.2)] transition hover:-translate-y-0.5 hover:bg-[#1949c1] disabled:opacity-50"
             >
               {loading ? "가입 중..." : "회원가입"} <ArrowRight size={16} className="transition group-hover:translate-x-1" />
