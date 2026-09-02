@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, computed_field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, computed_field
 
 from app.auth.service import is_admin_email
 
@@ -13,18 +13,28 @@ MaritalStatusType = Literal["single", "engaged", "newlywed"]
 EmploymentType = Literal["regular", "gig_freelance", "business_owner"]
 HousingStatusType = Literal["homeless_head", "homeless_member", "homeowner"]
 
+# 2026-09-02 QA에서 발견: 연소득에 999999999999(만원)처럼 비현실적으로 큰 값을 넣으면
+# 원 단위로 환산한 값(×10,000)이 users.annual_income_krw(Postgres 32비트 integer,
+# 최대 약 21.5억)를 넘겨서 INSERT가 DataError로 죽고, 그 예외가 처리 안 된 채 500이
+# 나가면서 CORSMiddleware를 못 거쳐(policy_matcher/router.py의 _raise_as_http_500
+# 주석과 동일한 사정) 브라우저에는 원인불명의 "Failed to fetch"만 떴다. 20억원은
+# 이 서비스가 다루는 개인 재무 값(연소득/순자산/월저축여력) 어디에도 비현실적이지
+# 않을 만큼 넉넉하면서, DB 컬럼 한계보다 충분히 아래라 안전하다.
+_MAX_MONEY_KRW = 2_000_000_000
+_MAX_AGE = 130
+
 
 class ExtendedProfileFields(BaseModel):
     marital_status: MaritalStatusType | None = None
-    marriage_years: int | None = None
-    children_count: int | None = None
+    marriage_years: int | None = Field(default=None, ge=0, le=100)
+    children_count: int | None = Field(default=None, ge=0, le=20)
     is_pregnant: bool | None = None
     desired_region: str | None = None
     employment_type: EmploymentType | None = None
     is_sme_employee: bool | None = None
     housing_status: HousingStatusType | None = None
-    net_worth_krw: int | None = None
-    monthly_savings_capacity_krw: int | None = None
+    net_worth_krw: int | None = Field(default=None, ge=0, le=_MAX_MONEY_KRW)
+    monthly_savings_capacity_krw: int | None = Field(default=None, ge=0, le=_MAX_MONEY_KRW)
     # 2026-09-02 추가: 장애인/국가보훈대상자 전용 정책이 있어 수집(매칭 로직 미반영,
     # 위 확장 필드들과 동일한 사정).
     has_disability: bool | None = None
@@ -34,14 +44,14 @@ class ExtendedProfileFields(BaseModel):
 class SignupRequest(ExtendedProfileFields):
     email: EmailStr
     password: str
-    age: int
+    age: int = Field(ge=0, le=_MAX_AGE)
     is_married: bool
-    annual_income_krw: int
+    annual_income_krw: int = Field(ge=0, le=_MAX_MONEY_KRW)
     region: str
     occupation: OccupationType
     # 배우자 정보는 기혼자도 입력을 생략할 수 있는 선택 항목.
-    spouse_age: int | None = None
-    spouse_annual_income_krw: int | None = None
+    spouse_age: int | None = Field(default=None, ge=0, le=_MAX_AGE)
+    spouse_annual_income_krw: int | None = Field(default=None, ge=0, le=_MAX_MONEY_KRW)
     spouse_occupation: OccupationType | None = None
 
 
@@ -67,13 +77,13 @@ class AccountDeleteRequest(BaseModel):
 
 
 class ProfileUpdateRequest(ExtendedProfileFields):
-    age: int
+    age: int = Field(ge=0, le=_MAX_AGE)
     is_married: bool
-    annual_income_krw: int
+    annual_income_krw: int = Field(ge=0, le=_MAX_MONEY_KRW)
     region: str
     occupation: OccupationType
-    spouse_age: int | None = None
-    spouse_annual_income_krw: int | None = None
+    spouse_age: int | None = Field(default=None, ge=0, le=_MAX_AGE)
+    spouse_annual_income_krw: int | None = Field(default=None, ge=0, le=_MAX_MONEY_KRW)
     spouse_occupation: OccupationType | None = None
 
 

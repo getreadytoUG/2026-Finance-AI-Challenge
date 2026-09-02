@@ -55,6 +55,25 @@ export type SignupInput = ProfileInput & {
   password: string;
 };
 
+// FastAPI 검증 실패(422)는 detail이 문자열이 아니라 {loc, msg, type} 객체 배열로
+// 온다 — 그동안은 `typeof body.detail === "string"`만 체크해서 이 경우를 못 읽고
+// 항상 fallback 문구로만 떨어졌다(2026-09-02 QA: 연소득에 비현실적으로 큰 값을
+// 넣었을 때 "Failed to fetch"만 뜨고 원인을 알 수 없던 문제의 일부). 배열이면
+// 각 에러의 msg를 모아 한 줄로 합쳐서 좀 더 구체적인 안내를 보여준다.
+function extractErrorDetail(body: unknown, fallback: string): string {
+  if (body && typeof body === "object" && "detail" in body) {
+    const detail = (body as { detail: unknown }).detail;
+    if (typeof detail === "string") return detail;
+    if (Array.isArray(detail) && detail.length > 0) {
+      const messages = detail
+        .map((d) => (d && typeof d === "object" && "msg" in d ? String((d as { msg: unknown }).msg) : null))
+        .filter((m): m is string => Boolean(m));
+      if (messages.length > 0) return `입력값을 확인해주세요: ${messages.join(", ")}`;
+    }
+  }
+  return fallback;
+}
+
 export async function signup(payload: SignupInput): Promise<void> {
   const res = await fetch(`${API_BASE}/auth/signup`, {
     method: "POST",
@@ -65,7 +84,7 @@ export async function signup(payload: SignupInput): Promise<void> {
     let detail = "회원가입에 실패했습니다.";
     try {
       const body = await res.json();
-      if (typeof body.detail === "string") detail = body.detail;
+      detail = extractErrorDetail(body, detail);
     } catch {
       // response body wasn't JSON — keep the generic message
     }
@@ -93,7 +112,7 @@ export async function callTool<TOutput>(
     let detail = "요청이 실패했습니다.";
     try {
       const body = await res.json();
-      if (typeof body.detail === "string") detail = body.detail;
+      detail = extractErrorDetail(body, detail);
     } catch {
       // response body wasn't JSON — keep the generic message
     }
@@ -135,6 +154,9 @@ export type ProfileInput = {
 
 export type Recommendation = {
   id: number;
+  // 2026-09-02 QA 후속: 링크가 없는 추천 항목도 정책별 챗봇으로는 물어볼 수 있게
+  // 하려고 추가(PolicyChatDrawer/PolicyQaTarget이 필요로 함).
+  policy_key: string;
   policy_name: string;
   benefit_description: string;
   application_period: string;
@@ -185,7 +207,7 @@ async function authedFetch(path: string, token: string, options: RequestInit = {
     let detail = "요청이 실패했습니다.";
     try {
       const body = await res.json();
-      if (typeof body.detail === "string") detail = body.detail;
+      detail = extractErrorDetail(body, detail);
     } catch {
       // response body wasn't JSON — keep the generic message
     }

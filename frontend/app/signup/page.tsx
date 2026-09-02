@@ -233,12 +233,16 @@ export default function SignupPage() {
               <input
                 type="number"
                 min={0}
+                max={130}
                 placeholder="29"
                 value={age}
                 onChange={(e) => setAge(e.target.value)}
                 required
                 className="h-12 rounded-xl border border-slate-200 px-4 text-[13px] font-semibold outline-none focus:border-[#2457d6] focus:ring-4 focus:ring-[#2457d6]/10"
               />
+              {/* 2026-09-02 QA: min/max만 걸어두면 브라우저 네이티브 툴팁 외엔 안내가
+                  없어서 왜 제출이 안 되는지 헷갈릴 수 있었다 — 상시 노출 힌트로 보강. */}
+              <span className="text-[11px] font-semibold text-slate-400">0~130세 사이로 입력해주세요.</span>
             </label>
 
             <div>
@@ -254,6 +258,7 @@ export default function SignupPage() {
                 <input
                   type="number"
                   min={0}
+                  max={100}
                   placeholder="신혼 몇 년차인가요? (예: 1)"
                   value={marriageYears}
                   onChange={(e) => setMarriageYears(e.target.value)}
@@ -271,6 +276,7 @@ export default function SignupPage() {
                     <input
                       type="number"
                       min={0}
+                      max={130}
                       value={spouseAge}
                       onChange={(e) => setSpouseAge(e.target.value)}
                       className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-[13px] font-semibold outline-none focus:border-[#2457d6]"
@@ -281,6 +287,7 @@ export default function SignupPage() {
                     <input
                       type="number"
                       min={0}
+                      max={200000}
                       value={spouseIncome}
                       onChange={(e) => setSpouseIncome(e.target.value)}
                       className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-[13px] font-semibold outline-none focus:border-[#2457d6]"
@@ -309,6 +316,7 @@ export default function SignupPage() {
                 <input
                   type="number"
                   min={0}
+                  max={20}
                   placeholder="0"
                   value={childrenCount}
                   onChange={(e) => setChildrenCount(e.target.value)}
@@ -366,6 +374,7 @@ export default function SignupPage() {
               <input
                 type="number"
                 min={0}
+                max={200000}
                 placeholder="4000"
                 value={income}
                 onChange={(e) => setIncome(e.target.value)}
@@ -420,6 +429,7 @@ export default function SignupPage() {
                 <input
                   type="number"
                   min={0}
+                  max={200000}
                   placeholder="부동산·금융자산 합산"
                   value={netWorth}
                   onChange={(e) => setNetWorth(e.target.value)}
@@ -431,6 +441,7 @@ export default function SignupPage() {
                 <input
                   type="number"
                   min={0}
+                  max={200000}
                   value={monthlySavings}
                   onChange={(e) => setMonthlySavings(e.target.value)}
                   className="h-12 rounded-xl border border-slate-200 px-4 text-[13px] font-semibold outline-none focus:border-[#2457d6] focus:ring-4 focus:ring-[#2457d6]/10"

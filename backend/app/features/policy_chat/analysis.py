@@ -59,8 +59,13 @@ def _policy_text(policy: CachedPolicy) -> str:
         min_income = f"{policy.min_income_krw:,}원" if policy.min_income_krw is not None else "제한 없음"
         max_income = f"{policy.max_income_krw:,}원" if policy.max_income_krw is not None else "제한 없음"
         lines.append(f"소득 조건: {min_income} ~ {max_income}")
-    if policy.marital_status:
-        lines.append(f"혼인 조건 코드: {policy.marital_status}")
+    # 2026-09-02 QA에서 발견: marital_status는 온통청년 API의 원본 mrgSttsCd 코드값
+    # ("0055003" 등)이지 "기혼"/"미혼" 같은 사람이 읽을 문자열이 아니다(matching.py의
+    # 혼인상태 필터 주석 참고 — 공통코드 표를 못 구해 못 옮겼고, 실측상 97%가 이
+    # 코드 하나로 쏠려있어 사실상 "제한없음" sentinel이나 다름없다). 이걸 프롬프트에
+    # 그대로 넣으면 LLM이 의미를 모른 채 "혼인 조건 코드: 0055003"이라고 그대로
+    # 사용자에게 되읽어주는 게 실제로 확인됐다 — 의미 있는 값으로 바꿀 수 없으니
+    # 아예 프롬프트에서 뺀다(안 넣는 게 이상한 코드를 노출하는 것보다 낫다).
     if policy.region_code:
         lines.append(f"지역 코드: {policy.region_code}")
     return "\n".join(lines)

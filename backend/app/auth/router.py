@@ -61,6 +61,16 @@ def signup(payload: SignupRequest, db: Session = Depends(get_db)):
     except ValueError as e:
         print(f"[ERROR] /auth/signup failed for email={payload.email!r}: {e}")
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        # 2026-09-02 QA에서 발견: pydantic 검증을 통과했더라도(예: 이 스키마 추가
+        # 이전의 다른 예상 못 한 DB 오류) 여기서 안 잡으면 uncaught exception이
+        # Starlette 기본 500 처리로 빠지면서 CORSMiddleware를 못 거친다 — 브라우저는
+        # 그 응답 자체를 못 받고 "Failed to fetch"만 띄워서 사용자는 원인을 전혀 알
+        # 수 없었다(policy_matcher/router.py의 _raise_as_http_500과 동일한 사정,
+        # 이 라우터에는 그 헬퍼가 없어 직접 처리한다).
+        db.rollback()
+        print(f"[ERROR] /auth/signup unexpected failure for email={payload.email!r}: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="회원가입 처리 중 오류가 발생했습니다. 입력값을 확인 후 다시 시도해주세요.")
     return user
 
 
@@ -176,7 +186,14 @@ def update_profile(
     current_user.monthly_savings_capacity_krw = payload.monthly_savings_capacity_krw
     current_user.has_disability = payload.has_disability
     current_user.is_veteran = payload.is_veteran
-    db.commit()
+    try:
+        db.commit()
+    except Exception as e:
+        # signup과 동일한 사정 — pydantic 검증을 통과했더라도 예상 못 한 DB 오류를
+        # 그냥 두면 CORS를 못 거치는 500으로 빠져 "Failed to fetch"만 뜬다.
+        db.rollback()
+        print(f"[ERROR] /auth/profile unexpected failure for user_id={current_user.id}: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="정보 저장 중 오류가 발생했습니다. 입력값을 확인 후 다시 시도해주세요.")
     db.refresh(current_user)
     return current_user
 

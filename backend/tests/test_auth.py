@@ -57,6 +57,28 @@ def test_signup_missing_required_profile_field_returns_422(client):
     assert response.status_code == 422
 
 
+def test_signup_rejects_unrealistically_large_annual_income_with_422(client):
+    # 2026-09-02 QA에서 발견: 연소득에 999999999999(만원)를 넣으면 원 단위로 환산한
+    # 값이 users.annual_income_krw(Postgres 32비트 integer) 범위를 넘겨서 INSERT가
+    # DataError로 죽고, 그게 uncaught exception이라 CORS를 못 거치는 500으로 빠져
+    # 브라우저에는 "Failed to fetch"만 떴다. 이제 스키마 검증(le=2,000,000,000)이
+    # DB에 닿기 전에 명확한 422로 막아야 한다.
+    response = client.post("/auth/signup", json=_signup_payload("huge-income@example.com", annual_income_krw=9_999_999_999_990_000))
+    assert response.status_code == 422
+
+
+def test_signup_rejects_unrealistically_large_net_worth_with_422(client):
+    response = client.post(
+        "/auth/signup", json=_signup_payload("huge-networth@example.com", net_worth_krw=9_999_999_999_990_000)
+    )
+    assert response.status_code == 422
+
+
+def test_signup_accepts_annual_income_at_the_upper_bound(client):
+    response = client.post("/auth/signup", json=_signup_payload("max-income@example.com", annual_income_krw=2_000_000_000))
+    assert response.status_code == 201
+
+
 def test_check_email_available_for_unregistered_email(client):
     response = client.get("/auth/check-email", params={"email": "new@example.com"})
     assert response.status_code == 200

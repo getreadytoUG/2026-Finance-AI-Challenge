@@ -54,6 +54,16 @@ class _FakeProvider:
         return self._response
 
 
+def test_policy_text_omits_raw_marital_status_code():
+    # 2026-09-02 QA에서 발견: marital_status는 "0055003" 같은 원본 API 코드값이지
+    # 사람이 읽을 문자열이 아닌데, 프롬프트에 그대로 들어가면 LLM이 그 코드를 그대로
+    # 사용자에게 되읽어줬다 — 아예 프롬프트에서 빼야 한다.
+    policy = _policy(marital_status="0055003")
+    text = analysis._policy_text(policy)
+    assert "0055003" not in text
+    assert "혼인 조건 코드" not in text
+
+
 def test_generate_policy_report_calls_llm_once_via_tool_call(monkeypatch):
     fake = _FakeProvider(
         LLMResponse(

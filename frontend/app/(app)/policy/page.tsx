@@ -8,11 +8,15 @@ import Pagination from "@/components/Pagination";
 import PolicyChatDrawer from "@/components/PolicyChatDrawer";
 import PolicyDetailLink from "@/components/PolicyDetailLink";
 import type { PolicyQaTarget } from "@/components/PolicyQaChatPanel";
+import StatusPill from "@/components/StatusPill";
 import { callTool, getMe, type UserProfile } from "@/lib/api";
 import { krwToManwon } from "@/lib/profileOptions";
 
 const PAGE_SIZE = 10;
 
+// 2026-09-02 QA 후속: 백엔드가 policy_matcher.PolicyOption에 status/status_emoji를
+// 추가해줘서(대시보드의 "신청 가능" 하드코딩 버그 수정과 같이 진행) 이 화면에서도
+// 실제 신청 상태를 배지로 보여줄 수 있게 됐다 — 예전엔 상태 표시가 아예 없었다.
 type PolicyOption = {
   policy_key: string;
   policy_name: string;
@@ -20,6 +24,7 @@ type PolicyOption = {
   application_period: string;
   reference_url: string;
   is_newlywed_policy: boolean;
+  status: string;
 };
 
 type PolicyMatchOutput = {
@@ -154,6 +159,7 @@ export default function PolicyPage() {
                           </span>
                         )}
                         <span className="text-[15px] font-extrabold tracking-[-.03em] text-ink">{option.policy_name}</span>
+                        <StatusPill status={option.status} />
                       </div>
                       <p className="mt-2 text-[12px] leading-5 text-slate-500">{option.benefit_description}</p>
                       <div className="mt-2 text-[11px] font-semibold text-slate-400">신청 기간 {option.application_period}</div>

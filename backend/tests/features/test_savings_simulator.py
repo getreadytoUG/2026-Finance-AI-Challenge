@@ -74,6 +74,16 @@ def test_match_real_savings_policies_excludes_disability_only_policy_for_non_dis
     assert match_real_savings_policies([policy], _match_input(has_disability=True), today_kst()) != []
 
 
+def test_match_real_savings_policies_dedupes_same_policy_name(db_session):
+    # 2026-09-02 QA에서 발견: 온통청년 원본에 같은 이름의 정책이 설명만 다르게
+    # 중복 등록된 경우가 있어(예: "청년주택드림청약통장") 화면에 두 번 떴었다.
+    policy_a = _seed_policy(db_session, policy_name="청년주택드림청약통장", description="설명 A")
+    policy_b = _seed_policy(db_session, policy_name="청년주택드림청약통장", description="설명 B")
+    result = match_real_savings_policies([policy_a, policy_b], _match_input(), today_kst())
+    assert len(result) == 1
+    assert result[0].policy_name == "청년주택드림청약통장"
+
+
 def test_match_real_housing_policies_splits_by_jeonse_and_purchase(db_session):
     jeonse_policy = _seed_policy(db_session, policy_name="신혼부부 전세자금 대출이자 지원", large_category="주거")
     purchase_policy = _seed_policy(db_session, policy_name="청년 주택구입 대출이자 지원", large_category="주거")

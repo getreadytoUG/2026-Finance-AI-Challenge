@@ -11,21 +11,30 @@ import {
   ChevronRight,
   Heart,
   MapPin,
+  MessageCircle,
   Search,
   Sparkles,
   UserRound,
 } from "lucide-react";
 import { DashboardLayout, SectionLabel } from "@/components/DashboardLayout";
+import PolicyChatDrawer from "@/components/PolicyChatDrawer";
 import PolicyDetailLink from "@/components/PolicyDetailLink";
+import type { PolicyQaTarget } from "@/components/PolicyQaChatPanel";
+import StatusPill from "@/components/StatusPill";
 import { callTool, getMe, getRecommendations, type Recommendation, type UserProfile } from "@/lib/api";
 import { krwToManwon } from "@/lib/profileOptions";
 
+// 2026-09-02 QA에서 발견: 이 카드가 status를 안 받고 "신청 가능"을 하드코딩하고
+// 있어서, 이미 마감된 정책에도 그대로 붙어 있었다(정책 달력 쪽은 이미 status를
+// 받아 정확히 "만료"를 표시했음). 백엔드가 policy_matcher.PolicyOption에
+// status/status_emoji를 추가해줘서 이제 실제 값을 받는다.
 type PolicyOption = {
   policy_name: string;
   benefit_description: string;
   application_period: string;
   reference_url: string;
   is_newlywed_policy: boolean;
+  status: string;
 };
 
 type PolicyMatchOutput = {
@@ -50,6 +59,21 @@ export default function DashboardPage() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [recentRecs, setRecentRecs] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
+  // 2026-09-02 QA에서 발견: "링크 정보 없음" 추천 항목은 클릭해도 아무 반응이
+  // 없었다 — 링크가 없으면 대신 정책별 챗봇을 열어 물어볼 수 있게 한다
+  // (policy/page.tsx의 동일한 패턴 재사용).
+  const [chatTarget, setChatTarget] = useState<PolicyQaTarget | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
+
+  function openChat(target: PolicyQaTarget) {
+    setChatTarget(target);
+    setChatOpen(true);
+  }
+
+  function closeChat() {
+    setChatOpen(false);
+    setTimeout(() => setChatTarget(null), 300);
+  }
 
   useEffect(() => {
     const token = localStorage.getItem("token") ?? "";
@@ -185,10 +209,7 @@ export default function DashboardPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-[14px] font-extrabold tracking-[-.03em] text-ink">{policy.policy_name}</span>
-                      <span className="policy-status available">
-                        <span />
-                        신청 가능
-                      </span>
+                      <StatusPill status={policy.status} />
                     </div>
                     <div className="mt-1 text-[11px] font-semibold text-slate-400">{policy.benefit_description}</div>
                   </div>
@@ -225,7 +246,17 @@ export default function DashboardPage() {
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className={`text-[12px] font-bold ${rec.is_read ? "text-slate-400" : "text-ink"}`}>{rec.policy_name}</div>
-                      <PolicyDetailLink url={rec.reference_url} className="mt-1 text-[11px]" />
+                      {rec.reference_url ? (
+                        <PolicyDetailLink url={rec.reference_url} className="mt-1 text-[11px]" />
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => openChat({ policy_key: rec.policy_key, policy_name: rec.policy_name })}
+                          className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-[#2457d6] hover:underline"
+                        >
+                          <MessageCircle size={12} /> 이 정책 물어보기
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -239,6 +270,8 @@ export default function DashboardPage() {
           </div>
         </section>
       </div>
+
+      <PolicyChatDrawer item={chatTarget} open={chatOpen} onClose={closeChat} />
     </DashboardLayout>
   );
 }

@@ -95,6 +95,7 @@ def list_my_recommendations(
             recommendations.append(
                 RecommendationOut(
                     id=row.id,
+                    policy_key=row.policy_key,
                     policy_name=row.policy_name,
                     benefit_description=row.benefit_description,
                     application_period=row.application_period,

@@ -42,8 +42,17 @@ export default function AiSearchResultsPanel({
     handlePageChange,
   } = state;
 
+  // 2026-09-02 QA에서 발견: 위 AI 챗봇(자연어) 입력창과 이 단순 키워드 검색창을
+  // 실제로 혼동하기 쉬웠다 — "정책명/내용 검색"이라는 placeholder만으로는 "이건
+  // 문장이 아니라 키워드로만 매칭된다"는 게 잘 안 와닿았다. 소제목으로 구분을
+  // 강조하고, 결과가 0건일 때 AI 챗봇 쪽으로 안내한다.
+  const showAiChatHint = !resultsLoading && items.length === 0 && keywordInput.trim().length > 0;
+
   return (
     <div className={compact ? "flex h-full flex-col" : undefined}>
+      <div className="mb-1.5 shrink-0 text-[11px] font-extrabold uppercase tracking-[.08em] text-slate-400">
+        키워드로 직접 검색
+      </div>
       <form
         onSubmit={handleKeywordSearchSubmit}
         className="mb-4 flex shrink-0 items-center gap-1.5 rounded-full border border-slate-200 bg-white p-1.5 pl-4 shadow-[0_1px_2px_rgba(20,30,60,.04)] transition focus-within:border-[#2457d6] focus-within:ring-4 focus-within:ring-[#2457d6]/10"
@@ -51,7 +60,7 @@ export default function AiSearchResultsPanel({
         <Search size={16} className="text-slate-400" />
         <input
           className="min-w-0 flex-1 border-none bg-transparent py-2.5 text-[14px] text-ink outline-none placeholder:text-slate-400"
-          placeholder="정책명/내용 검색"
+          placeholder="정책명 일부만 입력 (문장 X)"
           value={keywordInput}
           onChange={(e) => setKeywordInput(e.target.value)}
           disabled={!state.filters}
@@ -71,7 +80,14 @@ export default function AiSearchResultsPanel({
         {resultsError && <p className="text-[13px] font-bold text-rose-500">{resultsError}</p>}
         {resultsLoading && <p className="text-[13px] text-slate-400">불러오는 중...</p>}
         {!resultsLoading && items.length === 0 && !resultsError && (
-          <div className="rounded-2xl border border-dashed border-slate-300 p-10 text-center text-[13px] font-bold text-slate-400">조건에 맞는 정책이 없습니다.</div>
+          <div className="rounded-2xl border border-dashed border-slate-300 p-10 text-center text-[13px] font-bold text-slate-400">
+            조건에 맞는 정책이 없습니다.
+            {showAiChatHint && (
+              <p className="mt-2 text-[12px] font-semibold text-slate-400">
+                문장으로 물어보고 싶다면 이 키워드 검색 대신 AI 챗봇에게 말해보세요.
+              </p>
+            )}
+          </div>
         )}
 
         <div className="grid gap-3">

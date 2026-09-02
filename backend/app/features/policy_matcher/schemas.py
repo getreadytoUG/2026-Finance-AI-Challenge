@@ -26,6 +26,13 @@ class PolicyOption(BaseModel):
     application_period: str
     reference_url: str
     is_newlywed_policy: bool = False
+    # 2026-09-02 QA에서 발견: 대시보드/"내 맞춤 정책 보기"가 이 필드 없이
+    # "신청 가능"을 하드코딩해서 이미 마감된 정책에도 그대로 붙어 있었다
+    # (정책 달력/AI 검색 쪽은 PolicyBrowseItem에 이미 있던 필드라 문제 없었음).
+    # compute_policy_status()로 계산해서 채운다(tool.py 참고) — 기본값은
+    # 필드 추가 이전 프론트/테스트가 값을 안 줘도 깨지지 않도록.
+    status: str = "상시"
+    status_emoji: str = "🟢"
 
 
 class PolicyMatchOutput(BaseModel):
@@ -36,6 +43,10 @@ class RecommendationOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    # 2026-09-02 QA에서 발견: reference_url이 없는("링크 정보 없음") 추천 항목은
+    # 클릭해도 아무 반응이 없었다 — 정책별 챗봇(PolicyChatDrawer)을 열려면
+    # policy_key가 있어야 해서 추가한다.
+    policy_key: str
     policy_name: str
     benefit_description: str
     application_period: str

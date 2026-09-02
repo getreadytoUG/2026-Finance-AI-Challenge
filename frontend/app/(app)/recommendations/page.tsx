@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Bell, Clock } from "lucide-react";
+import { Bell, Clock, MessageCircle } from "lucide-react";
 import { getMe, getRecommendations, markRecommendationRead, refreshRecommendations, updateProfile } from "@/lib/api";
 import type { Recommendation, UserProfile } from "@/lib/api";
 import { OCCUPATION_OPTIONS, manwonToKrw, type OccupationType } from "@/lib/profileOptions";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import Pagination from "@/components/Pagination";
+import PolicyChatDrawer from "@/components/PolicyChatDrawer";
 import PolicyDetailLink from "@/components/PolicyDetailLink";
+import type { PolicyQaTarget } from "@/components/PolicyQaChatPanel";
 import StatusPill from "@/components/StatusPill";
 import RecommendationCalendar from "@/components/RecommendationCalendar";
 import AiPolicySearchSection from "@/components/AiPolicySearchSection";
@@ -42,6 +44,20 @@ export default function RecommendationsPage() {
   const [view, setView] = useState<"calendar" | "list" | "ai_search">(
     searchParams.get("view") === "ai_search" ? "ai_search" : "calendar"
   );
+  // 2026-09-02 QA에서 발견: "맞춤 정책 추천함" 탭에서 링크가 없는 항목은 클릭해도
+  // 더 알아볼 방법이 없었다 — 대시보드와 동일하게 정책별 챗봇으로 폴백한다.
+  const [chatTarget, setChatTarget] = useState<PolicyQaTarget | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
+
+  function openChat(target: PolicyQaTarget) {
+    setChatTarget(target);
+    setChatOpen(true);
+  }
+
+  function closeChat() {
+    setChatOpen(false);
+    setTimeout(() => setChatTarget(null), 300);
+  }
 
   async function loadProfileAndRecommendations() {
     const token = localStorage.getItem("token") ?? "";
@@ -275,7 +291,17 @@ export default function RecommendationsPage() {
                     </div>
                     <p className="mt-2 text-[12px] leading-5 text-slate-500">{rec.benefit_description}</p>
                     <div className="mt-2 text-[11px] font-semibold text-slate-400">신청 기간 {rec.application_period}</div>
-                    <PolicyDetailLink url={rec.reference_url} className="mt-2" />
+                    {rec.reference_url ? (
+                      <PolicyDetailLink url={rec.reference_url} className="mt-2" />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => openChat({ policy_key: rec.policy_key, policy_name: rec.policy_name })}
+                        className="mt-2 inline-flex items-center gap-1 text-[13px] font-bold text-[#2457d6] hover:underline"
+                      >
+                        <MessageCircle size={14} /> 이 정책 물어보기
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -284,6 +310,8 @@ export default function RecommendationsPage() {
           )}
         </>
       )}
+
+      <PolicyChatDrawer item={chatTarget} open={chatOpen} onClose={closeChat} />
     </DashboardLayout>
   );
 }

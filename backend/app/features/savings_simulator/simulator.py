@@ -101,6 +101,22 @@ def simulate_youth_leap_account(input: YouthLeapAccountInput) -> YouthLeapAccoun
 # 지난번에 추가한 장애인/보훈대상자 전용 정책 필터링도 자동으로 함께 적용된다.
 # router가 DB에서 CachedPolicy를 조회해 넘겨주고, 여기서는 필터링만 한다(이 파일의
 # "순수 계산" 원칙 유지 — DB I/O는 router가 담당).
+# 2026-09-02 QA에서 발견: 온통청년 원본 데이터에 같은 정책명이 설명만 살짝 다르게
+# 중복 등록된 경우가 있어("청년주택드림청약통장" 등), 화면에 같은 이름이 두 번
+# 뜨는 문제가 있었다. 사용자에게는 시행 기관/접수처 같은 구분 정보를 보여줄 방법이
+# 마땅치 않아, 정책명이 같으면 하나만 남긴다 — candidates가 이미 상태(임박-여유-
+# 상시-예정) 순으로 정렬돼 있으므로 먼저 나오는(더 급한/열려있는) 쪽을 남긴다.
+def _dedupe_by_policy_name(candidates: list[CachedPolicy]) -> list[CachedPolicy]:
+    seen: set[str] = set()
+    deduped = []
+    for p in candidates:
+        if p.policy_name in seen:
+            continue
+        seen.add(p.policy_name)
+        deduped.append(p)
+    return deduped
+
+
 def match_real_savings_policies(
     policies: list[CachedPolicy],
     match_input: PolicyMatchInput,
@@ -114,6 +130,7 @@ def match_real_savings_policies(
         and compute_policy_status(p.apply_start_ymd, p.apply_end_ymd, today)[0] != "만료"
     ]
     candidates.sort(key=lambda p: STATUS_ORDER[compute_policy_status(p.apply_start_ymd, p.apply_end_ymd, today)[0]])
+    candidates = _dedupe_by_policy_name(candidates)
     return [
         MatchedSavingsPolicy(
             policy_key=p.policy_key,
@@ -206,6 +223,7 @@ def match_real_housing_policies(
         and compute_policy_status(p.apply_start_ymd, p.apply_end_ymd, today)[0] != "만료"
     ]
     candidates.sort(key=lambda p: STATUS_ORDER[compute_policy_status(p.apply_start_ymd, p.apply_end_ymd, today)[0]])
+    candidates = _dedupe_by_policy_name(candidates)
     return [
         MatchedSavingsPolicy(
             policy_key=p.policy_key,

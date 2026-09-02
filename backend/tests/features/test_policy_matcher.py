@@ -158,6 +158,25 @@ def test_run_uses_combined_household_income_when_spouse_income_given(db_session)
     assert result.options == []
 
 
+def test_run_computes_real_status_instead_of_hardcoding_available(db_session):
+    # 2026-09-02 QA에서 발견: 대시보드가 이 output을 그대로 써서 "신청 가능"을
+    # 하드코딩했었다 — 실제로 만료된 정책도 status가 정확히 "만료"로 나와야 한다.
+    _seed_policy(db_session, policy_name="이미 마감된 정책", apply_start_ymd="20200101", apply_end_ymd="20200201")
+    _seed_policy(db_session, policy_name="상시 모집 정책")
+    result = run(PolicyMatchInput(age=29, is_married=False, annual_income_krw=40_000_000, region="서울"), _ctx(db_session))
+    statuses = {o.policy_name: (o.status, o.status_emoji) for o in result.options}
+    assert statuses["이미 마감된 정책"] == ("만료", "🔴")
+    assert statuses["상시 모집 정책"] == ("상시", "🟢")
+
+
+def test_run_sorts_expired_policies_after_open_ones(db_session):
+    _seed_policy(db_session, policy_name="이미 마감된 정책", apply_start_ymd="20200101", apply_end_ymd="20200201")
+    _seed_policy(db_session, policy_name="상시 모집 정책")
+    result = run(PolicyMatchInput(age=29, is_married=False, annual_income_krw=40_000_000, region="서울"), _ctx(db_session))
+    names = [o.policy_name for o in result.options]
+    assert names == ["상시 모집 정책", "이미 마감된 정책"]
+
+
 def test_run_maps_policy_fields_into_output_option(db_session):
     _seed_policy(
         db_session,
