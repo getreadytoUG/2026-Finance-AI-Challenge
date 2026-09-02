@@ -44,9 +44,23 @@ function filterChips(filters: AiSearchFilters): { key: keyof AiSearchFilters; la
 // 컴포넌트에서 분리했다 — 렌더링은 각 화면이 원하는 레이아웃대로 따로 한다
 // (AiSearchChatPanel/AiSearchResultsPanel 참고). pageSize는 호출하는 화면이 정한다 —
 // 추천 탭 캘린더는 캘린더/챗봇과 높이를 맞추려고 4개, /ai-search는 기존대로 10개.
-export function useAiPolicySearch(pageSize: number = 10) {
+//
+// clientPaginate=true면 매 페이지 이동마다 서버를 다시 호출하지 않고, 조건이 바뀔
+// 때 한 번에 전체 결과를 받아두고("다음"은 이미 받아둔 배열을 slice만 한다).
+// 추천 탭 캘린더가 이 모드를 쓴다 — (1) 페이지 넘길 때마다 CachedPolicy 풀스캔
+// 왕복이 생겨 버벅였고, (2) 캘린더 마감일 표시(byDay)가 "현재 페이지 4건"에서만
+// 만들어져 전체 마감일이 안 찍혔다. 두 문제를 같이 해결한다. /ai-search 페이지는
+// 결과가 매우 많을 수 있어 기존 서버 페이지네이션(clientPaginate=false)을 유지한다.
+const FETCH_ALL_PAGE_SIZE = 1000;
+
+export function useAiPolicySearch(pageSize: number = 10, opts: { clientPaginate?: boolean } = {}) {
+  const { clientPaginate = false } = opts;
+  const fetchPageSize = clientPaginate ? FETCH_ALL_PAGE_SIZE : pageSize;
   const [filters, setFilters] = useState<AiSearchFilters | null>(null);
-  const [items, setItems] = useState<PolicyBrowseItem[]>([]);
+  // clientPaginate=false: rawItems가 곧 화면에 뿌리는 현재 페이지.
+  // clientPaginate=true: allItems에 전체를 담고, 화면용 items는 아래에서 slice한다.
+  const [rawItems, setRawItems] = useState<PolicyBrowseItem[]>([]);
+  const [allItems, setAllItems] = useState<PolicyBrowseItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [includeClosed, setIncludeClosed] = useState(false);
@@ -95,10 +109,29 @@ export function useAiPolicySearch(pageSize: number = 10) {
     setResultsError(null);
     try {
       const token = localStorage.getItem("token") ?? "";
-      const res = await fetchAiSearchResults(token, nextFilters, nextIncludeClosed, nextPage, pageSize);
-      setItems(res.items);
-      setTotal(res.total);
-      setPage(res.page);
+      // clientPaginate면 조건이 바뀔 때마다 1페이지째로 전량을 받아둔다 — 이후
+      // 페이지 이동은 handlePageChange가 네트워크 없이 slice만 바꾼다.
+      const res = await fetchAiSearchResults(
+        token,
+        nextFilters,
+        nextIncludeClosed,
+        clientPaginate ? 1 : nextPage,
+        fetchPageSize
+      );
+      if (clientPaginate) {
+        setAllItems(res.items);
+        // FETCH_ALL_PAGE_SIZE로 한 번에 다 못 받은 경우(총 결과가 그보다 많음)엔
+        // 받은 만큼만 total로 잡아 존재하지 않는 뒷페이지를 만들지 않는다.
+        if (res.total > res.items.length) {
+          console.warn(`[useAiPolicySearch] total=${res.total} > fetched=${res.items.length}; FETCH_ALL_PAGE_SIZE를 늘려야 할 수 있음`);
+        }
+        setTotal(Math.min(res.total, res.items.length));
+        setPage(nextPage);
+      } else {
+        setRawItems(res.items);
+        setTotal(res.total);
+        setPage(res.page);
+      }
     } catch (err) {
       setResultsError(err instanceof Error ? err.message : "결과를 불러오지 못했습니다.");
     } finally {
@@ -146,6 +179,11 @@ export function useAiPolicySearch(pageSize: number = 10) {
 
   function handlePageChange(nextPage: number) {
     if (!filters) return;
+    if (clientPaginate) {
+      // 이미 전량을 받아뒀으므로 네트워크 없이 slice 기준점만 옮긴다.
+      setPage(nextPage);
+      return;
+    }
     refetch(filters, nextPage, includeClosed);
   }
 
@@ -213,12 +251,18 @@ export function useAiPolicySearch(pageSize: number = 10) {
     try {
       const token = localStorage.getItem("token") ?? "";
       const history: PolicyChatMessage[] = nextTurns.filter((t) => t !== WELCOME_MESSAGE).map((t) => ({ role: t.role, content: t.content }));
-      const res = await sendAiSearchMessage(token, history, filters, includeClosed, pageSize);
+      const res = await sendAiSearchMessage(token, history, filters, includeClosed, fetchPageSize);
       setTurns((prev) => [...prev, { role: "assistant", content: res.reply }]);
       setFilters(res.filters);
-      setItems(res.items);
-      setTotal(res.total);
-      setPage(res.page);
+      if (clientPaginate) {
+        setAllItems(res.items);
+        setTotal(Math.min(res.total, res.items.length));
+        setPage(1);
+      } else {
+        setRawItems(res.items);
+        setTotal(res.total);
+        setPage(res.page);
+      }
     } catch (err) {
       setChatError(err instanceof Error ? err.message : "답변을 받지 못했습니다.");
     } finally {
@@ -239,6 +283,8 @@ export function useAiPolicySearch(pageSize: number = 10) {
     }
   }
 
+  // 화면에 뿌리는 현재 페이지. clientPaginate면 전량(allItems)에서 직접 잘라낸다.
+  const items = clientPaginate ? allItems.slice((page - 1) * pageSize, page * pageSize) : rawItems;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const chips = filters ? filterChips(filters) : [];
   const showSuggestions = turns.length === 1 && !chatLoading;
@@ -265,6 +311,9 @@ export function useAiPolicySearch(pageSize: number = 10) {
     filters,
     // results panel
     items,
+    // clientPaginate 모드에서만 채워지는 "조건에 맞는 전체 결과" — 캘린더가 전체
+    // 마감일을 계산하는 데 쓴다(현재 페이지 items로는 4건만 보였음).
+    allItems,
     total,
     totalPages,
     page,
