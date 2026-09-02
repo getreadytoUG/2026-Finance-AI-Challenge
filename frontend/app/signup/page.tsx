@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, Check, CircleHelp, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CircleHelp, Mail, ShieldCheck } from "lucide-react";
 import { signup, login, checkEmailAvailable } from "@/lib/api";
 import PasswordField from "@/components/PasswordField";
 import SocialLoginButtons from "@/components/SocialLoginButtons";
@@ -53,6 +53,9 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [emailCheckStatus, setEmailCheckStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
+  // 회원가입 방식을 먼저 고르게 한다 — "이메일로 가입하기"를 눌러야 아래 프로필
+  // 입력 폼이 나타난다(소셜은 버튼 클릭 즉시 OAuth로 이동하므로 이 상태와 무관).
+  const [method, setMethod] = useState<"choose" | "email">("choose");
   const router = useRouter();
 
   async function handleCheckEmail() {
@@ -146,15 +149,38 @@ export default function SignupPage() {
           </div>
         </section>
         <section className="rounded-[26px] border border-slate-200/80 bg-white p-6 shadow-[0_20px_55px_rgba(22,45,84,.08)] sm:p-9">
-          <div className="mb-8">
-            <div className="text-[10px] font-extrabold uppercase tracking-[.18em] text-[#2457d6]">PROFILE</div>
-            <h2 className="mt-2 text-[22px] font-extrabold tracking-[-.05em]">기본 프로필을 입력해 주세요</h2>
-          </div>
-          <div className="mb-7">
-            <SocialLoginButtons action="가입" />
-            <p className="mt-2 text-[11px] text-slate-400">소셜 계정으로 가입하면 다음 화면에서 프로필만 입력하면 돼요.</p>
-          </div>
-          <form onSubmit={handleSubmit} className="grid gap-5">
+          {method === "choose" ? (
+            <>
+              <div className="mb-8">
+                <div className="text-[10px] font-extrabold uppercase tracking-[.18em] text-[#2457d6]">SIGN UP</div>
+                <h2 className="mt-2 text-[22px] font-extrabold tracking-[-.05em]">회원가입 방법을 선택해주세요</h2>
+                <p className="mt-3 text-[13px] text-slate-500">어떤 방법으로 가입하든, 다음 화면에서 프로필만 입력하면 끝나요.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMethod("email")}
+                className="group flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#2457d6] text-[13px] font-extrabold text-white shadow-[0_12px_22px_rgba(36,87,214,.2)] transition hover:-translate-y-0.5 hover:bg-[#1949c1] active:scale-[.98]"
+              >
+                <Mail size={16} /> 이메일로 가입하기 <ArrowRight size={16} className="transition group-hover:translate-x-1" />
+              </button>
+              <div className="mt-7">
+                <SocialLoginButtons action="가입" />
+              </div>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setMethod("choose")}
+                className="mb-5 inline-flex items-center gap-1.5 text-[12px] font-bold text-slate-400 transition hover:text-[#2457d6]"
+              >
+                <ArrowLeft size={14} /> 다른 방법으로 가입하기
+              </button>
+              <div className="mb-8">
+                <div className="text-[10px] font-extrabold uppercase tracking-[.18em] text-[#2457d6]">PROFILE</div>
+                <h2 className="mt-2 text-[22px] font-extrabold tracking-[-.05em]">기본 프로필을 입력해 주세요</h2>
+              </div>
+              <form onSubmit={handleSubmit} className="grid gap-5">
             <label className="grid gap-2 text-[12px] font-extrabold text-slate-700">
               이메일
               <div className="flex gap-2">
@@ -392,7 +418,9 @@ export default function SignupPage() {
             >
               {loading ? "가입 중..." : "회원가입"} <ArrowRight size={16} className="transition group-hover:translate-x-1" />
             </button>
-          </form>
+              </form>
+            </>
+          )}
         </section>
       </main>
     </div>
