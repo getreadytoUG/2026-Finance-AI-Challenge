@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -16,20 +17,53 @@ import {
 } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { BrandMark } from "@/components/BrandMark";
+import { isTokenExpired } from "@/lib/api";
 
+// 카테고리/기능 카드는 전부 loggedInPath를 따로 둔다 — 로그인 안 한 방문자에게는
+// path(=/signup, 회원가입 유도)를, 이미 로그인한 유저에게는 실제 기능 화면을
+// 보여줘야 한다(사용자 요청, 2026-09-02: "다른 기능들 들어갈 때마다 로그인을
+// 또 하라고 걸린다" — 로그인 상태여도 이 랜딩 페이지가 먼저 뜨도록 바뀌면서, 카드를
+// 누르면 전부 /signup으로만 꽂혀있던 게 이미 로그인된 사람한테도 그대로 적용돼
+// 생긴 문제였다). "정책 읽기"/"AI 분석 리포트"는 UPGRADE.md 개편으로 독립 화면이
+// 아니라 "정책 달력 > 정책 전체 보기"로 흡수됐으므로 같은 곳으로 보낸다.
 const CATEGORIES = [
   { label: "일자리", detail: "취업·창업", icon: BriefcaseBusiness, color: "blue" },
   { label: "주거", detail: "전월세·대출", icon: House, color: "sky" },
   { label: "교육", detail: "학자금·훈련", icon: GraduationCap, color: "violet" },
   { label: "금융·복지", detail: "생활 안정", icon: HeartPulse, color: "mint" },
-];
+] as const;
+const CATEGORY_LOGGED_IN_PATH = "/recommendations?view=ai_search";
 
 const FEATURE_CARDS = [
-  { title: "금융 정책 추천", detail: "내 조건에 맞는 정책만 모아봐요.", icon: WalletCards, path: "/signup", tone: "blue" },
-  { title: "정책 읽기", detail: "카테고리·지역별로 전체 정책을 탐색해요.", icon: BriefcaseBusiness, path: "/signup", tone: "sky" },
-  { title: "AI 분석 리포트", detail: "혜택과 유의사항을 한 번에 확인해요.", icon: Sparkles, path: "/signup", tone: "violet" },
-  { title: "저축플랜", detail: "목표까지 필요한 금액을 계산해요.", icon: PiggyBank, path: "/signup", tone: "mint" },
-];
+  {
+    title: "금융 정책 추천",
+    detail: "내 조건에 맞는 정책만 모아봐요.",
+    icon: WalletCards,
+    loggedInPath: "/policy",
+    tone: "blue",
+  },
+  {
+    title: "정책 읽기",
+    detail: "카테고리·지역별로 전체 정책을 탐색해요.",
+    icon: BriefcaseBusiness,
+    loggedInPath: "/recommendations?view=ai_search",
+    tone: "sky",
+  },
+  {
+    title: "AI 분석 리포트",
+    detail: "혜택과 유의사항을 한 번에 확인해요.",
+    icon: Sparkles,
+    loggedInPath: "/recommendations?view=ai_search",
+    tone: "violet",
+  },
+  {
+    title: "저축플랜",
+    detail: "목표까지 필요한 금액을 계산해요.",
+    icon: PiggyBank,
+    loggedInPath: "/savings",
+    tone: "mint",
+  },
+] as const;
 
 const STEPS = [
   { n: "01", title: "프로필 입력", body: "나이, 소득, 지역, 혼인 여부를 알려주면 내게 맞는 정책만 골라드려요." },
@@ -40,8 +74,21 @@ const STEPS = [
 // 2026-09-02: 예전엔 로그인 상태면 이 랜딩 페이지를 건너뛰고 바로 /dashboard로
 // 리다이렉트했는데, 사용자 요청으로 이제 로그인 여부와 상관없이 누구나 이 페이지를
 // 먼저 보게 한다 — 이 페이지가 곧 메인 페이지다. 로그인한 사용자가 기존 대시보드로
-// 들어가려면 헤더의 "대시보드" 링크(SiteHeader.tsx)를 누르면 된다.
+// 들어가려면 헤더의 "대시보드로 이동" 버튼(SiteHeader.tsx)을 누르면 된다.
 export default function Home() {
+  // 카테고리/기능 카드가 로그인 여부와 상관없이 전부 /signup으로 고정돼 있었다 —
+  // 로그인 상태여도 이 페이지가 먼저 뜨게 바뀌면서, 이미 로그인한 유저가 다른
+  // 기능을 눌러도 회원가입 화면으로 떨어지는(=사실상 다시 로그인/가입을 요구하는
+  // 것처럼 보이는) 문제로 이어졌다(사용자 요청, 2026-09-02). SiteHeader.tsx와
+  // 동일한 패턴으로 로그인 여부를 확인해 실제 기능 화면으로 보낸다.
+  const [loggedIn, setLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoggedIn(!!token && !isTokenExpired(token));
+  }, []);
+
   return (
     <div className="landing min-h-screen overflow-hidden bg-[#f7f9fc] text-ink">
       <SiteHeader />
@@ -62,11 +109,11 @@ export default function Home() {
             </p>
             <div className="mt-9 flex flex-wrap items-center gap-3">
               <Link
-                href="/signup"
+                href={loggedIn ? "/dashboard" : "/signup"}
                 style={{ color: "#2457d6" }}
                 className="group inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3.5 text-[13px] font-extrabold shadow-[0_14px_30px_rgba(7,21,58,.28)] transition hover:-translate-y-1"
               >
-                내 맞춤 혜택 진단 <ArrowRight size={16} className="transition group-hover:translate-x-1" />
+                {loggedIn ? "대시보드로 이동" : "내 맞춤 혜택 진단"} <ArrowRight size={16} className="transition group-hover:translate-x-1" />
               </Link>
               <a href="#how" className="rounded-xl border border-white/25 px-5 py-3.5 text-[13px] font-bold text-white transition hover:bg-white/10">
                 어떻게 연결되나요?
@@ -126,7 +173,7 @@ export default function Home() {
           {CATEGORIES.map(({ label, detail, icon: Icon, color }) => (
             <Link
               key={label}
-              href="/signup"
+              href={loggedIn ? CATEGORY_LOGGED_IN_PATH : "/signup"}
               className="group rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_15px_40px_rgba(28,50,88,.08)] transition hover:-translate-y-1 hover:shadow-[0_20px_44px_rgba(28,50,88,.13)]"
             >
               <span className={`category-icon ${color}`}>
@@ -153,10 +200,10 @@ export default function Home() {
           </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {FEATURE_CARDS.map(({ title, detail, icon: Icon, path, tone }) => (
+          {FEATURE_CARDS.map(({ title, detail, icon: Icon, loggedInPath, tone }) => (
             <Link
               key={title}
-              href={path}
+              href={loggedIn ? loggedInPath : "/signup"}
               className="group relative min-h-[190px] overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 transition hover:-translate-y-1 hover:border-[#cddafb] hover:shadow-[0_18px_42px_rgba(28,50,88,.1)]"
             >
               <span className={`service-icon ${tone}`}>
@@ -204,10 +251,10 @@ export default function Home() {
             <p className="mt-2 text-[13px] text-blue-100">가입하고 프로필만 입력하면 바로 맞춤 정책과 저축 계획을 확인할 수 있어요.</p>
           </div>
           <Link
-            href="/signup"
+            href={loggedIn ? "/dashboard" : "/signup"}
             className="group flex shrink-0 items-center gap-3 rounded-xl bg-white px-5 py-3.5 text-[13px] font-extrabold text-[#2457d6] transition hover:-translate-y-1"
           >
-            무료로 시작하기 <ArrowRight size={16} className="transition group-hover:translate-x-1" />
+            {loggedIn ? "대시보드로 이동" : "무료로 시작하기"} <ArrowRight size={16} className="transition group-hover:translate-x-1" />
           </Link>
         </div>
       </section>
@@ -226,9 +273,9 @@ export default function Home() {
             <div>
               <div className="mb-3 font-extrabold text-white">서비스</div>
               <div className="grid gap-2 text-slate-400">
-                <Link href="/signup">정책 매칭</Link>
-                <Link href="/signup">저축플랜</Link>
-                <Link href="/login">로그인</Link>
+                <Link href={loggedIn ? "/policy" : "/signup"}>내 맞춤 정책 보기</Link>
+                <Link href={loggedIn ? "/savings" : "/signup"}>저축플랜</Link>
+                <Link href={loggedIn ? "/dashboard" : "/login"}>{loggedIn ? "대시보드" : "로그인"}</Link>
               </div>
             </div>
             <div>
