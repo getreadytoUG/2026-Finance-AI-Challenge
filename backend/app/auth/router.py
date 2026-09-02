@@ -55,6 +55,8 @@ def signup(payload: SignupRequest, db: Session = Depends(get_db)):
             housing_status=payload.housing_status,
             net_worth_krw=payload.net_worth_krw,
             monthly_savings_capacity_krw=payload.monthly_savings_capacity_krw,
+            has_disability=payload.has_disability,
+            is_veteran=payload.is_veteran,
         )
     except ValueError as e:
         print(f"[ERROR] /auth/signup failed for email={payload.email!r}: {e}")
@@ -172,6 +174,8 @@ def update_profile(
     current_user.housing_status = payload.housing_status
     current_user.net_worth_krw = payload.net_worth_krw
     current_user.monthly_savings_capacity_krw = payload.monthly_savings_capacity_krw
+    current_user.has_disability = payload.has_disability
+    current_user.is_veteran = payload.is_veteran
     db.commit()
     db.refresh(current_user)
     return current_user

@@ -128,6 +128,13 @@ def is_eligible(policy: CachedPolicy, input: PolicyMatchInput) -> bool:
     if policy.region_code:
         if not input.region or not region_matches(policy.region_code, input.region):
             return False
+    # 장애인/국가보훈대상자 전용 정책은 명시적으로 "아님"(False)이라고 답한 사용자
+    # 에게만 걸러낸다 — 값을 아직 입력하지 않은 기존 유저(None)는 다른 확장
+    # 필드들과 동일하게 fail-open으로 계속 노출한다(하위 호환).
+    if is_disability_targeted_policy(policy) and input.has_disability is False:
+        return False
+    if is_veteran_targeted_policy(policy) and input.is_veteran is False:
+        return False
     return True
 
 
@@ -149,3 +156,35 @@ NEWLYWED_KEYWORDS = ("신혼", "청년부부", "예비부부")
 def is_newlywed_policy(policy: CachedPolicy) -> bool:
     haystack = policy.policy_name + policy.description
     return any(keyword in haystack for keyword in NEWLYWED_KEYWORDS)
+
+
+# 온통청년 API에는 신혼부부와 마찬가지로 "장애인 대상"/"국가보훈대상자 대상" 여부를
+# 담는 구조화된 필드가 없다(youth_center_client.py의 RawYouthPolicy 필드 목록 참고 —
+# 지원대상 관련 필드는 min/max_age, marital_status, region_code뿐). 그래서 신혼부부
+# 판별과 비슷하게 키워드로 판별하되, **정책명(title)만** 본다 — is_newlywed_policy와
+# 달리 description은 넣지 않는다. 실제 캐시 데이터로 검증해보니(2026-09-02) description
+# 까지 포함하면 "저소득 서민, 청년, 신혼부부, 장애인, 국가유공자 등 주거취약계층"처럼
+# 여러 대상 집단을 나열하는 설명문에 걸려, 장애인/보훈대상자 "전용"이 아니라 청년
+# 일반도 받을 수 있는 정책(통합공공임대주택 등)까지 잘못 걸러내는 오탐이 실측됐다.
+# 반면 정책명 자체에 이 키워드가 박혀있는 정책("경계선지능청년지원", "제대군인
+# 직업능력개발훈련" 등)은 실제로 그 집단 전용인 경우가 실측 전수조사에서 전부
+# 맞았다. "일반" 병기 정책(예: "평생교육이용권[일반·장애인] 지원")은 장애인
+# 전용이 아니라 일반인도 받을 수 있다는 뜻이라 별도로 제외한다.
+# "경계성 지능"(구 경계선지능)은 법적 장애 등급은 아니지만 실제 온통청년 정책들이
+# 장애인과 함께 지원대상으로 묶어 쓰는 표현이라 포함한다(사용자 요청, 2026-09-02).
+# "장애" 단독 키워드는 "장애물없는" 등 오탐이 있어(신혼부부의 "결혼" 단독 제외와
+# 동일한 이유) 넣지 않았다.
+DISABILITY_KEYWORDS = ("장애인", "경계성지능", "경계선지능", "경계지능", "경계성 지능", "경계선 지능")
+VETERAN_KEYWORDS = ("보훈대상자", "국가유공자", "보훈보상대상자", "제대군인", "국가보훈")
+
+
+def is_disability_targeted_policy(policy: CachedPolicy) -> bool:
+    if "일반" in policy.policy_name:
+        return False
+    return any(keyword in policy.policy_name for keyword in DISABILITY_KEYWORDS)
+
+
+def is_veteran_targeted_policy(policy: CachedPolicy) -> bool:
+    if "일반" in policy.policy_name:
+        return False
+    return any(keyword in policy.policy_name for keyword in VETERAN_KEYWORDS)

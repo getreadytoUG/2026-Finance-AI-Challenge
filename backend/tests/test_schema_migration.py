@@ -86,4 +86,6 @@ def test_adds_extended_profile_columns():
         "housing_status",
         "net_worth_krw",
         "monthly_savings_capacity_krw",
+        "has_disability",
+        "is_veteran",
     } <= _columns(engine)

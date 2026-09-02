@@ -11,6 +11,10 @@ class PolicyMatchInput(BaseModel):
     # 소득 조건은 가구소득 기준인 정책이 많아, 배우자 소득이 있으면 합산해서
     # 심사한다(matching.is_eligible 참고).
     spouse_annual_income_krw: int | None = None
+    # 2026-09-02 추가: 장애인/국가보훈대상자 전용 정책 필터링(matching.is_eligible
+    # 참고). None(미입력)이면 필터링하지 않는다(fail-open, 하위 호환).
+    has_disability: bool | None = None
+    is_veteran: bool | None = None
 
 
 class PolicyOption(BaseModel):

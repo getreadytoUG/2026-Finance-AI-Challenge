@@ -13,6 +13,9 @@ export type ExtendedProfileFields = {
   housing_status?: HousingStatusType | null;
   net_worth_krw?: number | null;
   monthly_savings_capacity_krw?: number | null;
+  // 2026-09-02 추가: 장애인/국가보훈대상자 전용 정책이 있어 수집(매칭 로직 미반영).
+  has_disability?: boolean | null;
+  is_veteran?: boolean | null;
 };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";

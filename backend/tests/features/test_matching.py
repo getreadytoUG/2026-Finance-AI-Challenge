@@ -1,8 +1,10 @@
 from app.features.policy_matcher.matching import (
     has_specific_eligibility_condition,
+    is_disability_targeted_policy,
     is_eligible,
     is_likely_template_region_code,
     is_newlywed_policy,
+    is_veteran_targeted_policy,
     region_matches,
 )
 from app.features.policy_matcher.schemas import PolicyMatchInput
@@ -131,6 +133,49 @@ def test_is_newlywed_policy_does_not_match_unrelated_결혼_policies():
     # 결혼이민여성 취업지원 등) 키워드에서 제외했다.
     assert is_newlywed_policy(_policy(policy_name="미혼남녀 만남 지원 프로그램")) is False
     assert is_newlywed_policy(_policy(policy_name="결혼이민여성 취업지원")) is False
+
+
+def test_is_disability_targeted_policy_matches_keyword_in_policy_name():
+    assert is_disability_targeted_policy(_policy(policy_name="장애인 취업 지원 사업")) is True
+    assert is_disability_targeted_policy(_policy(policy_name="경계성 지능 청년 자립 지원")) is True
+    assert is_disability_targeted_policy(_policy(policy_name="경계선지능청년지원")) is True  # 띄어쓰기 없는 실제 사례
+    assert is_disability_targeted_policy(_policy(policy_name="청년 취업 지원 사업")) is False
+
+
+def test_is_disability_targeted_policy_ignores_description_and_general_eligible_titles():
+    # description에만 등장(정책명엔 없음)하는 경우는 걸러내지 않는다 — 실측 결과
+    # "저소득 서민, 청년, 신혼부부, 장애인, 국가유공자 등"처럼 여러 대상을 나열하는
+    # 설명문에 걸려, 장애인 전용이 아닌 정책(예: 통합공공임대주택)까지 잘못
+    # 걸러내는 오탐이 있었기 때문이다.
+    assert is_disability_targeted_policy(_policy(policy_name="청년 임대주택 공급", description="장애인 등 주거취약계층 지원")) is False
+    # "일반"이 정책명에 함께 있으면 장애인 전용이 아니라 일반인도 받을 수 있다는
+    # 뜻이라 제외한다.
+    assert is_disability_targeted_policy(_policy(policy_name="평생교육이용권[일반·장애인] 지원")) is False
+
+
+def test_is_veteran_targeted_policy_matches_keyword_in_policy_name():
+    assert is_veteran_targeted_policy(_policy(policy_name="국가유공자 자녀 학자금 지원")) is True
+    assert is_veteran_targeted_policy(_policy(policy_name="제대군인 직업능력 개발훈련")) is True
+    assert is_veteran_targeted_policy(_policy(policy_name="청년 취업 지원 사업")) is False
+
+
+def test_is_veteran_targeted_policy_ignores_description_only_mentions():
+    assert is_veteran_targeted_policy(_policy(policy_name="청년 임대주택 공급", description="국가유공자 등 주거취약계층 지원")) is False
+
+
+def test_disability_targeted_policy_is_ineligible_for_explicit_non_disabled_input():
+    policy = _policy(policy_name="장애인 취업 지원 사업")
+    assert is_eligible(policy, _input(has_disability=False)) is False
+    assert is_eligible(policy, _input(has_disability=True)) is True
+    # 아직 입력 안 한(None) 기존 유저는 fail-open으로 계속 노출한다.
+    assert is_eligible(policy, _input()) is True
+
+
+def test_veteran_targeted_policy_is_ineligible_for_explicit_non_veteran_input():
+    policy = _policy(policy_name="국가유공자 자녀 학자금 지원")
+    assert is_eligible(policy, _input(is_veteran=False)) is False
+    assert is_eligible(policy, _input(is_veteran=True)) is True
+    assert is_eligible(policy, _input()) is True
 
 
 def test_region_matches_seoul_uses_11_prefix():

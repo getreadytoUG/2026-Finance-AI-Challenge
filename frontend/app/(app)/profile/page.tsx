@@ -93,6 +93,8 @@ export default function ProfilePage() {
           )}
           <InfoRow label="자녀 수" value={profile.children_count != null ? `${profile.children_count}명` : "-"} />
           <InfoRow label="임신 여부" value={profile.is_pregnant ? "임신 중" : "-"} />
+          <InfoRow label="장애 여부" value={profile.has_disability ? "있음" : "-"} />
+          <InfoRow label="국가보훈대상자 여부" value={profile.is_veteran ? "해당" : "-"} />
           <InfoRow label="거주 지역" value={profile.region ?? "-"} />
           <InfoRow label="희망 지역" value={profile.desired_region ?? "-"} />
           <InfoRow label="연소득" value={profile.annual_income_krw != null ? `${krwToManwon(profile.annual_income_krw).toLocaleString()}만원` : "-"} />

@@ -403,6 +403,40 @@ def test_update_profile_sets_extended_fields(client):
     assert body["is_married"] is False
 
 
+def test_signup_stores_disability_and_veteran_status(client):
+    response = client.post(
+        "/auth/signup",
+        json=_signup_payload("disability-veteran@example.com", has_disability=True, is_veteran=False),
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert body["has_disability"] is True
+    assert body["is_veteran"] is False
+
+
+def test_signup_without_disability_veteran_defaults_to_null(client):
+    response = client.post("/auth/signup", json=_signup_payload("no-disability-veteran@example.com"))
+    assert response.status_code == 201
+    body = response.json()
+    assert body["has_disability"] is None
+    assert body["is_veteran"] is None
+
+
+def test_update_profile_sets_disability_and_veteran_status(client):
+    client.post("/auth/signup", json=_signup_payload("disability-update@example.com"))
+    login = client.post("/auth/login", json={"email": "disability-update@example.com", "password": "secret123"})
+    token = login.json()["access_token"]
+    response = client.put(
+        "/auth/profile",
+        json=_profile_payload(has_disability=True, is_veteran=True),
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["has_disability"] is True
+    assert body["is_veteran"] is True
+
+
 def test_delete_account_allows_social_only_user_without_password(client, db_session):
     from app.auth.service import get_or_create_social_user
     from app.core.security import create_access_token

@@ -57,6 +57,9 @@ def ensure_schema(engine: Engine) -> None:
         "housing_status": "VARCHAR",
         "net_worth_krw": "INTEGER",
         "monthly_savings_capacity_krw": "INTEGER",
+        # --- 2026-09-02 추가 ---
+        "has_disability": "BOOLEAN",
+        "is_veteran": "BOOLEAN",
     }
     for column, col_type in extended_profile_columns.items():
         if column not in columns:

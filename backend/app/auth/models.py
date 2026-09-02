@@ -42,6 +42,10 @@ class User(Base):
     housing_status = Column(String, nullable=True)  # "homeless_head" | "homeless_member" | "homeowner"
     net_worth_krw = Column(Integer, nullable=True)
     monthly_savings_capacity_krw = Column(Integer, nullable=True)
+    # 2026-09-02 추가: 온통청년 정책 중 장애인/국가보훈대상자 전용 정책이 있어
+    # 수집해둔다 — 위 확장 필드들과 마찬가지로 아직 매칭 로직엔 안 쓰고 표시만 함.
+    has_disability = Column(Boolean, nullable=True)
+    is_veteran = Column(Boolean, nullable=True)
     # nullable인 이유: 이 컬럼 추가 이전에 가입한 기존 유저는 실제 가입 시각을
     # 알 방법이 없다 — Base.metadata.create_all()은 이미 있는 테이블에 컬럼을
     # 추가해주지 않으므로, 운영 DB에는 별도로 ALTER TABLE을 한 번 실행했다

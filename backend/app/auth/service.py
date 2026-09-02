@@ -42,6 +42,8 @@ def create_user(
     housing_status: str | None = None,
     net_worth_krw: int | None = None,
     monthly_savings_capacity_krw: int | None = None,
+    has_disability: bool | None = None,
+    is_veteran: bool | None = None,
 ) -> User:
     existing = db.query(User).filter(User.email == email).first()
     if existing is not None:
@@ -67,6 +69,8 @@ def create_user(
         housing_status=housing_status,
         net_worth_krw=net_worth_krw,
         monthly_savings_capacity_krw=monthly_savings_capacity_krw,
+        has_disability=has_disability,
+        is_veteran=is_veteran,
         created_at=datetime.now(timezone.utc),
     )
     db.add(user)

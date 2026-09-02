@@ -89,6 +89,8 @@ export default function PolicyPage() {
           annual_income_krw: me.annual_income_krw,
           spouse_annual_income_krw: me.is_married && me.spouse_annual_income_krw != null ? me.spouse_annual_income_krw : null,
           region: me.region,
+          has_disability: me.has_disability,
+          is_veteran: me.is_veteran,
         });
       })
       .then((output) => {

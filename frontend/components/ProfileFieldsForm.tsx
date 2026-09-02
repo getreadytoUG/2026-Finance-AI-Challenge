@@ -58,6 +58,9 @@ export default function ProfileFieldsForm({ initial, submitLabel, submittingLabe
   const [monthlySavings, setMonthlySavings] = useState(
     initial?.monthly_savings_capacity_krw != null ? String(krwToManwon(initial.monthly_savings_capacity_krw)) : ""
   );
+  // 2026-09-02 추가: 장애인/국가보훈대상자 전용 정책이 있어 수집(선택 입력).
+  const [hasDisability, setHasDisability] = useState(initial?.has_disability ?? false);
+  const [isVeteran, setIsVeteran] = useState(initial?.is_veteran ?? false);
   const isMarried = maritalStatus === "engaged" || maritalStatus === "newlywed";
 
   const [error, setError] = useState<string | null>(null);
@@ -90,6 +93,8 @@ export default function ProfileFieldsForm({ initial, submitLabel, submittingLabe
         housing_status: housingStatus || null,
         net_worth_krw: netWorth ? manwonToKrw(Number(netWorth)) : null,
         monthly_savings_capacity_krw: monthlySavings ? manwonToKrw(Number(monthlySavings)) : null,
+        has_disability: hasDisability,
+        is_veteran: isVeteran,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "저장에 실패했습니다.");
@@ -191,6 +196,22 @@ export default function ProfileFieldsForm({ initial, submitLabel, submittingLabe
         <label className="flex items-center gap-2 self-end pb-1 text-[13px] font-bold text-slate-700">
           <input type="checkbox" checked={isPregnant} onChange={(e) => setIsPregnant(e.target.checked)} className="h-4 w-4 accent-[#2457d6]" />
           임신 중이에요
+        </label>
+      </div>
+
+      <div className="flex flex-wrap gap-x-6 gap-y-2">
+        <label className="flex items-center gap-2 text-[13px] font-bold text-slate-700">
+          <input
+            type="checkbox"
+            checked={hasDisability}
+            onChange={(e) => setHasDisability(e.target.checked)}
+            className="h-4 w-4 accent-[#2457d6]"
+          />
+          장애가 있어요
+        </label>
+        <label className="flex items-center gap-2 text-[13px] font-bold text-slate-700">
+          <input type="checkbox" checked={isVeteran} onChange={(e) => setIsVeteran(e.target.checked)} className="h-4 w-4 accent-[#2457d6]" />
+          국가보훈대상자예요
         </label>
       </div>
 
