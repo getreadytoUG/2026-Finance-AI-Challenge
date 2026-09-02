@@ -6,10 +6,6 @@ import {
   ArrowRight,
   ArrowUpRight,
   BriefcaseBusiness,
-  ChevronRight,
-  GraduationCap,
-  HeartPulse,
-  House,
   PiggyBank,
   ShieldCheck,
   Sparkles,
@@ -26,14 +22,8 @@ import { isTokenExpired } from "@/lib/api";
 // 누르면 전부 /signup으로만 꽂혀있던 게 이미 로그인된 사람한테도 그대로 적용돼
 // 생긴 문제였다). "정책 읽기"/"AI 분석 리포트"는 UPGRADE.md 개편으로 독립 화면이
 // 아니라 "정책 달력 > 정책 전체 보기"로 흡수됐으므로 같은 곳으로 보낸다.
-const CATEGORIES = [
-  { label: "일자리", detail: "취업·창업", icon: BriefcaseBusiness, color: "blue" },
-  { label: "주거", detail: "전월세·대출", icon: House, color: "sky" },
-  { label: "교육", detail: "학자금·훈련", icon: GraduationCap, color: "violet" },
-  { label: "금융·복지", detail: "생활 안정", icon: HeartPulse, color: "mint" },
-] as const;
-const CATEGORY_LOGGED_IN_PATH = "/recommendations?view=ai_search";
-
+// (2026-09-02: 일자리/주거/교육/금융·복지 카테고리 카드 섹션은 4개 다 같은 곳으로만
+// 연결돼 실제로는 카테고리별 구분 기능이 없었다 — 사용자 요청으로 섹션 자체를 제거.)
 const FEATURE_CARDS = [
   {
     title: "금융 정책 추천",
@@ -168,25 +158,6 @@ export default function Home() {
         <div className="absolute bottom-0 left-0 right-0 h-20 bg-[#f7f9fc] [clip-path:polygon(0_45%,100%_0,100%_100%,0_100%)]" />
       </section>
 
-      <section className="relative z-10 mx-auto -mt-12 max-w-[1180px] px-5 lg:px-0">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {CATEGORIES.map(({ label, detail, icon: Icon, color }) => (
-            <Link
-              key={label}
-              href={loggedIn ? CATEGORY_LOGGED_IN_PATH : "/signup"}
-              className="group rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_15px_40px_rgba(28,50,88,.08)] transition hover:-translate-y-1 hover:shadow-[0_20px_44px_rgba(28,50,88,.13)]"
-            >
-              <span className={`category-icon ${color}`}>
-                <Icon size={18} strokeWidth={2.1} />
-              </span>
-              <div className="mt-5 text-[14px] font-extrabold tracking-[-.04em] text-ink">{label}</div>
-              <div className="mt-1 text-[11px] font-semibold text-slate-400">{detail} 지원 정책</div>
-              <ChevronRight size={15} className="mt-4 text-slate-300 transition group-hover:translate-x-1 group-hover:text-[#2457d6]" />
-            </Link>
-          ))}
-        </div>
-      </section>
-
       <section id="service" className="mx-auto max-w-[1180px] px-5 pb-24 pt-28 lg:px-0">
         <div className="mb-10 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
@@ -268,14 +239,20 @@ export default function Home() {
               <br />
               개인 맞춤 정책 매칭과 저축 계획을 제공합니다.
             </p>
+            <p className="mt-3 text-[12px] font-semibold text-slate-500">www.trinity2030.site</p>
           </div>
+          {/* 2026-09-02: "서비스" 칸이 로그인 여부에 따라 /signup·/login으로 튀는 게
+              사용자에게 "이상한 곳으로 간다"는 혼동을 줬다 — 눌러도 실제 그 기능
+              화면으로 안 가고 매번 가입/로그인부터 요구했기 때문. 여기는 순수 안내용
+              푸터라 링크를 없애고 기능명만 텍스트로 나열한다(고객지원 칸은 원래도
+              링크가 아니었음). */}
           <div className="grid grid-cols-2 gap-12 text-[12px]">
             <div>
               <div className="mb-3 font-extrabold text-white">서비스</div>
               <div className="grid gap-2 text-slate-400">
-                <Link href={loggedIn ? "/policy" : "/signup"}>내 맞춤 정책 보기</Link>
-                <Link href={loggedIn ? "/savings" : "/signup"}>저축플랜</Link>
-                <Link href={loggedIn ? "/dashboard" : "/login"}>{loggedIn ? "대시보드" : "로그인"}</Link>
+                <span>내 맞춤 정책 보기</span>
+                <span>저축플랜</span>
+                <span>정책 달력</span>
               </div>
             </div>
             <div>
