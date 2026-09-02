@@ -276,7 +276,12 @@ export default function ProfileFieldsForm({ initial, submitLabel, submittingLabe
         <div className="mb-2 text-[12px] font-extrabold text-slate-700">근로 형태 (선택)</div>
         <div className="flex flex-wrap gap-2">
           {EMPLOYMENT_TYPE_OPTIONS.map((o) => (
-            <button key={o.value} type="button" className={pillClass(employmentType === o.value)} onClick={() => setEmploymentType(o.value)}>
+            <button
+              key={o.value}
+              type="button"
+              className={pillClass(employmentType === o.value)}
+              onClick={() => setEmploymentType(employmentType === o.value ? "" : o.value)}
+            >
               {o.label}
             </button>
           ))}
@@ -294,7 +299,12 @@ export default function ProfileFieldsForm({ initial, submitLabel, submittingLabe
         <div className="mb-2 text-[12px] font-extrabold text-slate-700">무주택 여부 (선택)</div>
         <div className="flex flex-wrap gap-2">
           {HOUSING_STATUS_OPTIONS.map((o) => (
-            <button key={o.value} type="button" className={pillClass(housingStatus === o.value)} onClick={() => setHousingStatus(o.value)}>
+            <button
+              key={o.value}
+              type="button"
+              className={pillClass(housingStatus === o.value)}
+              onClick={() => setHousingStatus(housingStatus === o.value ? "" : o.value)}
+            >
               {o.label}
             </button>
           ))}
