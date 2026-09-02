@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "청년/신혼부부 금융 도우미",
+  title: "TRINITY2030",
   description: "청년 및 신혼부부를 위한 정책·저축·소비 리포트 서비스",
 };
 

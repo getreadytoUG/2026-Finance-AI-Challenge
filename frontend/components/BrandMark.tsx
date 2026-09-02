@@ -1,28 +1,29 @@
-// 인디고 브리핑: 코발트 사각형과 두 잎·기준선으로 랜딩과 앱을 잇는 선명한 relay mark.
+// TRINITY2030: trinity_logo.png(글로우 프리즘 마크)를 정사각형 타일로 크롭해 아이콘으로
+// 쓰고, 워드마크를 "TRINITY2030"으로 통일한다(2026-09-02 리브랜딩 — 이전엔 커스텀 SVG
+// 잎사귀 마크 + "청년/신혼부부 금융 도우미" 텍스트였다). 원본 파일은 1536x1024 검정
+// 배경 이미지라 object-cover로 중앙을 정사각 크롭하면 프리즘이 타일 안에 꽉 찬다.
+import Image from "next/image";
+
 export function BrandMark({ size = "md", withWordmark = true }: { size?: "sm" | "md" | "lg"; withWordmark?: boolean }) {
   const sizes = { sm: "h-8 w-8", md: "h-10 w-10", lg: "h-12 w-12" };
+  const pixelSizes = { sm: 32, md: 40, lg: 48 };
   return (
     <span className="brand-mark inline-flex items-center gap-3">
       <span
-        className={`${sizes[size]} grid shrink-0 place-items-center rounded-[14px] bg-[#2457d6] shadow-[0_8px_20px_rgba(36,87,214,.22)]`}
+        className={`${sizes[size]} grid shrink-0 place-items-center overflow-hidden rounded-[14px] bg-black shadow-[0_8px_20px_rgba(36,87,214,.22)]`}
         aria-hidden="true"
       >
-        <svg viewBox="0 0 32 32" className="h-[65%] w-[65%]" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M15.8 25.4V12.6" stroke="white" strokeWidth="1.7" strokeLinecap="round" />
-          <path
-            d="M15.8 17.3C12.9 17.2 9.7 15.7 9.1 11.2C13.9 11.1 16.3 13.6 15.8 17.3Z"
-            fill="white"
-          />
-          <path
-            d="M16.1 13.9C16.1 9.4 19.1 7.2 23.2 7.5C22.5 11.7 20.2 14 16.1 13.9Z"
-            fill="#B9F0E8"
-          />
-          <path d="M11.3 25.4H20.5" stroke="white" strokeWidth="1.7" strokeLinecap="round" />
-        </svg>
+        <Image
+          src="/trinity_logo.png"
+          alt=""
+          width={pixelSizes[size]}
+          height={pixelSizes[size]}
+          className="h-full w-full object-cover"
+        />
       </span>
       {withWordmark && (
         <span className="brand-wordmark text-[15px] font-extrabold tracking-[-0.04em] text-ink">
-          청년/신혼부부 금융 도우미
+          TRINITY2030
         </span>
       )}
     </span>

@@ -289,7 +289,7 @@ export default function Home() {
         </div>
         <div className="border-t border-white/10">
           <div className="mx-auto max-w-[1180px] px-5 py-5 text-[11px] text-slate-500 lg:px-0">
-            © 2026 청년/신혼부부 금융 도우미. 정책 정보는 각 기관의 공고를 확인해 주세요.
+            © 2026 TRINITY2030. 정책 정보는 각 기관의 공고를 확인해 주세요.
           </div>
         </div>
       </footer>
