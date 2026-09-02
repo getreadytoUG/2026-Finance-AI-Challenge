@@ -44,13 +44,20 @@ function DayItemRow({ item }: { item: PolicyBrowseItem }) {
 export default function RecommendationCalendar() {
   // 챗봇/캘린더/검색결과 세 칸의 높이를 똑같이 맞추기 위해, 검색결과를 4개씩
   // 페이지네이션한다(카드 4개 높이가 이 세 칸 전체 높이의 기준이 된다).
-  const aiSearch = useAiPolicySearch(4);
+  // clientPaginate=true: 조건이 바뀔 때 한 번에 전체 결과를 받아두고 "다음"은
+  // 받아둔 배열을 slice만 한다 — 페이지마다 서버 왕복(CachedPolicy 풀스캔)이
+  // 생겨 버벅이던 걸 없애고, 캘린더 마감일 표시(byDay)도 전체 결과 기준으로
+  // 계산되도록 한다(이전엔 현재 페이지 4건만 캘린더에 찍혔다).
+  const aiSearch = useAiPolicySearch(4, { clientPaginate: true });
   const today = useMemo(() => new Date(), []);
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth()); // 0-indexed
   const [selectedDay, setSelectedDay] = useState<string | null>(null); // "YYYYMMDD"
 
-  const items = aiSearch.items;
+  // 캘린더 마감일/상시모집 집계는 "현재 페이지 4건"이 아니라 조건에 맞는 전체
+  // 결과(allItems) 기준으로 해야 달력에 모든 마감일이 찍힌다. 오른쪽 검색결과
+  // 패널은 여전히 aiSearch.items(4건 slice)를 그대로 쓴다.
+  const items = aiSearch.allItems;
 
   const byDay = useMemo(() => {
     const map = new Map<string, PolicyBrowseItem[]>();
