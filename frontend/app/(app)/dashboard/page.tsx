@@ -126,7 +126,7 @@ export default function DashboardPage() {
             </span>{" "}
             지금 바로 다시 조회 가능
             <Link href="/recommendations?view=ai_search" className="ml-auto inline-flex items-center gap-1 font-extrabold text-white hover:text-[#9cc5ff]">
-              AI 정책 검색 <ChevronRight size={13} />
+              정책 전체 보기 <ChevronRight size={13} />
             </Link>
           </div>
         </section>

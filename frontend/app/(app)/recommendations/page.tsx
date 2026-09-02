@@ -215,27 +215,31 @@ export default function RecommendationsPage() {
               배치 추천이 한 번도 안 쌓인 유저는 "지금 갱신"을 누르기 전엔 캘린더도
               AI 정책 검색도 아예 볼 수 없었다 — 근데 이 둘은 recommendations(배치가
               쌓아둔 알림 목록)와 무관하게 자기가 직접 정책을 불러오는 화면이라
-              갱신 여부와 상관없이 항상 열려야 한다(사용자 요청, 2026-09-02). "리스트"
-              탭만 recommendations를 그대로 보여주는 화면이라 비어있으면 그 탭 안에서만
-              안내 문구를 보여준다. */}
+              갱신 여부와 상관없이 항상 열려야 한다(사용자 요청, 2026-09-02). "맞춤 정책
+              추천함" 탭만 recommendations를 그대로 보여주는 화면이라 비어있으면 그 탭
+              안에서만 안내 문구를 보여준다. */}
+          {/* 순서/이름 사용자 요청(2026-09-02): 정책 캘린더 | 정책 전체 보기 | 맞춤 정책
+              추천함. 마지막 탭은 "정책 리스트"라는 이름이 역할(새벽 배치가 매칭해서
+              쌓아두는 알림함이지 라이브 검색이 아님)을 잘 못 드러낸다는 이유로 다시
+              바뀌었다. */}
           <div className="mb-6 inline-flex gap-1.5 rounded-xl bg-[#eef3f9] p-1">
             <button
               onClick={() => setView("calendar")}
               className={`rounded-lg px-4 py-2.5 text-[12px] font-extrabold transition ${view === "calendar" ? "bg-white text-[#2457d6] shadow-sm" : "text-slate-500"}`}
             >
-              캘린더
-            </button>
-            <button
-              onClick={() => setView("list")}
-              className={`rounded-lg px-4 py-2.5 text-[12px] font-extrabold transition ${view === "list" ? "bg-white text-[#2457d6] shadow-sm" : "text-slate-500"}`}
-            >
-              리스트
+              정책 캘린더
             </button>
             <button
               onClick={() => setView("ai_search")}
               className={`rounded-lg px-4 py-2.5 text-[12px] font-extrabold transition ${view === "ai_search" ? "bg-white text-[#2457d6] shadow-sm" : "text-slate-500"}`}
             >
-              AI 정책 검색
+              정책 전체 보기
+            </button>
+            <button
+              onClick={() => setView("list")}
+              className={`rounded-lg px-4 py-2.5 text-[12px] font-extrabold transition ${view === "list" ? "bg-white text-[#2457d6] shadow-sm" : "text-slate-500"}`}
+            >
+              맞춤 정책 추천함
             </button>
           </div>
 

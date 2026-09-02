@@ -24,9 +24,13 @@ export default function SocialCallbackPage() {
     window.history.replaceState(null, "", window.location.pathname);
     getMe(token)
       .then((me) => {
+        // 로그인 상태여도 홈페이지가 먼저 보이도록 바뀌어서(2026-09-02), 이미
+        // 프로필을 완성한 기존 유저의 소셜 로그인도 대시보드로 바로 꽂지 않고
+        // 홈페이지로 보낸다 — 이메일 로그인(login/page.tsx)과 동일하게 맞춘 것.
+        // 프로필을 처음 완성하는 온보딩 직후는 이미 "/"로 보내고 있었다(변경 없음).
         if (me.is_admin) router.replace("/admin");
         else if (!me.profile_complete) router.replace("/onboarding");
-        else router.replace("/dashboard");
+        else router.replace("/");
       })
       .catch(() => {
         localStorage.removeItem("token");

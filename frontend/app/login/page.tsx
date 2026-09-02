@@ -34,7 +34,9 @@ export default function LoginPage() {
       const token = await login(email, password);
       localStorage.setItem("token", token);
       const profile = await getMe(token);
-      router.push(profile.is_admin ? "/admin" : "/dashboard");
+      // 로그인 상태여도 홈페이지가 먼저 보이도록 바뀌어서(2026-09-02), 로그인
+      // 직후에도 대시보드로 바로 꽂지 않고 홈페이지로 보낸다.
+      router.push(profile.is_admin ? "/admin" : "/");
     } catch {
       setError("이메일 또는 비밀번호가 올바르지 않습니다.");
     } finally {
