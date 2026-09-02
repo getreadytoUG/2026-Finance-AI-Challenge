@@ -479,6 +479,17 @@ export type YouthLeapAccountInput = {
   seed_money_krw?: number;
 };
 
+// 2026-09-02 추가: 위 계산은 여전히 예시 수치지만, 이 목록은 DB에 실제로 있는
+// 저축/자산형성 정책 중 지금 로그인한 유저가 진짜 자격되는 것만 골라 보여준다
+// (백엔드 savings_simulator/simulator.py의 match_real_savings_policies 참고).
+export type MatchedSavingsPolicy = {
+  policy_key: string;
+  policy_name: string;
+  benefit_description: string;
+  application_period: string;
+  reference_url: string;
+};
+
 export type YouthLeapAccountOutput = {
   eligible: boolean;
   matching_rate: number;
@@ -487,6 +498,7 @@ export type YouthLeapAccountOutput = {
   market_total_krw: number;
   benefit_diff_krw: number;
   summary: string;
+  matched_policies: MatchedSavingsPolicy[];
 };
 
 export async function simulateYouthLeapAccount(
@@ -519,6 +531,7 @@ export type HousingLoanOutput = {
   market_monthly_interest_krw: number;
   monthly_saving_krw: number;
   summary: string;
+  matched_policies: MatchedSavingsPolicy[];
 };
 
 export async function simulateHousingLoan(token: string, input: HousingLoanInput): Promise<HousingLoanOutput> {

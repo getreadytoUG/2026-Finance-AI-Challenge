@@ -3,6 +3,7 @@ import httpx
 from app.features.policy_matcher import youth_center_client
 from app.features.policy_matcher.youth_center_client import (
     RawYouthPolicy,
+    _bounded_income_krw_or_none,
     _parse_youth_policy_json,
     fetch_policies,
 )
@@ -63,9 +64,31 @@ def test_parse_youth_policy_json_parses_full_record():
     assert first.min_age == 19
     assert first.max_age == 34
     assert first.min_income_krw is None
+    # 100만 이상은 이미 원 단위로 보고 그대로 쓴다(아래 만원 단위 변환 테스트와
+    # 대비되는 케이스 — youth_center_client._bounded_income_krw_or_none 참고).
     assert first.max_income_krw == 26_000_000
     assert first.marital_status == ""
     assert first.region_code == "11110,11140"
+
+
+def test_parse_youth_policy_json_converts_small_income_values_from_manwon_to_krw():
+    # 실측(2026-09-03): earnMinAmt/earnMaxAmt는 대부분 "만원" 단위로 내려온다
+    # (예: "5000" = 5,000만원). 100만 미만 값은 ×10,000해서 원으로 환산해야 한다.
+    payload = {
+        "result": {
+            "youthPolicyList": [
+                {
+                    "plcyNo": "P777",
+                    "plcyNm": "소득 조건이 만원 단위로 내려오는 정책",
+                    "earnMinAmt": "3000",
+                    "earnMaxAmt": "6000",
+                }
+            ]
+        }
+    }
+    policy = _parse_youth_policy_json(payload)[0]
+    assert policy.min_income_krw == 30_000_000
+    assert policy.max_income_krw == 60_000_000
 
 
 def test_parse_youth_policy_json_treats_zero_sentinel_as_no_limit():
@@ -217,6 +240,23 @@ def test_parse_youth_policy_json_falls_back_to_ref_url_when_apply_url_blank():
 def test_parse_youth_policy_json_prefers_apply_url_over_ref_url_when_both_present():
     policies = _parse_youth_policy_json(SAMPLE_PAYLOAD)
     assert policies[0].apply_url == "https://example.com/apply/1"
+
+
+def test_bounded_income_krw_or_none_converts_manwon_scale_values():
+    assert _bounded_income_krw_or_none("5000") == 50_000_000  # 5,000만원
+    assert _bounded_income_krw_or_none("9999") == 99_990_000  # 사실상 상한없음 sentinel로 추정
+    assert _bounded_income_krw_or_none("999999") == 9_999_990_000  # 100만 미만 경계값
+
+
+def test_bounded_income_krw_or_none_keeps_already_krw_scale_values_as_is():
+    assert _bounded_income_krw_or_none("1000000") == 1_000_000  # 100만 경계값(이상)
+    assert _bounded_income_krw_or_none("43056240") == 43_056_240
+
+
+def test_bounded_income_krw_or_none_treats_zero_and_blank_as_no_limit():
+    assert _bounded_income_krw_or_none("0") is None
+    assert _bounded_income_krw_or_none(None) is None
+    assert _bounded_income_krw_or_none("") is None
 
 
 def test_fetch_all_policies_requests_a_large_page_size(monkeypatch):

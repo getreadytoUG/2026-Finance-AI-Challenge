@@ -66,8 +66,8 @@ def _parse_youth_policy_json(payload: dict) -> list[RawYouthPolicy]:
                 application_period=item.get("aplyYmd") or "상시",
                 min_age=_bounded_int_or_none(item.get("sprtTrgtMinAge")),
                 max_age=_bounded_int_or_none(item.get("sprtTrgtMaxAge")),
-                min_income_krw=_bounded_int_or_none(item.get("earnMinAmt")),
-                max_income_krw=_bounded_int_or_none(item.get("earnMaxAmt")),
+                min_income_krw=_bounded_income_krw_or_none(item.get("earnMinAmt")),
+                max_income_krw=_bounded_income_krw_or_none(item.get("earnMaxAmt")),
                 marital_status=item.get("mrgSttsCd") or "",
                 region_code=item.get("zipCd") or "",
                 large_category=item.get("lclsfNm") or "",
@@ -87,6 +87,27 @@ def _bounded_int_or_none(value: str | None) -> int | None:
         return None
     parsed = int(value)
     return parsed if parsed > 0 else None
+
+
+# earnMinAmt/earnMaxAmt(소득 조건)만 쓰는 단위 보정 — sprtTrgtMinAge/MaxAge(나이)는
+# 단위 문제가 없으므로 위 _bounded_int_or_none을 그대로 쓰고, 소득 필드만 이걸 쓴다.
+# 실측 결과(2026-09-03, 실제 API 라이브 호출): 소득 조건이 있는 29건 중 28건이
+# "5000"/"3500"/"9999" 같은 1,200~10,000 사이 값이었다 — 실제 청년/신혼부부
+# 소득기준(3,600만원~7,000만원대)과 맞춰보면 이건 "원"이 아니라 "만원" 단위다
+# ("9999"는 "사실상 상한없음" sentinel로 보인다). 근데 딱 1건("청년부부 주거환경
+# 개선사업")만 43,056,240처럼 이미 원 단위 그대로 들어와 있었다 — 정책을 등록하는
+# 기관마다 입력 단위가 다른 것으로 보인다(온통청년 쪽에 별도 정규화가 없음).
+# 두 케이스가 자릿수 차이가 워낙 커서(만 단위 vs 억 단위) 값 크기로 구분해도
+# 안전하다: 100만 미만이면 만원 단위로 보고 10,000을 곱해 원으로 환산하고,
+# 그 이상이면 이미 원 단위인 것으로 보고 그대로 쓴다.
+_INCOME_MANWON_THRESHOLD = 1_000_000
+
+
+def _bounded_income_krw_or_none(value: str | None) -> int | None:
+    parsed = _bounded_int_or_none(value)
+    if parsed is None:
+        return None
+    return parsed * 10_000 if parsed < _INCOME_MANWON_THRESHOLD else parsed
 
 
 def _split_apply_period(aply_ymd: str) -> tuple[str | None, str | None]:

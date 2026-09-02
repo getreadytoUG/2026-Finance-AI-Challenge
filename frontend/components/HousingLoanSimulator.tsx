@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, Home, TrendingDown } from "lucide-react";
+import { AlertTriangle, Home, ListChecks, TrendingDown } from "lucide-react";
 import { getMe, simulateHousingLoan, type HousingLoanOutput } from "@/lib/api";
 import { krwToManwon, manwonToKrw } from "@/lib/profileOptions";
+import PolicyDetailLink from "@/components/PolicyDetailLink";
 
 const HOUSING_TYPE_OPTIONS = [
   { value: "jeonse" as const, label: "전세" },
@@ -162,6 +163,35 @@ export default function HousingLoanSimulator() {
               </div>
             </section>
           </div>
+
+          {/* 저축 시뮬레이터와 동일한 이유로 추가 — 위 계산은 예시지만, 이 목록은
+              실제 DB의 전세/구입자금 대출이자 지원류 정책 중 지금 내 조건으로 진짜
+              자격되는 것만 골라온다(2026-09-02 추가). */}
+          <section className="mt-5 rounded-[24px] border border-slate-200/80 bg-white p-6">
+            <div className="flex items-center gap-3">
+              <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#eef3ff] text-[#2457d6]">
+                <ListChecks size={17} />
+              </span>
+              <div>
+                <div className="text-[10px] font-extrabold uppercase tracking-[.18em] text-[#2457d6]">실제 정책 매칭</div>
+                <h2 className="mt-1 text-[15px] font-extrabold tracking-[-.03em]">지금 내 조건으로 신청 가능한 대출이자 지원 정책</h2>
+              </div>
+            </div>
+            {result.matched_policies.length === 0 ? (
+              <p className="mt-4 text-[13px] font-bold text-slate-400">지금 조건에 맞는 대출이자 지원 정책을 DB에서 찾지 못했어요.</p>
+            ) : (
+              <div className="mt-4 grid gap-3">
+                {result.matched_policies.map((p) => (
+                  <div key={p.policy_key} className="rounded-xl border border-slate-200/80 bg-[#f7f9fc] p-4">
+                    <div className="text-[13px] font-extrabold text-ink">{p.policy_name}</div>
+                    <p className="mt-1.5 text-[12px] leading-5 text-slate-500">{p.benefit_description}</p>
+                    <div className="mt-1.5 text-[11px] font-semibold text-slate-400">신청 기간 {p.application_period}</div>
+                    <PolicyDetailLink url={p.reference_url} className="mt-1.5" />
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
         </div>
       )}
     </div>

@@ -188,3 +188,16 @@ def is_veteran_targeted_policy(policy: CachedPolicy) -> bool:
     if "일반" in policy.policy_name:
         return False
     return any(keyword in policy.policy_name for keyword in VETERAN_KEYWORDS)
+
+
+# 2026-09-02 추가: 저축플랜 시뮬레이터가 "청년도약계좌" 하나로 고정된 예시 대신,
+# 실제 캐시에 있는 저축/자산형성형 정책을 찾아 보여주기 위한 판별자
+# (savings_simulator/simulator.py의 match_real_savings_policies 참고). 위
+# is_disability_targeted_policy 등과 동일하게 정책명만 본다 — 실측 결과(2026-09-02)
+# 이 키워드들은 설명문까지 봐도 오탐이 딱히 없었지만, 다른 대상군 필터들과의 일관성을
+# 위해 정책명 기준으로 통일한다.
+SAVINGS_ACCOUNT_KEYWORDS = ("저축계좌", "적금", "통장", "자산형성", "재형저축", "내일채움공제")
+
+
+def is_savings_account_policy(policy: CachedPolicy) -> bool:
+    return any(keyword in policy.policy_name for keyword in SAVINGS_ACCOUNT_KEYWORDS)

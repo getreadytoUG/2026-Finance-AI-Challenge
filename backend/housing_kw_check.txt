@@ -1,0 +1,26 @@
+total matches: 47
+ - 2025년 청년 디딤돌 2배 적금 지원사업 | 복지문화 | min_age=18 max_age=45 min_inc=None max_inc=None
+ - 전세보증금반환보증 보증료 지원 | 주거 | min_age=None max_age=None min_inc=None max_inc=None
+ - 2026년 신혼부부 전세자금 대출이자 지원 안내 | 주거 | min_age=1 max_age=99 min_inc=None max_inc=None
+ - 2026년 신혼부부 전세자금 대출이자 지원 안내 | 주거 | min_age=1 max_age=99 min_inc=None max_inc=None
+ - 부산 전세보증금 반환보증 보증료 지원 | 주거 | min_age=18 max_age=39 min_inc=None max_inc=None
+ - 인천 전세보증금반환보증 보증료 지원 | 주거 | min_age=34 max_age=99 min_inc=None max_inc=6000
+ - 전세보증금반환보증 보증료 지원 | 주거 | min_age=None max_age=None min_inc=None max_inc=None
+ - 태안 청년 신혼부부 주택자금 대출이자 지원 | 주거 | min_age=18 max_age=45 min_inc=None max_inc=None
+ - 서산시 청년 신혼부부 주택 전세자금 대출이자 지원사업 | 주거 | min_age=19 max_age=39 min_inc=None max_inc=None
+ - 청년창업농 디딤돌 사업 | 일자리 | min_age=18 max_age=45 min_inc=None max_inc=None
+ - 부산 전세피해 임차인 버팀목 전세자금 대출이자 지원사업 | 주거 | min_age=None max_age=None min_inc=None max_inc=None
+ - 2026년 청년 희망디딤돌 통장사업 대상자 모집 공고 | 금융･복지･문화 | min_age=18 max_age=45 min_inc=None max_inc=None
+ - 전세보증금반환보증 보증료 지원 | 주거 | min_age=None max_age=None min_inc=None max_inc=None
+ - 전세보증금 반환보증 보증료 지원 | 주거 | min_age=None max_age=None min_inc=None max_inc=None
+ - 전세보증금 반환보증 보증료 지원 | 주거 | min_age=None max_age=None min_inc=None max_inc=None
+ - 전세보증금반환보증 보증료 지원 | 주거 | min_age=19 max_age=39 min_inc=None max_inc=None
+ - 삼성희망디딤돌 인천센터 운영 | 금융･복지･문화 | min_age=19 max_age=34 min_inc=None max_inc=None
+ - (서해구) 취업성공 디딤돌 청년인턴 사업 | 일자리 | min_age=19 max_age=34 min_inc=None max_inc=None
+ - 부산 미취업 청년 사회진입 활동비 지원(청년디딤돌플러스+ 카드) | 일자리 | min_age=18 max_age=39 min_inc=None max_inc=None
+ - 신혼부부 전세자금 대출이자 지원사업 | 금융･복지･문화 | min_age=None max_age=None min_inc=None max_inc=None
+ - 완주군 청년·신혼부부·다자녀가구 주택전세자금 대출이자 지원사업 | 금융･복지･문화 | min_age=18 max_age=39 min_inc=None max_inc=None
+ - 2026년 전세보증금반환보증 보증료 지원사업 | 주거 | min_age=19 max_age=39 min_inc=5000 max_inc=7500
+ - 지식재산 기반 창업촉진(IP 디딤돌 프로그램) | 일자리 | min_age=None max_age=None min_inc=None max_inc=None
+ - 신혼부부·청년 주택구입 대출이자 지원사업 | 주거 | min_age=19 max_age=39 min_inc=None max_inc=None
+ - (광양시)청년 주택자금 대출이자 지원사업 | 주거 | min_age=19 max_age=45 min_inc=None max_inc=None

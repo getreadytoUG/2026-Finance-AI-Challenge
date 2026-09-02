@@ -7,9 +7,16 @@
 항상 배지로 노출한다 — 여기 숫자만 믿고 신뢰도 있는 값처럼 보여주지 않는다.
 """
 
+from datetime import date
+
+from app.features.policy_matcher.matching import is_eligible, is_savings_account_policy
+from app.features.policy_matcher.models import CachedPolicy
+from app.features.policy_matcher.schemas import PolicyMatchInput
+from app.features.policy_matcher.status import STATUS_ORDER, compute_policy_status
 from app.features.savings_simulator.schemas import (
     HousingLoanInput,
     HousingLoanOutput,
+    MatchedSavingsPolicy,
     YouthLeapAccountInput,
     YouthLeapAccountOutput,
 )
@@ -88,6 +95,37 @@ def simulate_youth_leap_account(input: YouthLeapAccountInput) -> YouthLeapAccoun
     )
 
 
+# 2026-09-02 추가: 위 계산은 여전히 "청년도약계좌류 상품 구조"를 본뜬 예시지만,
+# 이 목록만큼은 실제 DB(CachedPolicy)에서 지금 입력한 조건으로 진짜 자격되는
+# 저축/자산형성 정책을 찾아준다 — matching.is_eligible을 그대로 재사용하므로
+# 지난번에 추가한 장애인/보훈대상자 전용 정책 필터링도 자동으로 함께 적용된다.
+# router가 DB에서 CachedPolicy를 조회해 넘겨주고, 여기서는 필터링만 한다(이 파일의
+# "순수 계산" 원칙 유지 — DB I/O는 router가 담당).
+def match_real_savings_policies(
+    policies: list[CachedPolicy],
+    match_input: PolicyMatchInput,
+    today: date,
+) -> list[MatchedSavingsPolicy]:
+    candidates = [
+        p
+        for p in policies
+        if is_savings_account_policy(p)
+        and is_eligible(p, match_input)
+        and compute_policy_status(p.apply_start_ymd, p.apply_end_ymd, today)[0] != "만료"
+    ]
+    candidates.sort(key=lambda p: STATUS_ORDER[compute_policy_status(p.apply_start_ymd, p.apply_end_ymd, today)[0]])
+    return [
+        MatchedSavingsPolicy(
+            policy_key=p.policy_key,
+            policy_name=p.policy_name,
+            benefit_description=p.description,
+            application_period=p.application_period,
+            reference_url=p.apply_url,
+        )
+        for p in candidates
+    ]
+
+
 # 버팀목(전세)/디딤돌(매매) 예시 상품 조건 — housing_type별로 LTV/금리/소득상한이 다르다.
 _HOUSING_PRODUCTS = {
     "jeonse": {
@@ -141,3 +179,40 @@ def simulate_housing_loan(input: HousingLoanInput) -> HousingLoanOutput:
         monthly_saving_krw=monthly_saving if eligible else 0,
         summary=note + " " + summary,
     )
+
+
+# 2026-09-02 추가: 전세/구입 대출이자 지원류는 정책명에 "전세" 또는 "구입/매매"가
+# 명확히 들어가는 경우만 골라 housing_type별로 나눈다 — "디딤돌"/"버팀목" 단독
+# 키워드는 실측 결과 청년창업농/IP지원 사업처럼 주거와 무관한 이름에도 비유적으로
+# 쓰여서 뺐다(예: "청년창업농 디딤돌 사업", "IP 디딤돌 프로그램").
+_HOUSING_LOAN_KEYWORDS: dict[str, tuple[str, ...]] = {
+    "jeonse": ("전세자금", "전세보증금"),
+    "purchase": ("주택구입", "구입자금", "매매자금", "주택자금"),
+}
+
+
+def match_real_housing_policies(
+    policies: list[CachedPolicy],
+    housing_type: str,
+    match_input: PolicyMatchInput,
+    today: date,
+) -> list[MatchedSavingsPolicy]:
+    keywords = _HOUSING_LOAN_KEYWORDS[housing_type]
+    candidates = [
+        p
+        for p in policies
+        if any(keyword in p.policy_name for keyword in keywords)
+        and is_eligible(p, match_input)
+        and compute_policy_status(p.apply_start_ymd, p.apply_end_ymd, today)[0] != "만료"
+    ]
+    candidates.sort(key=lambda p: STATUS_ORDER[compute_policy_status(p.apply_start_ymd, p.apply_end_ymd, today)[0]])
+    return [
+        MatchedSavingsPolicy(
+            policy_key=p.policy_key,
+            policy_name=p.policy_name,
+            benefit_description=p.description,
+            application_period=p.application_period,
+            reference_url=p.apply_url,
+        )
+        for p in candidates
+    ]

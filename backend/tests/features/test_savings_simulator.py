@@ -1,3 +1,91 @@
+import itertools
+from datetime import datetime, timezone
+
+from app.features.policy_matcher.models import CachedPolicy
+from app.features.policy_matcher.schemas import PolicyMatchInput
+from app.features.policy_matcher.status import today_kst
+from app.features.savings_simulator.simulator import match_real_housing_policies, match_real_savings_policies
+
+_key_seq = itertools.count(1)
+
+
+def _seed_policy(db_session, **overrides) -> CachedPolicy:
+    defaults = dict(
+        policy_key=f"P{next(_key_seq)}",
+        policy_name="청년내일저축계좌",
+        description="지원 내용 설명",
+        apply_url="https://www.youthcenter.go.kr",
+        application_period="상시",
+        apply_start_ymd=None,
+        apply_end_ymd=None,
+        min_age=None,
+        max_age=None,
+        min_income_krw=None,
+        max_income_krw=None,
+        marital_status="",
+        region_code="",
+        large_category="금융･복지･문화",
+        mid_category="",
+        refreshed_at=datetime.now(timezone.utc),
+    )
+    defaults.update(overrides)
+    row = CachedPolicy(**defaults)
+    db_session.add(row)
+    db_session.commit()
+    return row
+
+
+def _match_input(**overrides) -> PolicyMatchInput:
+    defaults = dict(age=29, is_married=False, annual_income_krw=40_000_000, region="서울")
+    defaults.update(overrides)
+    return PolicyMatchInput(**defaults)
+
+
+def test_match_real_savings_policies_finds_savings_keyword_policy(db_session):
+    policy = _seed_policy(db_session, policy_name="청년내일저축계좌 지원")
+    result = match_real_savings_policies([policy], _match_input(), today_kst())
+    assert [p.policy_key for p in result] == [policy.policy_key]
+
+
+def test_match_real_savings_policies_excludes_policy_without_savings_keyword(db_session):
+    policy = _seed_policy(db_session, policy_name="청년 취업 지원 사업")
+    result = match_real_savings_policies([policy], _match_input(), today_kst())
+    assert result == []
+
+
+def test_match_real_savings_policies_applies_age_eligibility(db_session):
+    policy = _seed_policy(db_session, policy_name="청년내일저축계좌", min_age=19, max_age=34)
+    assert match_real_savings_policies([policy], _match_input(age=29), today_kst()) != []
+    assert match_real_savings_policies([policy], _match_input(age=50), today_kst()) == []
+
+
+def test_match_real_savings_policies_excludes_expired(db_session):
+    policy = _seed_policy(
+        db_session, policy_name="청년내일저축계좌", apply_start_ymd="20200101", apply_end_ymd="20200201"
+    )
+    assert match_real_savings_policies([policy], _match_input(), today_kst()) == []
+
+
+def test_match_real_savings_policies_excludes_disability_only_policy_for_non_disabled(db_session):
+    # matching.is_eligible을 재사용하므로 장애인/보훈대상자 전용 정책 필터링도
+    # 자동으로 같이 적용돼야 한다.
+    policy = _seed_policy(db_session, policy_name="장애인 자산형성 통장")
+    assert match_real_savings_policies([policy], _match_input(has_disability=False), today_kst()) == []
+    assert match_real_savings_policies([policy], _match_input(has_disability=True), today_kst()) != []
+
+
+def test_match_real_housing_policies_splits_by_jeonse_and_purchase(db_session):
+    jeonse_policy = _seed_policy(db_session, policy_name="신혼부부 전세자금 대출이자 지원", large_category="주거")
+    purchase_policy = _seed_policy(db_session, policy_name="청년 주택구입 대출이자 지원", large_category="주거")
+    all_policies = [jeonse_policy, purchase_policy]
+
+    jeonse_result = match_real_housing_policies(all_policies, "jeonse", _match_input(), today_kst())
+    purchase_result = match_real_housing_policies(all_policies, "purchase", _match_input(), today_kst())
+
+    assert [p.policy_key for p in jeonse_result] == [jeonse_policy.policy_key]
+    assert [p.policy_key for p in purchase_result] == [purchase_policy.policy_key]
+
+
 def _signup_login(client, email="sim-user@example.com", **overrides):
     payload = {
         "email": email,
@@ -122,6 +210,38 @@ def test_housing_loan_purchase_over_income_cap_is_ineligible(client):
     body = response.json()
     assert body["eligible"] is False
     assert body["monthly_saving_krw"] == 0
+
+
+def test_youth_leap_account_response_includes_real_matched_policies(client, db_session):
+    _seed_policy(db_session, policy_name="청년내일저축계좌 지원", min_age=19, max_age=39)
+    _seed_policy(db_session, policy_name="청년 취업 지원 사업")  # 저축 키워드 없어 안 나와야 함
+    token = _signup_login(client, age=29, region="서울")
+    response = client.post(
+        "/savings_simulator/youth_leap_account",
+        json={"monthly_amount_krw": 400_000, "goal_years": 3, "annual_income_krw": 20_000_000},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    matched = response.json()["matched_policies"]
+    assert [p["policy_name"] for p in matched] == ["청년내일저축계좌 지원"]
+
+
+def test_housing_loan_response_includes_real_matched_policies(client, db_session):
+    _seed_policy(db_session, policy_name="신혼부부 전세자금 대출이자 지원", large_category="주거")
+    token = _signup_login(client, age=29, region="서울")
+    response = client.post(
+        "/savings_simulator/housing_loan",
+        json={
+            "housing_type": "jeonse",
+            "target_price_krw": 250_000_000,
+            "self_capital_krw": 50_000_000,
+            "household_annual_income_krw": 65_000_000,
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    matched = response.json()["matched_policies"]
+    assert [p["policy_name"] for p in matched] == ["신혼부부 전세자금 대출이자 지원"]
 
 
 def test_housing_loan_amount_never_exceeds_price_minus_self_capital(client):
