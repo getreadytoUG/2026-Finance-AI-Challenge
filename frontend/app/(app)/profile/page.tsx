@@ -78,10 +78,10 @@ export default function ProfilePage() {
             label="혼인 여부"
             value={profile.marital_status ? maritalStatusLabel(profile.marital_status) : profile.is_married ? "기혼" : "미혼"}
           />
-          {profile.marital_status === "newlywed" && profile.marriage_years != null && (
-            <InfoRow label="신혼 연차" value={`${profile.marriage_years}년차`} />
+          {profile.is_married && profile.marriage_years != null && (
+            <InfoRow label="결혼 연차" value={`${profile.marriage_years}년차`} />
           )}
-          {(profile.is_married || profile.marital_status === "engaged") && (
+          {profile.is_married && (
             <>
               <InfoRow label="배우자 나이" value={profile.spouse_age != null ? `${profile.spouse_age}세` : "-"} />
               <InfoRow

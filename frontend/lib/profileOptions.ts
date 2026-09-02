@@ -13,16 +13,26 @@ export function occupationLabel(value: OccupationType | null | undefined): strin
 }
 
 // 2026-09-01 UPGRADE.md 반영: 확장 프로필 필드 옵션들.
-export type MaritalStatusType = "single" | "engaged" | "newlywed";
+// 2026-09-02: 미혼/예비부부/신혼부부 3분류 → 미혼/기혼 2분류로 축소. "예비신혼부부"는
+// 별도 옵션 대신 혼인 여부 옆 툴팁으로 안내한다(입주 전 혼인신고 필요).
+export type MaritalStatusType = "single" | "married";
 
 export const MARITAL_STATUS_OPTIONS: { value: MaritalStatusType; label: string }[] = [
   { value: "single", label: "미혼" },
-  { value: "engaged", label: "예비부부" },
-  { value: "newlywed", label: "신혼부부" },
+  { value: "married", label: "기혼" },
 ];
 
-export function maritalStatusLabel(value: MaritalStatusType | null | undefined): string {
-  return MARITAL_STATUS_OPTIONS.find((o) => o.value === value)?.label ?? "-";
+// 미혼/기혼 축소 이전의 구버전 값(engaged/newlywed)이 응답에 섞여 들어와도
+// 화면이 깨지지 않게 매핑한다. 백엔드도 UserOut에서 같은 정규화를 한다.
+export function normalizeMaritalStatus(value: string | null | undefined): MaritalStatusType | null {
+  if (value === "single" || value === "engaged") return "single";
+  if (value === "married" || value === "newlywed") return "married";
+  return null;
+}
+
+export function maritalStatusLabel(value: string | null | undefined): string {
+  const normalized = normalizeMaritalStatus(value);
+  return MARITAL_STATUS_OPTIONS.find((o) => o.value === normalized)?.label ?? "-";
 }
 
 export type EmploymentType = "regular" | "gig_freelance" | "business_owner";

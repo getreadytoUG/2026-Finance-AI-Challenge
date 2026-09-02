@@ -9,12 +9,14 @@ import {
   REGIONS,
   krwToManwon,
   manwonToKrw,
+  normalizeMaritalStatus,
   type EmploymentType,
   type HousingStatusType,
   type MaritalStatusType,
   type OccupationType,
 } from "@/lib/profileOptions";
 import type { ProfileInput, UserProfile } from "@/lib/api";
+import InfoTooltip from "@/components/InfoTooltip";
 
 // 회원가입 폼의 프로필 입력 부분과 동일한 필드 묶음. 온보딩(소셜 로그인 후
 // 프로필 완성) 화면에서 재사용한다. 이메일/비밀번호는 이 컴포넌트가 다루지 않는다.
@@ -46,7 +48,9 @@ export default function ProfileFieldsForm({ initial, submitLabel, submittingLabe
   const [spouseOccupation, setSpouseOccupation] = useState<OccupationType | "">(initial?.spouse_occupation ?? "");
 
   // 2026-09-01 UPGRADE.md 반영: 확장 프로필 필드. 전부 선택 입력.
-  const [maritalStatus, setMaritalStatus] = useState<MaritalStatusType | "">(initial?.marital_status ?? "");
+  const [maritalStatus, setMaritalStatus] = useState<MaritalStatusType | "">(
+    normalizeMaritalStatus(initial?.marital_status) ?? ""
+  );
   const [marriageYears, setMarriageYears] = useState(initial?.marriage_years != null ? String(initial.marriage_years) : "");
   const [childrenCount, setChildrenCount] = useState(initial?.children_count != null ? String(initial.children_count) : "");
   const [isPregnant, setIsPregnant] = useState(initial?.is_pregnant ?? false);
@@ -61,7 +65,7 @@ export default function ProfileFieldsForm({ initial, submitLabel, submittingLabe
   // 2026-09-02 추가: 장애인/국가보훈대상자 전용 정책이 있어 수집(선택 입력).
   const [hasDisability, setHasDisability] = useState(initial?.has_disability ?? false);
   const [isVeteran, setIsVeteran] = useState(initial?.is_veteran ?? false);
-  const isMarried = maritalStatus === "engaged" || maritalStatus === "newlywed";
+  const isMarried = maritalStatus === "married";
 
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -76,7 +80,7 @@ export default function ProfileFieldsForm({ initial, submitLabel, submittingLabe
     try {
       await onSubmit({
         age: Number(age),
-        is_married: maritalStatus === "newlywed",
+        is_married: maritalStatus === "married",
         annual_income_krw: manwonToKrw(Number(income)),
         region,
         occupation,
@@ -84,7 +88,7 @@ export default function ProfileFieldsForm({ initial, submitLabel, submittingLabe
         spouse_annual_income_krw: isMarried && spouseIncome ? manwonToKrw(Number(spouseIncome)) : null,
         spouse_occupation: isMarried && spouseOccupation ? spouseOccupation : null,
         marital_status: maritalStatus || null,
-        marriage_years: maritalStatus === "newlywed" && marriageYears ? Number(marriageYears) : null,
+        marriage_years: maritalStatus === "married" && marriageYears ? Number(marriageYears) : null,
         children_count: childrenCount ? Number(childrenCount) : null,
         is_pregnant: isPregnant,
         desired_region: desiredRegion,
@@ -124,7 +128,10 @@ export default function ProfileFieldsForm({ initial, submitLabel, submittingLabe
       </label>
 
       <div>
-        <div className="mb-2 text-[12px] font-extrabold text-slate-700">혼인 여부</div>
+        <div className="mb-2 flex items-center gap-1.5 text-[12px] font-extrabold text-slate-700">
+          혼인 여부
+          <InfoTooltip text="예비신혼부부의 경우, 입주 전일까지 혼인사실을 증명(혼인신고)해야 합니다." />
+        </div>
         <div className="flex flex-wrap gap-2">
           {MARITAL_STATUS_OPTIONS.map((o) => (
             <button key={o.value} type="button" className={pillClass(maritalStatus === o.value)} onClick={() => setMaritalStatus(o.value)}>
@@ -132,12 +139,12 @@ export default function ProfileFieldsForm({ initial, submitLabel, submittingLabe
             </button>
           ))}
         </div>
-        {maritalStatus === "newlywed" && (
+        {maritalStatus === "married" && (
           <input
             type="number"
             min={0}
             max={100}
-            placeholder="신혼 몇 년차인가요? (예: 1)"
+            placeholder="결혼 몇 년차인가요? (예: 1)"
             value={marriageYears}
             onChange={(e) => setMarriageYears(e.target.value)}
             className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-4 text-[13px] font-semibold outline-none focus:border-[#2457d6]"

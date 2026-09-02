@@ -7,6 +7,7 @@ import { ArrowLeft, ArrowRight, Check, CircleHelp, Mail, ShieldCheck } from "luc
 import { signup, login, checkEmailAvailable, refreshRecommendations } from "@/lib/api";
 import PasswordField from "@/components/PasswordField";
 import SocialLoginButtons from "@/components/SocialLoginButtons";
+import InfoTooltip from "@/components/InfoTooltip";
 import { BrandMark } from "@/components/BrandMark";
 import {
   EMPLOYMENT_TYPE_OPTIONS,
@@ -52,7 +53,7 @@ export default function SignupPage() {
   // 2026-09-02 추가: 장애인/국가보훈대상자 전용 정책이 있어 수집(선택 입력).
   const [hasDisability, setHasDisability] = useState(false);
   const [isVeteran, setIsVeteran] = useState(false);
-  const isMarried = maritalStatus === "engaged" || maritalStatus === "newlywed";
+  const isMarried = maritalStatus === "married";
   const [error, setError] = useState<string | null>(null);
   // 예전엔 필수값이 비면 "회원가입" 버튼 자체를 disabled 처리해서, 사용자가 뭘
   // 안 채웠는지 알 수 없었다(사용자 요청, 2026-09-02: 버튼은 항상 누를 수 있게
@@ -121,7 +122,7 @@ export default function SignupPage() {
         email,
         password,
         age: Number(age),
-        is_married: maritalStatus === "newlywed",
+        is_married: maritalStatus === "married",
         annual_income_krw: manwonToKrw(Number(income)),
         region,
         occupation,
@@ -129,7 +130,7 @@ export default function SignupPage() {
         spouse_annual_income_krw: isMarried && spouseIncome ? manwonToKrw(Number(spouseIncome)) : null,
         spouse_occupation: isMarried && spouseOccupation ? spouseOccupation : null,
         marital_status: maritalStatus || null,
-        marriage_years: maritalStatus === "newlywed" && marriageYears ? Number(marriageYears) : null,
+        marriage_years: maritalStatus === "married" && marriageYears ? Number(marriageYears) : null,
         children_count: childrenCount ? Number(childrenCount) : null,
         is_pregnant: isPregnant,
         desired_region: desiredRegion,
@@ -286,7 +287,10 @@ export default function SignupPage() {
             </label>
 
             <div>
-              <div className="mb-2 text-[12px] font-extrabold text-slate-700">혼인 여부</div>
+              <div className="mb-2 flex items-center gap-1.5 text-[12px] font-extrabold text-slate-700">
+                혼인 여부
+                <InfoTooltip text="예비신혼부부의 경우, 입주 전일까지 혼인사실을 증명(혼인신고)해야 합니다." />
+              </div>
               <div className="flex flex-wrap gap-2">
                 {MARITAL_STATUS_OPTIONS.map((o) => (
                   <button key={o.value} type="button" className={pillClass(maritalStatus === o.value)} onClick={() => setMaritalStatus(o.value)}>
@@ -294,12 +298,12 @@ export default function SignupPage() {
                   </button>
                 ))}
               </div>
-              {maritalStatus === "newlywed" && (
+              {maritalStatus === "married" && (
                 <input
                   type="number"
                   min={0}
                   max={100}
-                  placeholder="신혼 몇 년차인가요? (예: 1)"
+                  placeholder="결혼 몇 년차인가요? (예: 1)"
                   value={marriageYears}
                   onChange={(e) => setMarriageYears(e.target.value)}
                   className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-4 text-[13px] font-semibold outline-none focus:border-[#2457d6]"

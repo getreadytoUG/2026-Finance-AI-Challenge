@@ -20,7 +20,7 @@ export type ExtendedProfileFields = {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
 
-export type SocialProvider = "kakao" | "naver";
+export type SocialProvider = "kakao";
 
 // 백엔드가 프로바이더 인증 페이지로 302 리다이렉트해준다. SPA 라우팅이 아니라
 // 브라우저 전체 이동이어야 하므로 window.location.href에 그대로 넣어 쓴다.
