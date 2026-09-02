@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check, CircleHelp, Mail, ShieldCheck } from "lucide-react";
-import { signup, login, checkEmailAvailable } from "@/lib/api";
+import { signup, login, checkEmailAvailable, refreshRecommendations } from "@/lib/api";
 import PasswordField from "@/components/PasswordField";
 import SocialLoginButtons from "@/components/SocialLoginButtons";
 import { BrandMark } from "@/components/BrandMark";
@@ -105,7 +105,19 @@ export default function SignupPage() {
       });
       const token = await login(email, password);
       localStorage.setItem("token", token);
-      router.push("/dashboard");
+      try {
+        // 가입 직후엔 새벽 배치가 아직 한 번도 안 돌아 "최근 추천"이 비어 보인다
+        // — 가입 시점에 프로필이 이미 다 채워져 있으니 그 자리에서 한 번 돌려서
+        // 대시보드에 도착했을 때 바로 뭔가 보이게 한다(사용자 요청, 2026-09-02).
+        // 실패해도 가입 자체를 막을 일은 아니라 조용히 무시 — 최악의 경우 새벽
+        // 배치가 대신 채워준다.
+        await refreshRecommendations(token);
+      } catch {
+        // no-op
+      }
+      // 로그인 상태여도 홈페이지가 먼저 보이도록 바뀌어서, 가입 완료 후에도
+      // 대시보드로 바로 꽂지 않고 홈페이지로 보낸다(사용자 요청, 2026-09-02).
+      router.push("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "회원가입에 실패했습니다.");
     } finally {

@@ -13,22 +13,25 @@ import type { PolicyBrowseItem } from "@/lib/api";
 // onSelectPolicy가 있으면(=/ai-search의 새 "전체보기" 화면) 카드 전체가 클릭 가능해지고
 // 카드별 "AI 분석 리포트 보기" 펼침 분석은 렌더링하지 않는다(정책별 챗봇으로 대체됐으므로).
 // 없으면(=RecommendationCalendar) 기존 펼침 분석 동작을 그대로 유지한다.
+// hideFilterBar가 true면 이 컴포넌트 안에서는 AiSearchFilterBar를 렌더링하지 않는다
+// — RecommendationCalendar가 캘린더 위에 필터바를 넓게 따로 배치할 때 쓴다
+// (사용자 요청, 2026-09-02: "필터기능은 달력 위에 길게 늘려라").
 export default function AiSearchResultsPanel({
   state,
   compact = false,
   onSelectPolicy,
+  hideFilterBar = false,
 }: {
   state: AiPolicySearchState;
   compact?: boolean;
   onSelectPolicy?: (item: PolicyBrowseItem) => void;
+  hideFilterBar?: boolean;
 }) {
   const {
     keywordInput,
     setKeywordInput,
     handleKeywordSearchSubmit,
     total,
-    includeClosed,
-    handleToggleIncludeClosed,
     resultsError,
     resultsLoading,
     items,
@@ -58,16 +61,10 @@ export default function AiSearchResultsPanel({
         </button>
       </form>
 
-      <AiSearchFilterBar state={state} compact={compact} />
+      {!hideFilterBar && <AiSearchFilterBar state={state} compact={compact} />}
 
-      <div className={`mb-4 flex shrink-0 flex-wrap items-center justify-between gap-2 ${compact ? "text-[13px]" : "text-[15px]"} font-extrabold text-ink`}>
-        <div>
-          맞춤 검색 결과: <span className="text-[#2457d6]">{total}개</span>
-        </div>
-        <label className="flex items-center gap-2 text-[12px] font-bold text-slate-500">
-          <input type="checkbox" checked={includeClosed} onChange={handleToggleIncludeClosed} className="h-4 w-4 accent-[#2457d6]" />
-          마감된 정책도 보기
-        </label>
+      <div className={`mb-4 shrink-0 ${compact ? "text-[13px]" : "text-[15px]"} font-extrabold text-ink`}>
+        맞춤 검색 결과: <span className="text-[#2457d6]">{total}개</span>
       </div>
 
       <div className={compact ? "flex-1" : undefined}>

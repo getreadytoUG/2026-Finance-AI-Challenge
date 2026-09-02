@@ -25,6 +25,14 @@ class PolicyChatSearchInput(BaseModel):
     # 동작에 영향이 없다 — ai_search.py에서만 실제로 채워진다.
     category: PolicyCategoryTag | None = None
     status: PolicyStatusLabel | None = None
+    # 2026-09-02 추가: "장애인 대상만"/"보훈대상자 대상만" 좁혀보기 필터. 다른
+    # 필드들(age/is_married/...)과 달리 사용자 자신의 프로필 값(has_disability/
+    # is_veteran)으로 자동 채우지 않는다 — 이건 "나에게 맞는 정책만" 조건이 아니라
+    # "이 대상군 정책만 보고 싶다"는 명시적 열람 선택이라, 비장애인도 켤 수 있어야
+    # 한다(router._profile_default_filters 참고). True일 때만 좁히고, None/False는
+    # 전체를 그대로 보여준다(tool.py._matches 참고).
+    disability_target: bool | None = None
+    veteran_target: bool | None = None
 
 
 FilterFieldName = Literal[
@@ -36,6 +44,8 @@ FilterFieldName = Literal[
     "keyword",
     "category",
     "status",
+    "disability_target",
+    "veteran_target",
 ]
 
 

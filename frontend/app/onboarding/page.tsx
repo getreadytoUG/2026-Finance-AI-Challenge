@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
-import { getMe, updateProfile, isTokenExpired, type ProfileInput, type UserProfile } from "@/lib/api";
+import { getMe, updateProfile, refreshRecommendations, isTokenExpired, type ProfileInput, type UserProfile } from "@/lib/api";
 import ProfileFieldsForm from "@/components/ProfileFieldsForm";
 import { BrandMark } from "@/components/BrandMark";
 
@@ -42,7 +42,15 @@ export default function OnboardingPage() {
   async function handleSubmit(input: ProfileInput) {
     const token = localStorage.getItem("token") ?? "";
     await updateProfile(token, input);
-    router.replace("/dashboard");
+    try {
+      // 소셜 로그인 유저는 이 화면에서 프로필을 처음 완성한다 — 여기가 그 유저에게는
+      // "회원가입 완료" 시점이라, 이메일 가입과 동일하게 한 번 미리 돌려둔다
+      // (signup/page.tsx 참고, 2026-09-02).
+      await refreshRecommendations(token);
+    } catch {
+      // no-op
+    }
+    router.replace("/");
   }
 
   if (!ready) return null;

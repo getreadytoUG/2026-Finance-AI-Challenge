@@ -112,6 +112,20 @@ def test_run_includes_status_and_emoji_on_options(db_session):
     assert result.options[0].status_emoji == "🟢"
 
 
+def test_run_filters_by_disability_target_only_when_true(db_session):
+    _seed_policy(db_session, policy_name="장애인 취업 지원 사업")
+    _seed_policy(db_session, policy_name="일반 청년 취업 지원")
+    assert len(run(PolicyChatSearchInput(disability_target=True), _ctx(db_session)).options) == 1
+    assert len(run(PolicyChatSearchInput(), _ctx(db_session)).options) == 2  # 안 켜면 전체 다 나온다
+    assert len(run(PolicyChatSearchInput(disability_target=False), _ctx(db_session)).options) == 2  # False도 전체
+
+
+def test_run_filters_by_veteran_target_only_when_true(db_session):
+    _seed_policy(db_session, policy_name="제대군인 직업능력 개발훈련")
+    _seed_policy(db_session, policy_name="일반 청년 취업 지원")
+    assert len(run(PolicyChatSearchInput(veteran_target=True), _ctx(db_session)).options) == 1
+
+
 def test_run_caps_results_at_max(db_session):
     for i in range(20):
         _seed_policy(db_session, policy_name=f"정책{i}")

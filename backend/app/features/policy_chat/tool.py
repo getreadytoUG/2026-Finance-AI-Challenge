@@ -1,6 +1,11 @@
 from app.features.policy_chat.schemas import PolicyChatSearchInput, PolicyChatSearchOption, PolicyChatSearchOutput
 from app.features.policy_matcher.categories import FINANCIAL_LARGE_CATEGORY, category_tags
-from app.features.policy_matcher.matching import is_newlywed_policy, region_matches
+from app.features.policy_matcher.matching import (
+    is_disability_targeted_policy,
+    is_newlywed_policy,
+    is_veteran_targeted_policy,
+    region_matches,
+)
 from app.features.policy_matcher.models import CachedPolicy
 from app.features.policy_matcher.status import compute_policy_status, today_kst
 from app.tools.base import ToolContext, ToolSpec
@@ -34,6 +39,10 @@ def _matches(policy: CachedPolicy, input: PolicyChatSearchInput) -> bool:
         haystack = policy.policy_name + policy.description
         if input.keyword not in haystack:
             return False
+    if input.disability_target and not is_disability_targeted_policy(policy):
+        return False
+    if input.veteran_target and not is_veteran_targeted_policy(policy):
+        return False
     return True
 
 

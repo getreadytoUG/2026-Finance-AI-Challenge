@@ -87,6 +87,20 @@ export default function AiSearchFilterBar({ state, compact = false }: { state: A
         onChange={(v) => handleSetFilters({ status: (v || null) as PolicyStatus | null })}
         compact={compact}
       />
+      <FilterSelect
+        value={filters.disability_target ? "true" : ""}
+        placeholder="장애인 대상 전체"
+        options={[{ value: "true", label: "장애인 대상만" }]}
+        onChange={(v) => handleSetFilters({ disability_target: v === "true" ? true : null })}
+        compact={compact}
+      />
+      <FilterSelect
+        value={filters.veteran_target ? "true" : ""}
+        placeholder="보훈대상자 대상 전체"
+        options={[{ value: "true", label: "보훈대상자 대상만" }]}
+        onChange={(v) => handleSetFilters({ veteran_target: v === "true" ? true : null })}
+        compact={compact}
+      />
     </div>
   );
 }

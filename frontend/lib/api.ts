@@ -370,6 +370,12 @@ export type AiSearchFilters = {
   category?: string | null;
   keyword?: string | null;
   status?: PolicyStatus | null;
+  // 2026-09-02 추가: "장애인 대상만"/"보훈대상자 대상만" 좁혀보기 필터. 다른
+  // 필드와 달리 프로필 값으로 자동 채우지 않는다(useAiPolicySearch.ts 참고) —
+  // "나에게 맞는 조건"이 아니라 "이 대상군 정책만 보고 싶다"는 명시적 선택이라
+  // 비장애인/비보훈대상자도 켤 수 있어야 한다.
+  disability_target?: boolean | null;
+  veteran_target?: boolean | null;
 };
 
 export type AiSearchMessageResult = {
@@ -420,6 +426,8 @@ export async function fetchAiSearchResults(
   if (filters.category) search.set("category", filters.category);
   if (filters.keyword) search.set("keyword", filters.keyword);
   if (filters.status) search.set("status", filters.status);
+  if (filters.disability_target) search.set("disability_target", "true");
+  if (filters.veteran_target) search.set("veteran_target", "true");
   if (includeClosed) search.set("include_closed", "true");
   search.set("page", String(page));
   search.set("page_size", String(pageSize));

@@ -150,6 +150,10 @@ def _describe_filters(filters: PolicyChatSearchInput) -> str:
         lines.append(f"키워드: {filters.keyword}")
     if filters.status is not None:
         lines.append(f"신청 상태: {filters.status}")
+    if filters.disability_target:
+        lines.append("장애인 대상 정책만")
+    if filters.veteran_target:
+        lines.append("국가보훈대상자 대상 정책만")
     return "\n".join(lines) if lines else "(적용된 조건 없음 — 전체 정책 대상)"
 
 
@@ -255,6 +259,8 @@ def get_ai_search_results(
     category: PolicyCategoryTag | None = None,
     keyword: str | None = None,
     status: PolicyStatusLabel | None = None,
+    disability_target: bool | None = None,
+    veteran_target: bool | None = None,
     include_closed: bool = False,
     page: int = 1,
     page_size: int = 10,
@@ -271,6 +277,8 @@ def get_ai_search_results(
             category=category,
             keyword=keyword,
             status=status,
+            disability_target=disability_target,
+            veteran_target=veteran_target,
         )
         items, total = search_policies(db, filters, include_closed=include_closed, page=page, page_size=page_size)
         return AiSearchResultsResponse(items=items, total=total, page=page, page_size=page_size)
