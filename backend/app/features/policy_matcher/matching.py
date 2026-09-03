@@ -1,5 +1,6 @@
 from typing import Callable, Literal
 
+from app.features.policy_matcher.district_codes import DISTRICT_CODES_BY_PROVINCE
 from app.features.policy_matcher.models import CachedPolicy
 from app.features.policy_matcher.schemas import PolicyMatchInput
 
@@ -63,13 +64,59 @@ def region_names_for_prefix(prefix: str) -> list[str]:
     return [name for name in REGIONS if prefix in _REGION_PREFIXES.get(name, ())]
 
 
+# 별칭 -> REGIONS/DISTRICT_CODES_BY_PROVINCE가 쓰는 정식 표기(canonical). 구/군
+# 표는 canonical 이름으로만 키가 잡혀있어서(district_codes.py 참고), "서울특별시
+# 강남구"처럼 별칭으로 들어온 입력도 구 조회 전에 canonical로 정규화해야 한다.
+_PROVINCE_CANONICAL: dict[str, str] = {
+    alias: canonical for canonical, aliases in {
+        "서울": ("서울", "서울시", "서울특별시"),
+        "부산": ("부산", "부산시", "부산광역시"),
+        "대구": ("대구", "대구시", "대구광역시"),
+        "인천": ("인천", "인천시", "인천광역시"),
+        "광주": ("광주", "광주시", "광주광역시"),
+        "대전": ("대전", "대전시", "대전광역시"),
+        "울산": ("울산", "울산시", "울산광역시"),
+        "세종": ("세종", "세종시", "세종특별자치시"),
+        "경기": ("경기", "경기도"),
+        "강원": ("강원", "강원도", "강원특별자치도"),
+        "충북": ("충북", "충청북도"),
+        "충남": ("충남", "충청남도"),
+        "전북": ("전북", "전라북도", "전북특별자치도"),
+        "전남": ("전남", "전라남도"),
+        "경북": ("경북", "경상북도"),
+        "경남": ("경남", "경상남도"),
+        "제주": ("제주", "제주도", "제주특별자치도"),
+    }.items() for alias in aliases
+}
+
+
+def _split_region_input(input_region: str) -> tuple[str, str | None]:
+    """"서울 강남구" -> ("서울", "강남구"), "서울" -> ("서울", None)."""
+    parts = input_region.strip().split(maxsplit=1)
+    if not parts:
+        return "", None
+    if len(parts) == 1:
+        return parts[0], None
+    return parts[0], parts[1].strip() or None
+
+
 def region_matches(policy_region_code: str, input_region: str) -> bool:
-    prefixes = _REGION_PREFIXES.get(input_region.strip())
+    province_input, district_name = _split_region_input(input_region)
+    prefixes = _REGION_PREFIXES.get(province_input)
     if prefixes is None:
-        # 매핑에 없는 표기("서울 강남구" 등)는 잘못 걸러내는 것보다 노출하는 쪽이
-        # 안전하므로 필터링하지 않는다.
+        # 매핑에 없는 시/도 표기는 잘못 걸러내는 것보다 노출하는 쪽이 안전하므로
+        # 필터링하지 않는다.
         return True
     codes = [c.strip() for c in policy_region_code.split(",") if c.strip()]
+    if district_name:
+        # 2026-09-03 추가: 구/군까지 지정된 입력이면 5자리 법정동코드로 더 정밀하게
+        # 매칭한다(district_codes.py 참고). 표에 없는 구/군(광주/전남처럼 아예 표가
+        # 없거나, 오타)이면 시/도 단위로 완화해서 계속 거른다 — 구/군을 못 찾았다고
+        # 필터링을 통째로 포기하지 않는다.
+        canonical = _PROVINCE_CANONICAL.get(province_input)
+        district_code = DISTRICT_CODES_BY_PROVINCE.get(canonical or "", {}).get(district_name)
+        if district_code is not None:
+            return any(code.startswith(district_code) for code in codes)
     return any(code.startswith(prefix) for code in codes for prefix in prefixes)
 
 
@@ -268,13 +315,62 @@ STUDENT_ENROLLMENT_CODES = frozenset({"0049002", "0049003", "0049005", "0049006"
 SCHOOL_CODE_UNRESTRICTED = "0049010"
 
 
+def _codes_of(value: str) -> set[str]:
+    return {c.strip() for c in value.split(",") if c.strip()}
+
+
+def _has_targeting_code(value: str, target_codes: frozenset[str], unrestricted_code: str) -> bool:
+    """콤마 구분 코드 문자열에 대상 코드가 있고, "제한없음" 코드는 없는지 —
+    schoolCd/jobCd/sbizCd 셋 다 이 모양(구체적 코드 여러 개 + 제한없음 sentinel
+    하나)이라 공통으로 뺐다."""
+    if not value:
+        return False
+    codes = _codes_of(value)
+    if unrestricted_code in codes:
+        return False
+    return bool(codes & target_codes)
+
+
 def is_student_only_policy(policy: CachedPolicy) -> bool:
-    if not policy.school_code:
-        return False
-    codes = {c.strip() for c in policy.school_code.split(",") if c.strip()}
-    if SCHOOL_CODE_UNRESTRICTED in codes:
-        return False
-    return bool(codes & STUDENT_ENROLLMENT_CODES)
+    return _has_targeting_code(policy.school_code, STUDENT_ENROLLMENT_CODES, SCHOOL_CODE_UNRESTRICTED)
+
+
+# 2026-09-03: jobCd(정책취업요건코드, 코드그룹 0013) — 실측(2,750건) 분포상
+# 0013010(제한없음) 2,061건이 압도적이고, 그다음이 재직자(93)/미취업자(288)/
+# (예비)창업자(97) 순이다. occupation(User 프로필)과 신뢰도 있게 대응되는 코드만
+# 규칙으로 등록한다 — 프리랜서/일용근로자/단기근로자/영농종사자(0013004/0005/
+# 0007/0008)는 occupation Literal에 대응 값이 아예 없어서(자영업자로 뭉뚱그리면
+# 오탐 위험) 규칙을 안 만들고 그냥 fail-open으로 둔다.
+JOB_CODE_UNRESTRICTED = "0013010"
+JOB_CODE_EMPLOYEE = frozenset({"0013001"})  # 재직자
+JOB_CODE_SELF_EMPLOYED = frozenset({"0013002", "0013006"})  # 자영업자, (예비)창업자
+JOB_CODE_UNEMPLOYED = frozenset({"0013003"})  # 미취업자
+
+
+def is_employee_only_policy(policy: CachedPolicy) -> bool:
+    return _has_targeting_code(policy.job_code, JOB_CODE_EMPLOYEE, JOB_CODE_UNRESTRICTED)
+
+
+def is_self_employed_only_policy(policy: CachedPolicy) -> bool:
+    return _has_targeting_code(policy.job_code, JOB_CODE_SELF_EMPLOYED, JOB_CODE_UNRESTRICTED)
+
+
+def is_unemployed_only_policy(policy: CachedPolicy) -> bool:
+    return _has_targeting_code(policy.job_code, JOB_CODE_UNEMPLOYED, JOB_CODE_UNRESTRICTED)
+
+
+# 2026-09-03 사용자 지적("중소기업 다닌다고 해도 관련 없는 정책 뜬다"): sbizCd
+# (정책특화요건코드, 코드그룹 0014)의 중소기업 재직 전용(0014001)을 User.is_sme_employee
+# (2026-09-01 UPGRADE.md 확장 프로필 필드, 이미 있던 값을 재사용)로 거른다. 같은
+# 코드그룹의 장애인(0014005)은 이번엔 손 안 댄다 — 실측상 채워진 비율이 낮아서
+# (5~6건) 정책명 키워드 판별을 대체하기엔 부족하고, 사용자도 "키워드 매칭은
+# 어쩔 수 없다"고 확인했다(is_disability_targeted_policy 그대로 유지).
+SBIZ_CODE_UNRESTRICTED = "0014010"
+SBIZ_CODE_SME = frozenset({"0014001"})
+
+
+def is_sme_only_policy(policy: CachedPolicy) -> bool:
+    return _has_targeting_code(policy.sbiz_code, SBIZ_CODE_SME, SBIZ_CODE_UNRESTRICTED)
 
 
 # ---------------------------------------------------------------------------
@@ -310,6 +406,22 @@ TARGETING_RULES: list[TargetingRule] = [
         is_student_only_policy,
         lambda i: None if i.occupation is None else i.occupation == "student",
     ),
+    TargetingRule(
+        "재직자 전용",
+        is_employee_only_policy,
+        lambda i: None if i.occupation is None else i.occupation == "employee",
+    ),
+    TargetingRule(
+        "자영업자·(예비)창업자 전용",
+        is_self_employed_only_policy,
+        lambda i: None if i.occupation is None else i.occupation == "self_employed",
+    ),
+    TargetingRule(
+        "미취업자 전용",
+        is_unemployed_only_policy,
+        lambda i: None if i.occupation is None else i.occupation == "unemployed",
+    ),
+    TargetingRule("중소기업 재직 전용", is_sme_only_policy, lambda i: i.is_sme_employee),
 ]
 
 

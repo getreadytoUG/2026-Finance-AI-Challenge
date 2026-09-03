@@ -31,6 +31,10 @@ class PolicyMatchInput(BaseModel):
     # 구조화 필드가 있는데 그동안 안 썼다). None(미입력)이면 필터링하지 않는다
     # (fail-open, matching.is_eligible 참고).
     occupation: OccupationType | None = None
+    # 2026-09-03 추가: "중소기업 다니는데도 관련 없는 정책이 뜬다"(사용자 지적) —
+    # sbizCd(정책특화요건코드)의 중소기업 전용(0014001) 정책을 거르는 데 쓴다.
+    # User 모델에 이미 있던 필드(2026-09-01 UPGRADE.md 확장 프로필)를 재사용한다.
+    is_sme_employee: bool | None = None
 
 
 class PolicyOption(BaseModel):

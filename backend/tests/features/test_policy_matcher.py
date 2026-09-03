@@ -90,6 +90,39 @@ def test_run_excludes_student_only_policy_for_non_student_occupation(db_session)
     assert [o.policy_name for o in result.options] == ["국가근로장학금"]
 
 
+def test_run_narrows_by_district_when_region_includes_gu(db_session):
+    # 2026-09-03 PLAN.md #2 — "서울 강남구"처럼 구/군까지 지정하면 5자리
+    # 법정동코드로 정밀 매칭한다(matching.district_codes 참고).
+    _seed_policy(db_session, policy_name="강남구 청년 지원", region_code="11680")
+    _seed_policy(db_session, policy_name="종로구 청년 지원", region_code="11110")
+
+    result = run(
+        PolicyMatchInput(age=29, is_married=False, annual_income_krw=40_000_000, region="서울 강남구"),
+        _ctx(db_session),
+    )
+    assert [o.policy_name for o in result.options] == ["강남구 청년 지원"]
+
+
+def test_run_excludes_sme_only_policy_for_non_sme_employee(db_session):
+    # 2026-09-03 사용자 지적: "중소기업 다닌다고 해도 관련 없는 정책 뜬다".
+    _seed_policy(db_session, policy_name="중소기업 청년 지원", sbiz_code="0014001")
+    result = run(
+        PolicyMatchInput(
+            age=29, is_married=False, annual_income_krw=40_000_000, region="서울", is_sme_employee=False
+        ),
+        _ctx(db_session),
+    )
+    assert result.options == []
+
+    result = run(
+        PolicyMatchInput(
+            age=29, is_married=False, annual_income_krw=40_000_000, region="서울", is_sme_employee=True
+        ),
+        _ctx(db_session),
+    )
+    assert [o.policy_name for o in result.options] == ["중소기업 청년 지원"]
+
+
 def test_run_includes_wide_region_policy_when_institution_is_central_government(db_session):
     # 2026-09-03 사용자 지적: "햇살론유스가 왜 안 나오지?" — 서민금융진흥원(중앙부처)이
     # 운영하는 진짜 전국 상품인데도 zipCd가 17개 시도를 다 나열한 형태라 위 필터에

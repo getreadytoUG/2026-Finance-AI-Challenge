@@ -92,7 +92,7 @@ def test_adds_institution_group_code_to_cached_policies():
     engine = _legacy_cached_policies_engine()
     ensure_schema(engine)
     columns = {c["name"] for c in inspect(engine).get_columns("cached_policies")}
-    assert {"institution_group_code", "school_code"} <= columns
+    assert {"institution_group_code", "school_code", "job_code", "sbiz_code"} <= columns
 
 
 def test_backfills_institution_group_code_default_for_existing_rows():

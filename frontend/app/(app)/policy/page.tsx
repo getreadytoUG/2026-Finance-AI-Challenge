@@ -100,6 +100,7 @@ export default function PolicyPage() {
           // (사용자 지적) — 재학생 전용 정책을 걸러내려면 프로필의 직업 상태가
           // 필요하다(matching.is_student_only_policy 참고).
           occupation: me.occupation,
+          is_sme_employee: me.is_sme_employee,
         });
       })
       .then((output) => {

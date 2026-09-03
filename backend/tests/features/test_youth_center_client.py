@@ -28,6 +28,8 @@ SAMPLE_PAYLOAD = {
                 "zipCd": "11110,11140",
                 "pvsnInstGroupCd": "0054002",
                 "schoolCd": "0049005",
+                "jobCd": "0013001",
+                "sbizCd": "0014001",
                 "lclsfNm": "주거",
                 "mclsfNm": "전월세 및 주거급여 지원",
                 "bizPrdBgngYmd": "20260101",
@@ -73,6 +75,8 @@ def test_parse_youth_policy_json_parses_full_record():
     assert first.region_code == "11110,11140"
     assert first.institution_group_code == "0054002"
     assert first.school_code == "0049005"
+    assert first.job_code == "0013001"
+    assert first.sbiz_code == "0014001"
 
 
 def test_parse_youth_policy_json_converts_small_income_values_from_manwon_to_krw():

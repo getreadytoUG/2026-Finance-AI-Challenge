@@ -68,6 +68,14 @@ def test_refresh_policy_cache_stores_school_code(db_session, monkeypatch):
     assert row.school_code == "0049005"
 
 
+def test_refresh_policy_cache_stores_job_and_sbiz_code(db_session, monkeypatch):
+    monkeypatch.setattr(cache, "fetch_all_policies", lambda: [_policy(job_code="0013001", sbiz_code="0014001")])
+    cache.refresh_policy_cache(db_session)
+    row = db_session.query(CachedPolicy).one()
+    assert row.job_code == "0013001"
+    assert row.sbiz_code == "0014001"
+
+
 def test_refresh_policy_cache_falls_back_to_policy_name_when_id_blank(db_session, monkeypatch):
     monkeypatch.setattr(cache, "fetch_all_policies", lambda: [_policy(policy_id="", policy_name="이름만 있는 정책")])
     cache.refresh_policy_cache(db_session)

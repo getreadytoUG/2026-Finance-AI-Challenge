@@ -48,4 +48,8 @@ class CachedPolicy(Base):
     # 조건이 있는 정책(국가근로장학금 등)을 matching.is_student_only_policy()가
     # 판별하는 데 쓴다. 나머지 신규 컬럼과 동일하게 server_default로 기존 행 안전.
     school_code = Column(String, nullable=False, server_default="")
+    # 2026-09-03 추가: 온통청년 jobCd(정책취업요건코드)/sbizCd(정책특화요건코드) —
+    # matching.py의 JOB_STATUS_RULES/is_sme_only_policy 주석 참고.
+    job_code = Column(String, nullable=False, server_default="")
+    sbiz_code = Column(String, nullable=False, server_default="")
     refreshed_at = Column(DateTime(timezone=True), nullable=False)

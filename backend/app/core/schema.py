@@ -70,7 +70,7 @@ def ensure_schema(engine: Engine) -> None:
     # is_likely_template_region_code / is_student_only_policy 주석 참고) ---
     if "cached_policies" in table_names:
         policy_columns = {col["name"] for col in inspector.get_columns("cached_policies")}
-        for column in ("institution_group_code", "school_code"):
+        for column in ("institution_group_code", "school_code", "job_code", "sbiz_code"):
             if column not in policy_columns:
                 ddl.append(f"ALTER TABLE cached_policies ADD COLUMN {column} VARCHAR NOT NULL DEFAULT ''")
 

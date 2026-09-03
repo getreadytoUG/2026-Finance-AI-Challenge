@@ -229,6 +229,36 @@ def test_student_only_policy_is_ineligible_for_explicit_non_student_occupation()
     assert is_eligible(policy, _input()) is True
 
 
+def test_job_code_rules_match_occupation():
+    employee_only = _policy(job_code="0013001")
+    assert is_eligible(employee_only, _input(occupation="self_employed")) is False
+    assert is_eligible(employee_only, _input(occupation="employee")) is True
+    assert is_eligible(employee_only, _input()) is True  # occupation 미입력은 fail-open
+
+    self_employed_only = _policy(job_code="0013006")  # (예비)창업자
+    assert is_eligible(self_employed_only, _input(occupation="employee")) is False
+    assert is_eligible(self_employed_only, _input(occupation="self_employed")) is True
+
+    unemployed_only = _policy(job_code="0013003")
+    assert is_eligible(unemployed_only, _input(occupation="employee")) is False
+    assert is_eligible(unemployed_only, _input(occupation="unemployed")) is True
+
+
+def test_job_code_unrestricted_and_unmapped_categories_pass_through():
+    # "제한없음"이면 당연히 통과.
+    assert is_eligible(_policy(job_code="0013010"), _input(occupation="employee")) is True
+    # 프리랜서/일용근로자 같은, occupation에 대응 값이 없는 코드는 규칙 자체가 없어
+    # 그냥 통과한다(오탐 위험이 있어 일부러 규칙을 안 만들었다 — matching.py 주석 참고).
+    assert is_eligible(_policy(job_code="0013004"), _input(occupation="employee")) is True
+
+
+def test_sme_only_policy_requires_is_sme_employee():
+    policy = _policy(sbiz_code="0014001")
+    assert is_eligible(policy, _input(is_sme_employee=False)) is False
+    assert is_eligible(policy, _input(is_sme_employee=True)) is True
+    assert is_eligible(policy, _input()) is True  # 미입력은 fail-open
+
+
 def test_disability_targeted_policy_is_ineligible_for_explicit_non_disabled_input():
     policy = _policy(policy_name="장애인 취업 지원 사업")
     assert is_eligible(policy, _input(has_disability=False)) is False
@@ -264,6 +294,32 @@ def test_region_matches_gwangju_and_jeonnam_accept_both_old_and_new_merged_code(
 def test_region_matches_unmapped_input_fails_open():
     # 매핑에 없는 자유 텍스트는 필터링하지 않고 통과시킨다(기존 동작 유지).
     assert region_matches("11110", "강남구") is True
+
+
+# 2026-09-03 추가: PLAN.md #2 — "서울 강남구"처럼 구/군까지 지정하면 5자리
+# 법정동코드로 정밀 매칭한다(district_codes.py 참고). "서울"만 주면 기존처럼
+# 시/도 단위로만 본다(하위 호환).
+def test_region_matches_with_district_narrows_to_5_digit_code():
+    seoul_all_gu = "11110,11140,11170,11200,11215,11230,11260,11290,11305,11320,11350,11380,11410,11440,11470,11500,11530,11545,11560,11590,11620,11650,11680,11710,11740"
+    assert region_matches(seoul_all_gu, "서울 강남구") is True
+    # 강남구 코드(11680)가 아예 없는, 몇 개 구만 콕 집은 정책이면 강남구 사용자에겐 안 걸려야 한다.
+    assert region_matches("11110,11140", "서울 강남구") is False  # 종로구·중구만 대상
+    assert region_matches("11680", "서울 서초구") is False  # 강남구만 대상인데 서초구로 조회
+
+
+def test_region_matches_district_falls_back_to_province_when_district_unmapped():
+    # 광주/전남은 구/군 표 자체가 없다(district_codes.py 상단 주석 참고) — 시/도
+    # 단위로 완화해서 계속 거른다(필터링을 통째로 포기하지 않음).
+    assert region_matches("29110", "광주 동구") is True
+    # 오타/모르는 구 이름도 마찬가지로 시/도 단위까지는 유지된다.
+    assert region_matches("11110", "서울 없는구") is True
+    assert region_matches("26110", "서울 없는구") is False
+
+
+def test_region_matches_district_works_with_province_alias():
+    # "서울특별시 강남구"처럼 정식 명칭 별칭 + 구/군 조합도 canonical로 정규화돼 동작한다.
+    assert region_matches("11680", "서울특별시 강남구") is True
+    assert region_matches("11110", "서울특별시 강남구") is False
 
 
 # age_matches/income_matches는 is_eligible과 policy_chat/tool._matches가 공유하는
