@@ -39,6 +39,7 @@ def run_recommendation_batch_for_user(db: Session, user: User) -> int:
         spouse_annual_income_krw=user.spouse_annual_income_krw,
         has_disability=user.has_disability,
         is_veteran=user.is_veteran,
+        occupation=user.occupation,
     )
     # 온통청년 API를 직접 부르는 대신, 배치가 매일 새벽 갱신해 두는 DB 캐시
     # (CachedPolicy)를 조회한다 — 유저 수만큼 외부 API를 반복 호출하지 않도록

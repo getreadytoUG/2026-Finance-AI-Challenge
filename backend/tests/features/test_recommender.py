@@ -93,6 +93,15 @@ def test_run_recommendation_batch_for_user_skips_ineligible_policy(db_session):
     assert created == 0
 
 
+def test_run_recommendation_batch_for_user_skips_student_only_policy_for_non_student(db_session):
+    # 2026-09-03 사용자 지적("40대인데 국가근로장학금이 뜬다") — 배치 추천도
+    # occupation을 넘겨받아야 재학생 전용 정책을 거른다.
+    user = _make_user(db_session, email="employee@example.com", occupation="employee")
+    _seed_policy(db_session, policy_key="P901", min_age=19, max_age=34, school_code="0049005")
+    created = recommender.run_recommendation_batch_for_user(db_session, user)
+    assert created == 0
+
+
 def test_run_recommendation_batch_for_user_skips_policy_without_specific_age_or_income_condition(db_session):
     # 나이/소득 조건이 전혀 없는 정책(온통청년 API의 "0/0" sentinel이 여기서는
     # None으로 정규화된 상태)은 "맞춤" 추천으로서 의미가 없어 알림에서 제외한다.

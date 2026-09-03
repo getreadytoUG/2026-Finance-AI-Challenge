@@ -61,6 +61,13 @@ def test_refresh_policy_cache_stores_institution_group_code(db_session, monkeypa
     assert row.institution_group_code == "0054001"
 
 
+def test_refresh_policy_cache_stores_school_code(db_session, monkeypatch):
+    monkeypatch.setattr(cache, "fetch_all_policies", lambda: [_policy(school_code="0049005")])
+    cache.refresh_policy_cache(db_session)
+    row = db_session.query(CachedPolicy).one()
+    assert row.school_code == "0049005"
+
+
 def test_refresh_policy_cache_falls_back_to_policy_name_when_id_blank(db_session, monkeypatch):
     monkeypatch.setattr(cache, "fetch_all_policies", lambda: [_policy(policy_id="", policy_name="이름만 있는 정책")])
     cache.refresh_policy_cache(db_session)

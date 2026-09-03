@@ -73,6 +73,23 @@ def test_run_excludes_policy_with_template_region_code(db_session):
     assert result.options == []
 
 
+def test_run_excludes_student_only_policy_for_non_student_occupation(db_session):
+    # 2026-09-03 사용자 지적: "40대인데 국가근로장학금이 뜬다" — 실제로 이 정책이
+    # 나이/소득 조건 없이 schoolCd(대학 재학)만으로 재학생을 가리고 있었다.
+    _seed_policy(db_session, policy_name="국가근로장학금", school_code="0049005")
+    result = run(
+        PolicyMatchInput(age=45, is_married=False, annual_income_krw=40_000_000, region="서울", occupation="employee"),
+        _ctx(db_session),
+    )
+    assert result.options == []
+
+    result = run(
+        PolicyMatchInput(age=22, is_married=False, annual_income_krw=0, region="서울", occupation="student"),
+        _ctx(db_session),
+    )
+    assert [o.policy_name for o in result.options] == ["국가근로장학금"]
+
+
 def test_run_includes_wide_region_policy_when_institution_is_central_government(db_session):
     # 2026-09-03 사용자 지적: "햇살론유스가 왜 안 나오지?" — 서민금융진흥원(중앙부처)이
     # 운영하는 진짜 전국 상품인데도 zipCd가 17개 시도를 다 나열한 형태라 위 필터에

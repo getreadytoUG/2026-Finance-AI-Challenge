@@ -6,6 +6,7 @@ from app.features.policy_matcher.matching import (
     is_eligible,
     is_likely_template_region_code,
     is_newlywed_policy,
+    is_student_only_policy,
     is_veteran_targeted_policy,
     region_matches,
 )
@@ -195,6 +196,37 @@ def test_is_veteran_targeted_policy_matches_keyword_in_policy_name():
 
 def test_is_veteran_targeted_policy_ignores_description_only_mentions():
     assert is_veteran_targeted_policy(_policy(policy_name="청년 임대주택 공급", description="국가유공자 등 주거취약계층 지원")) is False
+
+
+def test_is_student_only_policy_true_for_enrollment_codes():
+    # 2026-09-03 사용자 지적: "국가근로장학금"이 schoolCd="0049005"(대학 재학)인데
+    # 나이/소득 조건이 둘 다 없어서(min_age/max_age/min_income/max_income 전부
+    # None) 40대에게도 그냥 노출되고 있었다.
+    assert is_student_only_policy(_policy(school_code="0049005")) is True  # 대학 재학
+    assert is_student_only_policy(_policy(school_code="0049002")) is True  # 고교 재학
+    assert is_student_only_policy(_policy(school_code="0049003,0049006")) is True  # 고졸/대졸 예정
+
+
+def test_is_student_only_policy_false_for_graduation_codes_or_unrestricted():
+    # 이미 졸업했다는 학력(대졸/석박사)만으로는 "지금 재학 중"이 아니므로 걸러내지
+    # 않는다 — 대졸 직장인도 그 학력을 갖고 있을 수 있어서 오탐 위험이 있다.
+    assert is_student_only_policy(_policy(school_code="0049007")) is False  # 대학 졸업
+    assert is_student_only_policy(_policy(school_code="0049008")) is False  # 석·박사
+    assert is_student_only_policy(_policy(school_code="0049010")) is False  # 제한없음
+    assert is_student_only_policy(_policy(school_code="")) is False
+
+
+def test_is_student_only_policy_false_when_unrestricted_code_is_mixed_in():
+    # 재학 코드와 "제한없음"이 같이 찍혀 있으면(데이터 모순) 안전한 쪽(통과)으로.
+    assert is_student_only_policy(_policy(school_code="0049005,0049010")) is False
+
+
+def test_student_only_policy_is_ineligible_for_explicit_non_student_occupation():
+    policy = _policy(school_code="0049005")  # 대학 재학 전용
+    assert is_eligible(policy, _input(occupation="employee")) is False
+    assert is_eligible(policy, _input(occupation="student")) is True
+    # occupation 미입력(None)인 기존 유저는 fail-open으로 계속 노출한다.
+    assert is_eligible(policy, _input()) is True
 
 
 def test_disability_targeted_policy_is_ineligible_for_explicit_non_disabled_input():

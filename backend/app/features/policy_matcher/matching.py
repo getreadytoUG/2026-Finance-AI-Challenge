@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Callable, Literal
 
 from app.features.policy_matcher.models import CachedPolicy
 from app.features.policy_matcher.schemas import PolicyMatchInput
@@ -186,24 +186,22 @@ def income_matches(
 
 
 def is_eligible(policy: CachedPolicy, input: PolicyMatchInput) -> bool:
+    # 나이/소득/지역은 "범위" 또는 "접두사 매칭"이라 코드값 하나로 비교하는
+    # TARGETING_RULES와 성격이 달라 여기서 직접 처리한다. 나머지 "이 정책은
+    # 특정 대상군 전용이다" 조건들은 전부 TARGETING_RULES 표 하나로 처리된다 —
+    # 2026-09-03 이전엔 조건이 늘어날 때마다(혼인/장애/보훈/재학생...) 여기에
+    # `if X(policy) and Y: return False` 한 줄씩 계속 덧붙이는 식이었다. 새 대상군
+    # 조건이 생기면 이 함수를 고칠 필요 없이 TARGETING_RULES에 한 줄만 추가하면 된다.
     if not age_matches(policy, input.age):
-        return False
-    if is_married_only_policy(policy) and not input.is_married:
-        return False
-    if is_unmarried_only_policy(policy) and input.is_married:
         return False
     if not income_matches(policy, input.annual_income_krw, input.spouse_annual_income_krw):
         return False
     if policy.region_code:
         if not input.region or not region_matches(policy.region_code, input.region):
             return False
-    # 장애인/국가보훈대상자 전용 정책은 명시적으로 "아님"(False)이라고 답한 사용자
-    # 에게만 걸러낸다 — 값을 아직 입력하지 않은 기존 유저(None)는 다른 확장
-    # 필드들과 동일하게 fail-open으로 계속 노출한다(하위 호환).
-    if is_disability_targeted_policy(policy) and input.has_disability is False:
-        return False
-    if is_veteran_targeted_policy(policy) and input.is_veteran is False:
-        return False
+    for rule in TARGETING_RULES:
+        if rule.applies_to(policy) and rule.user_satisfies(input) is False:
+            return False
     return True
 
 
@@ -257,6 +255,62 @@ def is_veteran_targeted_policy(policy: CachedPolicy) -> bool:
     if "일반" in policy.policy_name:
         return False
     return any(keyword in policy.policy_name for keyword in VETERAN_KEYWORDS)
+
+
+# 2026-09-03: 온통청년 공식 코드정의서(schoolCd, 정책학력요건코드 그룹 0049)로
+# "재학/입학예정" 상태를 나타내는 코드만 골랐다 — 고교 졸업/대학 졸업/석·박사처럼
+# "이미 마친 학력"을 나타내는 코드는 뺐다. 이미 졸업한 사람도 그 학력을 갖고
+# 있을 수 있어서(예: 대졸 직장인), 졸업 여부까지 "재학생 전용"으로 걸러버리면
+# 오탐이 생긴다 — 반면 "재학 중"이라는 건 지금 학생 신분이 아니면 명백히 해당이
+# 안 되므로 안전하게 거를 수 있다.
+#   0049002 고교 재학, 0049003 고졸 예정, 0049005 대학 재학, 0049006 대졸 예정
+STUDENT_ENROLLMENT_CODES = frozenset({"0049002", "0049003", "0049005", "0049006"})
+SCHOOL_CODE_UNRESTRICTED = "0049010"
+
+
+def is_student_only_policy(policy: CachedPolicy) -> bool:
+    if not policy.school_code:
+        return False
+    codes = {c.strip() for c in policy.school_code.split(",") if c.strip()}
+    if SCHOOL_CODE_UNRESTRICTED in codes:
+        return False
+    return bool(codes & STUDENT_ENROLLMENT_CODES)
+
+
+# ---------------------------------------------------------------------------
+# 2026-09-03 리팩터: "이 정책은 특정 대상군 전용이다" 판정을 전부 이 표 하나로
+# 모았다. 예전엔 새 대상군 조건(혼인/장애/보훈/재학생...)이 생길 때마다
+# is_eligible() 본문에 `if X(policy) and Y: return False` 한 줄씩 계속
+# 덧붙이는 식이었다(사용자 지적: "함수 하나로 퉁칠 수 있는데 왜 자꾸 예외
+# 케이스를 하나씩 고치냐"). 지금은 다음 두 개만 정의하면 새 규칙 하나가 끝난다:
+#   - applies_to(policy): 이 정책이 그 대상군 "전용"인지 (코드값 또는 키워드 기반)
+#   - user_satisfies(input): 유저가 그 조건을 만족하는지
+#     True=만족(통과) / False=명시적으로 불만족(제외) / None=아직 모름(fail-open, 통과)
+# is_eligible()은 이 표를 순회만 할 뿐 대상군 종류를 하나도 모른다 — 새 규칙을
+# 추가해도 is_eligible() 자체는 손댈 필요가 없다.
+class TargetingRule:
+    def __init__(
+        self,
+        label: str,
+        applies_to: Callable[[CachedPolicy], bool],
+        user_satisfies: Callable[[PolicyMatchInput], bool | None],
+    ) -> None:
+        self.label = label
+        self.applies_to = applies_to
+        self.user_satisfies = user_satisfies
+
+
+TARGETING_RULES: list[TargetingRule] = [
+    TargetingRule("기혼 전용", is_married_only_policy, lambda i: i.is_married),
+    TargetingRule("미혼 전용", is_unmarried_only_policy, lambda i: not i.is_married),
+    TargetingRule("장애인 전용", is_disability_targeted_policy, lambda i: i.has_disability),
+    TargetingRule("국가보훈대상자 전용", is_veteran_targeted_policy, lambda i: i.is_veteran),
+    TargetingRule(
+        "재학생 전용",
+        is_student_only_policy,
+        lambda i: None if i.occupation is None else i.occupation == "student",
+    ),
+]
 
 
 # 2026-09-02 추가: 저축플랜 시뮬레이터가 "청년도약계좌" 하나로 고정된 예시 대신,

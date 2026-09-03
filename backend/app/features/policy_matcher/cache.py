@@ -40,6 +40,7 @@ def refresh_policy_cache(db: Session) -> int:
         row.marital_status = policy.marital_status
         row.region_code = policy.region_code
         row.institution_group_code = policy.institution_group_code
+        row.school_code = policy.school_code
         row.refreshed_at = now
         upserted += 1
 

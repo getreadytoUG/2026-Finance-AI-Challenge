@@ -96,6 +96,10 @@ export default function PolicyPage() {
           region: me.region,
           has_disability: me.has_disability,
           is_veteran: me.is_veteran,
+          // 2026-09-03 추가: "학생 아니라고 했는데 국가근로장학금이 뜬다"
+          // (사용자 지적) — 재학생 전용 정책을 걸러내려면 프로필의 직업 상태가
+          // 필요하다(matching.is_student_only_policy 참고).
+          occupation: me.occupation,
         });
       })
       .then((output) => {

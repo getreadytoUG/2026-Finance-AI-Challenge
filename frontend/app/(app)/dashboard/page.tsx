@@ -96,6 +96,7 @@ export default function DashboardPage() {
           region: me.region,
           has_disability: me.has_disability,
           is_veteran: me.is_veteran,
+          occupation: me.occupation,
         });
       })
       .then((res) => {

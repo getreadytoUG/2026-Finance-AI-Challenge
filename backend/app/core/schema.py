@@ -66,14 +66,13 @@ def ensure_schema(engine: Engine) -> None:
         if column not in columns:
             ddl.append(f"ALTER TABLE users ADD COLUMN {column} {col_type}")
 
-    # --- 2026-09-03 추가: cached_policies.institution_group_code (matching.py
-    # is_likely_template_region_code 주석 참고) ---
+    # --- 2026-09-03 추가: cached_policies의 신규 코드값 컬럼들 (matching.py의
+    # is_likely_template_region_code / is_student_only_policy 주석 참고) ---
     if "cached_policies" in table_names:
         policy_columns = {col["name"] for col in inspector.get_columns("cached_policies")}
-        if "institution_group_code" not in policy_columns:
-            ddl.append(
-                "ALTER TABLE cached_policies ADD COLUMN institution_group_code VARCHAR NOT NULL DEFAULT ''"
-            )
+        for column in ("institution_group_code", "school_code"):
+            if column not in policy_columns:
+                ddl.append(f"ALTER TABLE cached_policies ADD COLUMN {column} VARCHAR NOT NULL DEFAULT ''")
 
     if not ddl:
         return

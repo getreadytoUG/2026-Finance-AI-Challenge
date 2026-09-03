@@ -44,4 +44,8 @@ class CachedPolicy(Base):
     # server_default=''로 기존 행은 빈 문자열로 채워지고(= 지자체로 간주, 안전한
     # 쪽), 다음 배치 갱신 때 실제 값으로 덮어써진다(ensure_schema.py 참고).
     institution_group_code = Column(String, nullable=False, server_default="")
+    # 2026-09-03 추가: 온통청년 schoolCd(정책학력요건코드) — "대학 재학" 같은 학력
+    # 조건이 있는 정책(국가근로장학금 등)을 matching.is_student_only_policy()가
+    # 판별하는 데 쓴다. 나머지 신규 컬럼과 동일하게 server_default로 기존 행 안전.
+    school_code = Column(String, nullable=False, server_default="")
     refreshed_at = Column(DateTime(timezone=True), nullable=False)
