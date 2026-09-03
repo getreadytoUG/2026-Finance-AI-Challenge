@@ -55,6 +55,14 @@ _REGION_PREFIXES: dict[str, tuple[str, ...]] = {
 }
 
 
+def region_names_for_prefix(prefix: str) -> list[str]:
+    # admin "코드값" 화면(2026-09-03 추가)이 zipCd 접두사별로 REGIONS 중 어디에
+    # 매핑되는지 보여줄 때 쓴다 — REGIONS는 별칭("서울시"/"서울특별시" 등) 없이
+    # 정식 표기 17개만 담고 있어서, 그 각각의 _REGION_PREFIXES 튜플에 이 접두사가
+    # 있는지만 확인하면 별칭 중복 없이 정확히 한 번씩만 나온다.
+    return [name for name in REGIONS if prefix in _REGION_PREFIXES.get(name, ())]
+
+
 def region_matches(policy_region_code: str, input_region: str) -> bool:
     prefixes = _REGION_PREFIXES.get(input_region.strip())
     if prefixes is None:
@@ -107,23 +115,71 @@ def is_likely_template_region_code(policy: CachedPolicy) -> bool:
     return _distinct_province_count(policy.region_code) >= _NATIONWIDE_TEMPLATE_PROVINCE_THRESHOLD
 
 
-def is_eligible(policy: CachedPolicy, input: PolicyMatchInput) -> bool:
-    if policy.min_age is not None and input.age < policy.min_age:
+# 2026-09-03: 온통청년 공식 "API코드정보.xlsx" 코드정의서(오픈API 소개 페이지의
+# "코드정의서 다운로드" 링크, /downloadform/API코드정보.xlsx)를 직접 받아 확인한
+# mrgSttsCd(결혼상태코드, 코드그룹 0055)의 실제 뜻이다 — 그동안 "기혼"/"미혼"이라는
+# 사람이 읽는 문자열과 비교하고 있었는데, 실제 저장되는 값은 이 코드였다(아래 참고).
+# 라이브 조회(2026-09-03, 2,750건)로 세 값 다 실제로 쓰이는 걸 확인했다:
+#   0055001 기혼    48건
+#   0055002 미혼    23건
+#   0055003 제한없음 2,677건 (그 외 나머지 정책은 이 필드가 빈 문자열)
+MARITAL_STATUS_CODE_MARRIED = "0055001"
+MARITAL_STATUS_CODE_UNMARRIED = "0055002"
+MARITAL_STATUS_CODE_UNRESTRICTED = "0055003"
+MARITAL_STATUS_LABELS: dict[str, str] = {
+    MARITAL_STATUS_CODE_MARRIED: "기혼",
+    MARITAL_STATUS_CODE_UNMARRIED: "미혼",
+    MARITAL_STATUS_CODE_UNRESTRICTED: "제한없음",
+}
+
+
+def is_married_only_policy(policy: CachedPolicy) -> bool:
+    return policy.marital_status == MARITAL_STATUS_CODE_MARRIED
+
+
+def is_unmarried_only_policy(policy: CachedPolicy) -> bool:
+    return policy.marital_status == MARITAL_STATUS_CODE_UNMARRIED
+
+
+# is_eligible()과 policy_chat/tool.py의 _matches()가 나이/소득 조건을 똑같이 비교하는
+# 코드를 각자 복붙해 갖고 있었다(사용자 지적, 2026-09-03 "필터링이 다 꼬여있다") —
+# 여기로 합쳐서 두 곳이 항상 같은 로직을 쓰게 한다. 두 호출부의 차이는 "값이
+# 없을 때 어떻게 하느냐"뿐이라 그것만 파라미터(age/annual_income_krw를 Optional로)로
+# 흡수한다: is_eligible은 항상 값이 있는 PolicyMatchInput을 넘기고, _matches는
+# 대화에서 아직 언급 안 된 조건에 None을 넘겨 "그 조건은 안 본다"는 뜻으로 쓴다.
+def age_matches(policy: CachedPolicy, age: int | None) -> bool:
+    if age is None:
+        return True
+    if policy.min_age is not None and age < policy.min_age:
         return False
-    if policy.max_age is not None and input.age > policy.max_age:
+    if policy.max_age is not None and age > policy.max_age:
         return False
-    # marital_status는 youth_center_client가 원본 코드값(예: "0055003")을 그대로 담는다
-    # — 온통청년 공통코드 표를 확보하지 못해 "기혼"/"미혼" 문자열과는 매치되지 않는다.
-    if policy.marital_status == "기혼" and not input.is_married:
-        return False
-    if policy.marital_status == "미혼" and input.is_married:
-        return False
+    return True
+
+
+def income_matches(
+    policy: CachedPolicy, annual_income_krw: int | None, spouse_annual_income_krw: int | None = None
+) -> bool:
+    if annual_income_krw is None:
+        return True
     # 소득 요건은 개인이 아니라 가구소득 기준인 정책이 많으므로, 배우자 소득이
     # 있으면 합산한 가구소득으로 심사한다.
-    household_income = input.annual_income_krw + (input.spouse_annual_income_krw or 0)
+    household_income = annual_income_krw + (spouse_annual_income_krw or 0)
     if policy.min_income_krw is not None and household_income < policy.min_income_krw:
         return False
     if policy.max_income_krw is not None and household_income > policy.max_income_krw:
+        return False
+    return True
+
+
+def is_eligible(policy: CachedPolicy, input: PolicyMatchInput) -> bool:
+    if not age_matches(policy, input.age):
+        return False
+    if is_married_only_policy(policy) and not input.is_married:
+        return False
+    if is_unmarried_only_policy(policy) and input.is_married:
+        return False
+    if not income_matches(policy, input.annual_income_krw, input.spouse_annual_income_krw):
         return False
     if policy.region_code:
         if not input.region or not region_matches(policy.region_code, input.region):
@@ -143,9 +199,9 @@ def is_eligible(policy: CachedPolicy, input: PolicyMatchInput) -> bool:
 #   - plcyKywdNm(정책 키워드명)은 대출/주거지원/보조금 같은 "혜택 종류" 태그이지
 #     대상(신혼부부 등) 태그가 아니다. "신혼부부"가 들어간 정책 69건 중 이 필드에
 #     "신혼부부"가 찍힌 건 0건.
-#   - mrgSttsCd(혼인상태코드)는 전체 정책의 97%(2,655/2,728)가 "0055003" 하나로
-#     쏠려 있고 그 안엔 국가근로장학금처럼 혼인과 무관한 정책도 섞여 있다 — "제한
-#     없음" sentinel일 뿐 혼인상태 분류값이 아니다(위 is_eligible 주석 참고).
+#   - mrgSttsCd(혼인상태코드)는 기혼/미혼 둘로만 나뉘고(위 MARITAL_STATUS_LABELS
+#     참고) "신혼부부"라는 별도 값이 없다 — 대부분(97%)은 "제한없음"이라 국가근로
+#     장학금처럼 혼인과 무관한 정책도 여기 섞여 있다.
 # 그래서 정책명/설명 텍스트에 신혼부부 관련 키워드가 들어있는지로 판별한다. "결혼"
 # 단독 키워드는 오탐이 많아(미혼남녀 만남 프로그램, 결혼이민여성 취업지원 등) 뺐다.
 # CachedPolicy는 배치가 주기적으로 갱신하므로, 새 정책이 캐시에 들어오면 이름/설명에

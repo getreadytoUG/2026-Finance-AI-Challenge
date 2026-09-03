@@ -1,8 +1,12 @@
 from app.features.policy_chat.schemas import PolicyChatSearchInput, PolicyChatSearchOption, PolicyChatSearchOutput
 from app.features.policy_matcher.categories import FINANCIAL_LARGE_CATEGORY, category_tags
 from app.features.policy_matcher.matching import (
+    age_matches,
+    income_matches,
     is_disability_targeted_policy,
+    is_married_only_policy,
     is_newlywed_policy,
+    is_unmarried_only_policy,
     is_veteran_targeted_policy,
     region_matches,
 )
@@ -15,23 +19,18 @@ MAX_RESULTS = 8
 
 # policy_matcher.matching.is_eligible과 달리 이 조건들은 챗봇 대화에서 자연스럽게
 # 다 언급되지 않을 수 있다 — 값이 주어진 필드만 체크하고, None인 필드는 그냥
-# 통과시킨다(그 필드에 대해서는 아무 의견도 없다는 뜻으로 취급).
+# 통과시킨다(그 필드에 대해서는 아무 의견도 없다는 뜻으로 취급). 나이/소득/혼인상태
+# 비교 자체는 matching.py의 공유 헬퍼를 그대로 쓴다 — 예전엔 여기 따로 복붙돼 있어서
+# is_eligible만 고치고 이쪽은 못 고치는 일이 있었다(2026-09-03, 사용자 지적).
 def _matches(policy: CachedPolicy, input: PolicyChatSearchInput) -> bool:
-    if input.age is not None:
-        if policy.min_age is not None and input.age < policy.min_age:
-            return False
-        if policy.max_age is not None and input.age > policy.max_age:
-            return False
-    if policy.marital_status == "기혼" and input.is_married is False:
+    if not age_matches(policy, input.age):
         return False
-    if policy.marital_status == "미혼" and input.is_married is True:
+    if is_married_only_policy(policy) and input.is_married is False:
         return False
-    if input.annual_income_krw is not None:
-        household_income = input.annual_income_krw + (input.spouse_annual_income_krw or 0)
-        if policy.min_income_krw is not None and household_income < policy.min_income_krw:
-            return False
-        if policy.max_income_krw is not None and household_income > policy.max_income_krw:
-            return False
+    if is_unmarried_only_policy(policy) and input.is_married is True:
+        return False
+    if not income_matches(policy, input.annual_income_krw, input.spouse_annual_income_krw):
+        return False
     if input.region and policy.region_code:
         if not region_matches(policy.region_code, input.region):
             return False

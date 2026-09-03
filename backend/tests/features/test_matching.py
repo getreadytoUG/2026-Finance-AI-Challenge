@@ -1,5 +1,7 @@
 from app.features.policy_matcher.matching import (
+    age_matches,
     has_specific_eligibility_condition,
+    income_matches,
     is_disability_targeted_policy,
     is_eligible,
     is_likely_template_region_code,
@@ -44,9 +46,25 @@ def test_applicant_outside_age_range_is_ineligible():
 
 
 def test_marriage_requirement_is_enforced_both_ways():
-    policy = _policy(marital_status="기혼")
-    assert is_eligible(policy, _input(is_married=False)) is False
-    assert is_eligible(policy, _input(is_married=True)) is True
+    # "0055001"/"0055002"는 온통청년 공식 코드정의서(API코드정보.xlsx)의 실제
+    # mrgSttsCd 값이다 — 예전엔 "기혼"/"미혼" 문자열과 비교해서 실제 데이터에는
+    # 한 번도 안 걸리는 죽은 코드였다(matching.py MARITAL_STATUS_LABELS 참고).
+    married_only = _policy(marital_status="0055001")
+    assert is_eligible(married_only, _input(is_married=False)) is False
+    assert is_eligible(married_only, _input(is_married=True)) is True
+
+    unmarried_only = _policy(marital_status="0055002")
+    assert is_eligible(unmarried_only, _input(is_married=True)) is False
+    assert is_eligible(unmarried_only, _input(is_married=False)) is True
+
+
+def test_marital_status_unrestricted_code_and_unknown_values_pass_through():
+    # "0055003"(제한없음, 실측상 97%가 이 값)은 물론, 아직 공식 코드표에 없는
+    # 값이나 빈 문자열도 fail-open으로 통과시킨다.
+    for value in ("0055003", "", "9999999"):
+        policy = _policy(marital_status=value)
+        assert is_eligible(policy, _input(is_married=False)) is True
+        assert is_eligible(policy, _input(is_married=True)) is True
 
 
 def test_income_ceiling_is_enforced():
@@ -198,3 +216,27 @@ def test_region_matches_gwangju_and_jeonnam_accept_both_old_and_new_merged_code(
 def test_region_matches_unmapped_input_fails_open():
     # 매핑에 없는 자유 텍스트는 필터링하지 않고 통과시킨다(기존 동작 유지).
     assert region_matches("11110", "강남구") is True
+
+
+# age_matches/income_matches는 is_eligible과 policy_chat/tool._matches가 공유하는
+# 헬퍼다(2026-09-03 중복 제거) — None을 넘기면 "그 조건은 안 본다"는 뜻으로
+# 무조건 통과시키는 게 핵심 계약이라 여기서 직접 검증한다.
+def test_age_matches_passes_when_age_is_none():
+    assert age_matches(_policy(min_age=19, max_age=34), None) is True
+
+
+def test_age_matches_enforces_bounds_when_age_given():
+    policy = _policy(min_age=19, max_age=34)
+    assert age_matches(policy, 10) is False
+    assert age_matches(policy, 25) is True
+    assert age_matches(policy, 40) is False
+
+
+def test_income_matches_passes_when_income_is_none():
+    assert income_matches(_policy(max_income_krw=1), None) is True
+
+
+def test_income_matches_combines_spouse_income_when_given():
+    policy = _policy(max_income_krw=50_000_000)
+    assert income_matches(policy, 40_000_000) is True
+    assert income_matches(policy, 40_000_000, 20_000_000) is False

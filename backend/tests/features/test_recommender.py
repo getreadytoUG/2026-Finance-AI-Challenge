@@ -87,7 +87,8 @@ def test_run_recommendation_batch_for_user_saves_eligible_policy(db_session):
 
 def test_run_recommendation_batch_for_user_skips_ineligible_policy(db_session):
     user = _make_user(db_session, email="c@example.com")
-    _seed_policy(db_session, policy_key="P002", marital_status="기혼")
+    # "0055001" = 온통청년 공식 mrgSttsCd 기혼 코드(matching.MARITAL_STATUS_LABELS).
+    _seed_policy(db_session, policy_key="P002", marital_status="0055001")
     created = recommender.run_recommendation_batch_for_user(db_session, user)
     assert created == 0
 

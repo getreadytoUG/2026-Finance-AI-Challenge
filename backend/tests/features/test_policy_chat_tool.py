@@ -76,6 +76,16 @@ def test_run_uses_combined_household_income_when_given(db_session):
     assert len(matched.options) == 1
 
 
+def test_run_filters_by_marital_status_only_when_given(db_session):
+    # "0055001"은 온통청년 공식 mrgSttsCd 기혼 코드다(matching.MARITAL_STATUS_LABELS,
+    # 2026-09-03 수정 전에는 _matches가 "기혼" 문자열과 비교하는 별도 복붙 로직이라
+    # 이 필터가 실제로는 한 번도 안 걸렸다).
+    _seed_policy(db_session, marital_status="0055001")
+    assert run(PolicyChatSearchInput(is_married=False), _ctx(db_session)).options == []
+    assert len(run(PolicyChatSearchInput(is_married=True), _ctx(db_session)).options) == 1
+    assert len(run(PolicyChatSearchInput(), _ctx(db_session)).options) == 1  # 혼인여부 안 주면 통과
+
+
 def test_run_filters_by_region_only_when_given(db_session):
     _seed_policy(db_session, region_code="26110")
     assert run(PolicyChatSearchInput(region="서울"), _ctx(db_session)).options == []

@@ -68,7 +68,10 @@ def test_search_filters_by_income(db_session):
 
 
 def test_search_filters_by_marital_status(db_session):
-    _seed_policy(db_session, marital_status="기혼")
+    # "0055001"은 온통청년 공식 코드정의서상 실제 mrgSttsCd 기혼 코드다
+    # (matching.MARITAL_STATUS_LABELS 참고, 2026-09-03 이전엔 "기혼" 문자열과
+    # 비교하는 죽은 코드였다).
+    _seed_policy(db_session, marital_status="0055001")
     items, total = search_policies(
         db_session, _filters(is_married=False), include_closed=False, page=1, page_size=10
     )

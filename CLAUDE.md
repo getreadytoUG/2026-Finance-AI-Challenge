@@ -70,12 +70,10 @@ Trinity 프로젝트에서 작업하는 Claude(또는 다른 엔지니어)를 �
 
 ## 알려진 제약 (기획서 대비, 또는 이번 구현에서 발견된 것)
 
-- **혼인상태 필터가 사실상 항상 통과**: 온통청년 API의 `mrgSttsCd`는 코드값
-  (예: `"0055003"`)만 내려오고, 온통청년 공통코드 표를 확보하지 못해 "기혼"/
-  "미혼" 문자열로 매핑하지 못했다. `matching.py`에 이 사실이 주석으로 남아있다.
 - **지역 매칭은 시/도 단위 근사치**: zipCd(법정동코드) 콤마목록의 앞 2자리를
   17개 시/도 이름과 매핑하는 방식이다. "서울 강남구"처럼 구/군까지 지정한 입력은
   매핑 테이블에 없으면 필터링하지 않고 그냥 통과시킨다(안전 쪽으로 fail-open).
+  (혼인상태 필터는 2026-09-03에 해결됨 — 아래 "정책 코드값(온통청년 공통코드)" 참고.)
 - **Cloudtype 자동배포는 GitHub Actions로 걸려있음**: `main` 브랜치에 push되면
   `.github/workflows/deploy-{backend,frontend}.yml`이 각각 `backend/**`,
   `frontend/**` 변경을 감지해 Cloudtype으로 자동 배포한다(경로 트리거이므로 백엔드만
@@ -85,6 +83,38 @@ Trinity 프로젝트에서 작업하는 Claude(또는 다른 엔지니어)를 �
 - **정책 DB 자체가 없음**: 기획서 12장이 말하는 "정책 DB"(자체 캐싱/정제된
   정책 테이블)는 없고, 매 요청마다 온통청년 API를 실시간 호출한다. 페이지당
   100건만 가져오므로(전체 약 2,700여 건) 검색/카테고리 필터링 없이는 일부만 보인다.
+
+## 정책 코드값(온통청년 공통코드)
+
+온통청년 API가 내려주는 `mrgSttsCd`(혼인상태)/`lclsfNm`(대분류) 같은 필드는 사람이
+읽는 문자열이 아니라 코드값이다. 2026-09-03에 오픈API 소개 페이지의 "코드정의서
+다운로드"(`https://www.youthcenter.go.kr/downloadform/API코드정보.xlsx`)에서
+공식 매핑표를 확보해 `backend/app/features/policy_matcher/matching.py`의
+`MARITAL_STATUS_LABELS`에 반영했다(`0055001`=기혼, `0055002`=미혼, `0055003`=
+제한없음) — 그 전엔 "기혼"/"미혼" 문자열과 비교하는 죽은 코드였다. 전체 코드표는
+[DB.md](./md_files/DB.md) 부록에 옮겨뒀다.
+
+**"매칭에 안 쓰는" 관련 필드가 더 있다**: 같은 코드정의서에 `sbizCd`(정책특화요건,
+`0014005`=장애인 포함)/`jobCd`/`schoolCd`/`plcyMajorCd`/`earnCndSeCd`/
+`aplyPrdSeCd`/`bizPrdSeCd`도 있는데, `youth_center_client.py`가 아직 이 필드들을
+캐시에 담지 않는다 — 특히 `sbizCd`의 `0014005`는 지금 정책명 키워드로만 판별하는
+`is_disability_targeted_policy()`를 실제 구조화 데이터로 보완할 수 있는 후보다
+(`PLAN.md` #2 참고, 라이브 조회 기준 5~6건뿐이라 키워드 판별을 대체하기보다
+OR로 보완하는 쪽이 안전해 보인다).
+
+**admin "코드값" 탭**(`/admin/code-values`, `GET /admin/policies/code-values`)에서
+지금 캐시에 실제로 쌓인 원본 코드값(혼인상태/지역코드 접두사/대분류/중분류)을
+매핑표와 대조해 확인할 수 있다 — 별도 테이블 없이 `cached_policies`를 매 요청마다
+그대로 집계하므로 배치가 갱신될 때마다 자동으로 최신 상태다. 온통청년이 새 코드를
+추가하거나(예: 광주·전남 통합 지역코드 `12`) 대분류 체계를 바꾸면 이 화면에
+"매핑 안 됨"/"새 태그"로 바로 나타난다.
+
+**중복 로직 통합**: `policy_matcher/matching.py`의 `is_eligible()`과
+`policy_chat/tool.py`의 `_matches()`가 나이/소득/혼인상태 조건을 각자 복붙해서
+갖고 있었다(2026-09-03 전) — `age_matches()`/`income_matches()`/
+`is_married_only_policy()`/`is_unmarried_only_policy()`로 `matching.py`에 합쳐서
+두 곳이 항상 같은 로직을 쓰게 했다. 이 조건들을 손볼 땐 두 파일 다 살펴볼 필요 없이
+`matching.py`만 고치면 된다.
 
 ## 코딩 컨벤션
 

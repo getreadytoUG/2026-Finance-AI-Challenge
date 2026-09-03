@@ -59,7 +59,8 @@ def test_run_excludes_applicant_outside_age_range(db_session):
 
 
 def test_run_requires_marriage_when_policy_restricts_to_married(db_session):
-    _seed_policy(db_session, marital_status="기혼")
+    # "0055001" = 온통청년 공식 mrgSttsCd 기혼 코드(matching.MARITAL_STATUS_LABELS).
+    _seed_policy(db_session, marital_status="0055001")
     single = run(PolicyMatchInput(age=29, is_married=False, annual_income_krw=40_000_000, region="서울"), _ctx(db_session))
     married = run(PolicyMatchInput(age=29, is_married=True, annual_income_krw=40_000_000, region="서울"), _ctx(db_session))
     assert single.options == []

@@ -78,6 +78,7 @@ def test_admin_endpoints_reject_normal_user(client):
         ("get", "/admin/users/signup-trend"),
         ("get", "/admin/policies/stats"),
         ("get", "/admin/policies/list"),
+        ("get", "/admin/policies/code-values"),
         ("post", "/admin/policies/refresh"),
     ]:
         response = getattr(client, method)(path, headers={"Authorization": f"Bearer {token}"})
@@ -250,6 +251,61 @@ def test_admin_policy_list_shows_region_code_as_전국_when_blank(client, db_ses
 
     response = client.get("/admin/policies/list", headers={"Authorization": f"Bearer {admin_token}"})
     assert response.json()["items"][0]["region_code"] == "전국"
+
+
+def test_admin_code_values_decodes_marital_status_labels(client, db_session):
+    _seed_policy(db_session, marital_status="0055003")
+    _seed_policy(db_session, marital_status="0055003")
+    _seed_policy(db_session, marital_status="0055001")
+    _seed_policy(db_session, marital_status="0055002")
+    _seed_policy(db_session, marital_status="9999999")  # 공식 코드표에 없는 미확인 값
+    admin_token = _admin_login(client, db_session)
+
+    response = client.get("/admin/policies/code-values", headers={"Authorization": f"Bearer {admin_token}"})
+    assert response.status_code == 200
+    body = response.json()
+    codes = {c["value"]: c for c in body["marital_status_codes"]}
+    assert codes["0055003"]["count"] == 2
+    assert codes["0055003"]["label"] == "제한없음"
+    assert codes["0055001"]["label"] == "기혼"
+    assert codes["0055002"]["label"] == "미혼"
+    assert codes["9999999"]["label"] is None
+
+
+def test_admin_code_values_maps_region_prefixes_and_flags_unknown(client, db_session):
+    _seed_policy(db_session, region_code="11110,11140")  # 서울 — 같은 접두사 2번, 정책 1건으로만 카운트
+    _seed_policy(db_session, region_code="99999")  # 어떤 REGIONS에도 없는 미확인 접두사
+    _seed_policy(db_session, region_code="")  # 전국
+    admin_token = _admin_login(client, db_session)
+
+    response = client.get("/admin/policies/code-values", headers={"Authorization": f"Bearer {admin_token}"})
+    body = response.json()
+    assert body["nationwide_region_count"] == 1
+    prefixes = {p["prefix"]: p for p in body["region_prefixes"]}
+    assert prefixes["11"]["count"] == 1
+    assert prefixes["11"]["mapped_region_names"] == ["서울"]
+    assert prefixes["99"]["count"] == 1
+    assert prefixes["99"]["mapped_region_names"] == []
+
+
+def test_admin_code_values_flags_unknown_category_tags(client, db_session):
+    _seed_policy(db_session, large_category="일자리,어떤새로운대분류")
+    admin_token = _admin_login(client, db_session)
+
+    response = client.get("/admin/policies/code-values", headers={"Authorization": f"Bearer {admin_token}"})
+    tags = {t["value"]: t for t in response.json()["large_category_tags"]}
+    assert tags["일자리"]["is_known"] is True
+    assert tags["어떤새로운대분류"]["is_known"] is False
+
+
+def test_admin_code_values_reports_last_cache_refresh_time(client, db_session):
+    _seed_policy(db_session)
+    admin_token = _admin_login(client, db_session)
+
+    response = client.get("/admin/policies/code-values", headers={"Authorization": f"Bearer {admin_token}"})
+    body = response.json()
+    assert body["cache_last_refreshed_at"] is not None
+    assert body["total_policies"] == 1
 
 
 def test_admin_policy_refresh_triggers_cache_refresh(client, db_session, monkeypatch):

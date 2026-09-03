@@ -668,3 +668,27 @@ export async function refreshAdminPolicyCache(token: string): Promise<{ upserted
   const res = await authedFetch("/admin/policies/refresh", token, { method: "POST" });
   return res.json();
 }
+
+// 2026-09-03 추가: 온통청년 원본 코드값 점검 화면. 별도 테이블 없이 cached_policies를
+// 매 요청마다 그대로 집계해서 내려주므로("항상 최신화" 요구사항), 배치가 갱신할
+// 때마다 자동으로 최신 값이 된다 — 프론트는 그냥 이 응답을 그대로 보여주면 된다.
+export type AdminMaritalStatusCode = { value: string; count: number; label: string | null };
+export type AdminRegionPrefix = { prefix: string; count: number; mapped_region_names: string[] };
+export type AdminCategoryTagCount = { value: string; count: number; is_known: boolean };
+export type AdminMidCategoryValue = { value: string; count: number };
+
+export type AdminCodeValuesResponse = {
+  generated_at: string;
+  cache_last_refreshed_at: string | null;
+  total_policies: number;
+  marital_status_codes: AdminMaritalStatusCode[];
+  nationwide_region_count: number;
+  region_prefixes: AdminRegionPrefix[];
+  large_category_tags: AdminCategoryTagCount[];
+  mid_categories: AdminMidCategoryValue[];
+};
+
+export async function getAdminCodeValues(token: string): Promise<AdminCodeValuesResponse> {
+  const res = await authedFetch("/admin/policies/code-values", token);
+  return res.json();
+}
