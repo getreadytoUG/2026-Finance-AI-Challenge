@@ -9,6 +9,7 @@ import {
   type PolicyBrowseItem,
   type PolicyChatMessage,
 } from "@/lib/api";
+import { occupationLabel } from "@/lib/profileOptions";
 
 export type ChatTurn = { role: "user" | "assistant"; content: string };
 
@@ -31,6 +32,7 @@ function filterChips(filters: AiSearchFilters): { key: keyof AiSearchFilters; la
   if (filters.age != null) chips.push({ key: "age", label: `${filters.age}세` });
   if (filters.is_married != null) chips.push({ key: "is_married", label: filters.is_married ? "기혼" : "미혼" });
   if (filters.region) chips.push({ key: "region", label: filters.region });
+  if (filters.occupation) chips.push({ key: "occupation", label: occupationLabel(filters.occupation) });
   if (filters.category) chips.push({ key: "category", label: filters.category });
   if (filters.keyword) chips.push({ key: "keyword", label: `"${filters.keyword}"` });
   if (filters.status) chips.push({ key: "status", label: filters.status });
@@ -93,6 +95,7 @@ export function useAiPolicySearch(pageSize: number = 10, opts: { clientPaginate?
           annual_income_krw: profile.annual_income_krw,
           spouse_annual_income_krw: profile.spouse_annual_income_krw,
           region: profile.region,
+          occupation: profile.occupation,
         };
         setFilters(initial);
         return refetch(initial, 1, false);
@@ -163,6 +166,7 @@ export function useAiPolicySearch(pageSize: number = 10, opts: { clientPaginate?
       annual_income_krw: null,
       spouse_annual_income_krw: null,
       region: null,
+      occupation: null,
       category: null,
       keyword: null,
       status: null,

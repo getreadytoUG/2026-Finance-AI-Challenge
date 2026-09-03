@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Banknote, Calendar, ChevronRight, Heart, MapPin, MessageCircle, Search } from "lucide-react";
+import { Banknote, Briefcase, Calendar, ChevronRight, Heart, MapPin, MessageCircle, Search } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import Pagination from "@/components/Pagination";
 import PolicyChatDrawer from "@/components/PolicyChatDrawer";
@@ -10,7 +10,7 @@ import PolicyDetailLink from "@/components/PolicyDetailLink";
 import type { PolicyQaTarget } from "@/components/PolicyQaChatPanel";
 import StatusPill from "@/components/StatusPill";
 import { callTool, getMe, type UserProfile } from "@/lib/api";
-import { krwToManwon } from "@/lib/profileOptions";
+import { krwToManwon, occupationLabel } from "@/lib/profileOptions";
 
 const PAGE_SIZE = 10;
 
@@ -117,7 +117,7 @@ export default function PolicyPage() {
   return (
     <DashboardLayout eyebrow="MY POLICIES" title="내 맞춤 정책 보기">
       {profile && (
-        <div className="mb-6 grid gap-3 rounded-[22px] border border-slate-200/80 bg-white p-5 sm:grid-cols-4">
+        <div className="mb-6 grid gap-3 rounded-[22px] border border-slate-200/80 bg-white p-5 sm:grid-cols-3 lg:grid-cols-5">
           <ProfileSummaryChip icon={<Calendar size={14} />} label="나이" value={profile.age != null ? `${profile.age}세` : "-"} />
           <ProfileSummaryChip icon={<Heart size={14} />} label="혼인 여부" value={profile.is_married ? "기혼" : "미혼"} />
           <ProfileSummaryChip
@@ -126,6 +126,7 @@ export default function PolicyPage() {
             value={profile.annual_income_krw != null ? `${krwToManwon(profile.annual_income_krw).toLocaleString()}만원` : "-"}
           />
           <ProfileSummaryChip icon={<MapPin size={14} />} label="거주 지역" value={profile.region ?? "-"} />
+          <ProfileSummaryChip icon={<Briefcase size={14} />} label="직업 구분" value={occupationLabel(profile.occupation)} />
         </div>
       )}
 

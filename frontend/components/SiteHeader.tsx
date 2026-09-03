@@ -60,16 +60,6 @@ export function SiteHeader({
             <BrandMark size="sm" />
           </div>
           <div className="ml-auto flex items-center gap-3">
-            <Link
-              href="/recommendations"
-              className="relative rounded-xl p-2.5 text-slate-500 transition hover:bg-white hover:text-ink"
-              aria-label="추천 알림 보기"
-            >
-              <Bell size={18} strokeWidth={1.8} />
-              {unreadCount > 0 && (
-                <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-[#1eb8a6]" />
-              )}
-            </Link>
             <div className="relative">
               <button
                 onClick={() => setProfileOpen(!profileOpen)}

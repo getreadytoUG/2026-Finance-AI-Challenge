@@ -1,6 +1,6 @@
 "use client";
 
-import { POLICY_CATEGORY_OPTIONS, REGIONS } from "@/lib/profileOptions";
+import { OCCUPATION_OPTIONS, POLICY_CATEGORY_OPTIONS, REGIONS, type OccupationType } from "@/lib/profileOptions";
 import type { PolicyStatus } from "@/lib/api";
 import type { AiPolicySearchState } from "@/lib/useAiPolicySearch";
 
@@ -71,6 +71,13 @@ export default function AiSearchFilterBar({ state, compact = false }: { state: A
           { value: "married", label: "기혼" },
         ]}
         onChange={(v) => handleSetFilters({ is_married: v === "" ? null : v === "married" })}
+        compact={compact}
+      />
+      <FilterSelect
+        value={filters.occupation ?? ""}
+        placeholder="직업 전체"
+        options={OCCUPATION_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+        onChange={(v) => handleSetFilters({ occupation: (v || null) as OccupationType | null })}
         compact={compact}
       />
       <FilterSelect
