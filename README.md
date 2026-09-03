@@ -145,8 +145,8 @@ FastAPI 앱 진입점. 위 라우터들(`auth`, `tools`, `policy_matcher`)을 �
    - `ANTHROPIC_API_KEY` 또는 `OPENAI_API_KEY`: 위에서 고른 provider의 키
    - `CORS_ORIGINS`: 아직 프론트 URL을 모르므로 일단 비워두거나 아무 값(예: `http://localhost:3000`)으로 배포 — 2번 완료 후 업데이트합니다
    - `YOUTH_CENTER_API_KEY`: 온통청년 API 키 (발급 방법은 아래 "policy_matcher — 온통청년 API 키 발급" 절 참고)
-   - (선택) 소셜 로그인을 쓰려면 `KAKAO_CLIENT_ID` / `KAKAO_CLIENT_SECRET` / `NAVER_CLIENT_ID` / `NAVER_CLIENT_SECRET` 와
-     `KAKAO_REDIRECT_URI` / `NAVER_REDIRECT_URI`(값: `<백엔드 URL>/auth/{kakao,naver}/callback`),
+   - (선택) 소셜 로그인을 쓰려면 `KAKAO_CLIENT_ID` / `KAKAO_CLIENT_SECRET` 와
+     `KAKAO_REDIRECT_URI`(값: `<백엔드 URL>/auth/kakao/callback`),
      `FRONTEND_BASE_URL`(값: 프론트 URL)을 추가합니다. 자세한 건 아래 "소셜 로그인 설정" 절 참고.
 5. 배포되면 발급되는 URL(예: `https://xxxx.cloudtype.app`)을 기억해두세요 — 프론트엔드 설정에 필요합니다.
 
@@ -174,15 +174,15 @@ FastAPI 앱 진입점. 위 라우터들(`auth`, `tools`, `policy_matcher`)을 �
 - 이 저장소를 먼저 사용해본 적이 있고 로컬에 기존 `backend/app.db` 파일이 남아있다면, `users` 테이블에 새 컬럼(age/is_married/annual_income_krw/region)이 추가되었으므로 그 파일을 삭제하고 다시 실행하세요 (`Base.metadata.create_all`은 기존 테이블에 컬럼을 추가해주지 않습니다). Cloudtype 배포는 컨테이너가 재시작되면 SQLite 파일 자체가 초기화되는 경우가 많아 보통 문제되지 않습니다.
 - 배포된 프론트엔드의 `/signup`에서 계정을 만들 수 있습니다. SQLite가 재배포/재시작 시 초기화되므로, 재배포 후에는 기존 계정도 다시 만들어야 합니다.
 
-## 소셜 로그인 설정 (카카오 / 네이버)
+## 소셜 로그인 설정 (카카오)
 
-일반 이메일/비밀번호 가입과 별개로 카카오·네이버 OAuth 로그인을 지원합니다. 환경 변수를
+일반 이메일/비밀번호 가입과 별개로 카카오 OAuth 로그인을 지원합니다. 환경 변수를
 채우지 않으면 소셜 로그인 버튼은 그대로 노출되지만 클릭 시 "설정되지 않았습니다"(503) 응답을
 받습니다 — 일반 가입은 영향 없습니다.
 
 동작 방식(백엔드 리다이렉트):
 
-1. 프론트의 "카카오/네이버로 로그인" 버튼 → `GET <백엔드>/auth/{provider}/login`
+1. 프론트의 "카카오로 로그인" 버튼 → `GET <백엔드>/auth/kakao/login`
 2. 백엔드가 CSRF 방어용 `state`(서명된 단기 JWT)를 붙여 프로바이더 인증 페이지로 302
 3. 사용자가 동의하면 프로바이더가 `GET <백엔드>/auth/{provider}/callback?code=...&state=...` 로 리다이렉트
 4. 백엔드가 `code`를 토큰으로 교환하고 프로필을 조회 → 사용자 생성/조회 → JWT 발급
@@ -207,15 +207,6 @@ FastAPI 앱 진입점. 위 라우터들(`auth`, `tools`, `policy_matcher`)을 �
 5. (선택) 동의항목에서 "닉네임", "카카오계정(이메일)"을 설정 — 이메일은 비즈앱 전환 시에만 필수 요청 가능
 6. `KAKAO_REDIRECT_URI` 를 3번에서 등록한 값과 **정확히 동일하게** 설정
 
-### 네이버
-
-1. https://developers.naver.com/apps → 애플리케이션 등록
-2. 사용 API: "네이버 로그인", 제공 정보: 이메일 주소·별명(닉네임)
-3. 서비스 URL: 프론트 URL / **Callback URL**: `<백엔드 URL>/auth/naver/callback`
-   (로컬도 쓰려면 `http://localhost:8000/auth/naver/callback` 추가)
-4. 발급된 **Client ID / Client Secret** → `NAVER_CLIENT_ID` / `NAVER_CLIENT_SECRET`
-5. `NAVER_REDIRECT_URI` 를 3번 Callback URL과 **정확히 동일하게** 설정
-
 ### 로컬에서 테스트
 
 `backend/.env` 에 위 값들과 함께 아래를 넣고 백엔드·프론트를 모두 로컬로 띄웁니다.
@@ -223,9 +214,6 @@ FastAPI 앱 진입점. 위 라우터들(`auth`, `tools`, `policy_matcher`)을 �
 ```
 KAKAO_CLIENT_ID=...
 KAKAO_REDIRECT_URI=http://localhost:8000/auth/kakao/callback
-NAVER_CLIENT_ID=...
-NAVER_CLIENT_SECRET=...
-NAVER_REDIRECT_URI=http://localhost:8000/auth/naver/callback
 FRONTEND_BASE_URL=http://localhost:3000
 ```
 

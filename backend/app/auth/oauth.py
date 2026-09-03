@@ -1,4 +1,4 @@
-"""카카오/네이버 OAuth 2.0 (Authorization Code) 흐름 헬퍼.
+"""카카오 OAuth 2.0 (Authorization Code) 흐름 헬퍼.
 
 브라우저를 프로바이더 인증 페이지로 302 리다이렉트하고(`/auth/{provider}/login`),
 프로바이더가 되돌려준 `code`를 백엔드에서 토큰으로 교환한 뒤 사용자 프로필을
@@ -22,11 +22,7 @@ KAKAO_AUTHORIZE_URL = "https://kauth.kakao.com/oauth/authorize"
 KAKAO_TOKEN_URL = "https://kauth.kakao.com/oauth/token"
 KAKAO_PROFILE_URL = "https://kapi.kakao.com/v2/user/me"
 
-NAVER_AUTHORIZE_URL = "https://nid.naver.com/oauth2.0/authorize"
-NAVER_TOKEN_URL = "https://nid.naver.com/oauth2.0/token"
-NAVER_PROFILE_URL = "https://openapi.naver.com/v1/nid/me"
-
-SOCIAL_PROVIDERS = ("kakao", "naver")
+SOCIAL_PROVIDERS = ("kakao",)
 
 _STATE_TTL_SECONDS = 600
 _HTTP_TIMEOUT = 10.0
@@ -42,37 +38,16 @@ class SocialProfile:
     provider_user_id: str
     email: str | None
     nickname: str | None
-    # 네이버가 출생연도(birthyear) 동의를 준 경우 대략적인 나이. 온보딩 폼 프리필용.
-    age: int | None = None
-
-
-def _age_from_birthyear(birthyear: str | None) -> int | None:
-    # 생월/생일은 무시한 근사치 — 사용자가 온보딩에서 고칠 수 있는 프리필 값이다.
-    if not birthyear:
-        return None
-    try:
-        age = _now_year() - int(birthyear)
-    except (TypeError, ValueError):
-        return None
-    return age if 0 < age < 150 else None
-
-
-def _now_year() -> int:
-    from datetime import datetime, timezone
-
-    return datetime.now(timezone.utc).year
 
 
 def provider_configured(provider: str) -> bool:
     if provider == "kakao":
         return bool(settings.kakao_client_id)
-    if provider == "naver":
-        return bool(settings.naver_client_id)
     return False
 
 
 def _redirect_uri(provider: str) -> str:
-    return settings.kakao_redirect_uri if provider == "kakao" else settings.naver_redirect_uri
+    return settings.kakao_redirect_uri
 
 
 def issue_state(provider: str) -> str:
@@ -102,16 +77,12 @@ def authorize_url(provider: str, state: str) -> str:
     if provider == "kakao":
         # 이메일 동의는 비즈앱에서만 필수 지정이 가능하므로 scope는 넘기지 않는다.
         return f"{KAKAO_AUTHORIZE_URL}?{urlencode({**base, 'client_id': settings.kakao_client_id})}"
-    if provider == "naver":
-        return f"{NAVER_AUTHORIZE_URL}?{urlencode({**base, 'client_id': settings.naver_client_id})}"
     raise OAuthError(f"알 수 없는 provider: {provider}")
 
 
 def fetch_social_profile(provider: str, code: str, state: str) -> SocialProfile:
     if provider == "kakao":
         return _kakao_profile(code)
-    if provider == "naver":
-        return _naver_profile(code, state)
     raise OAuthError(f"알 수 없는 provider: {provider}")
 
 
@@ -167,33 +138,4 @@ def _kakao_profile(code: str) -> SocialProfile:
         provider_user_id=str(data["id"]),
         email=email,
         nickname=profile.get("nickname"),
-    )
-
-
-def _naver_profile(code: str, state: str) -> SocialProfile:
-    token = _post_form(
-        NAVER_TOKEN_URL,
-        {
-            "grant_type": "authorization_code",
-            "client_id": settings.naver_client_id,
-            "client_secret": settings.naver_client_secret or None,
-            "code": code,
-            "state": state,
-        },
-    )
-    access_token = token.get("access_token")
-    if not access_token:
-        raise OAuthError(f"네이버 응답에 access_token 없음: {token.get('error_description') or token}")
-    data = _get_json(NAVER_PROFILE_URL, access_token)
-    if data.get("resultcode") != "00":
-        raise OAuthError(f"네이버 프로필 조회 실패: {data.get('message')}")
-    response = data.get("response") or {}
-    if not response.get("id"):
-        raise OAuthError("네이버 프로필에 id 없음")
-    return SocialProfile(
-        provider="naver",
-        provider_user_id=str(response["id"]),
-        email=response.get("email"),
-        nickname=response.get("nickname") or response.get("name"),
-        age=_age_from_birthyear(response.get("birthyear")),
     )

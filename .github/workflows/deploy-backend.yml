@@ -55,14 +55,8 @@ jobs:
                   value: ${{ secrets.KAKAO_CLIENT_ID }}
                 - name: KAKAO_CLIENT_SECRET
                   value: ${{ secrets.KAKAO_CLIENT_SECRET }}
-                - name: NAVER_CLIENT_ID
-                  value: ${{ secrets.NAVER_CLIENT_ID }}
-                - name: NAVER_CLIENT_SECRET
-                  value: ${{ secrets.NAVER_CLIENT_SECRET }}
                 - name: KAKAO_REDIRECT_URI
                   value: https://port-0-finance-ai-challenge-mt6h85e80eba0f7f.sel3.cloudtype.app/auth/kakao/callback
-                - name: NAVER_REDIRECT_URI
-                  value: https://port-0-finance-ai-challenge-mt6h85e80eba0f7f.sel3.cloudtype.app/auth/naver/callback
                 - name: FRONTEND_BASE_URL
                   value: https://trinity2030.site
               buildenv: []
