@@ -8,6 +8,7 @@ import PolicyDetailLink from "@/components/PolicyDetailLink";
 import StatusPill from "@/components/StatusPill";
 import type { AiPolicySearchState } from "@/lib/useAiPolicySearch";
 import type { PolicyBrowseItem } from "@/lib/api";
+import { formatApplicationPeriod } from "@/lib/policyFormat";
 
 // compact=true는 추천 탭 캘린더 뷰의 4칸 레이아웃용 축소 스타일 — /ai-search 페이지는
 // 기본값(compact=false, 넉넉한 폭)을 쓴다.
@@ -145,7 +146,7 @@ export function ResultCard({
         <StatusPill status={item.status} />
       </div>
       <div className="mt-1.5 text-[11px] font-semibold text-slate-400">{item.large_category}</div>
-      <div className="mt-1 text-[11px] font-semibold text-slate-400">신청 기간 {item.application_period}</div>
+      <div className="mt-1 text-[11px] font-semibold text-slate-400">신청 기간 {formatApplicationPeriod(item.application_period)}</div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <span onClick={onSelectPolicy ? (e) => e.stopPropagation() : undefined}>
           <PolicyDetailLink url={item.reference_url} />

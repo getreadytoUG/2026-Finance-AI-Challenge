@@ -5,6 +5,7 @@ import { Bot, Heart, MessageCircle, Send, UserRound } from "lucide-react";
 import { sendPolicyChatMessage } from "@/lib/api";
 import type { PolicyChatMessage, PolicyChatOption } from "@/lib/api";
 import PolicyDetailLink from "@/components/PolicyDetailLink";
+import { formatApplicationPeriod } from "@/lib/policyFormat";
 
 type ChatTurn = {
   role: "user" | "assistant";
@@ -131,7 +132,7 @@ export default function PolicyChat() {
                       <div className="mt-1 text-[12px] text-slate-500">{p.benefit_description}</div>
                       <div className="mt-1.5 flex items-center justify-between text-[11px] text-slate-400">
                         <span>신청 기간</span>
-                        <span>{p.application_period}</span>
+                        <span>{formatApplicationPeriod(p.application_period)}</span>
                       </div>
                       <PolicyDetailLink url={p.reference_url} className="mt-1.5 text-[12px]" />
                     </div>

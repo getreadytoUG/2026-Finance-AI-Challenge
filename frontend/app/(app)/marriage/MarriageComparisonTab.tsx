@@ -14,6 +14,7 @@ import {
   type MarriagePolicyItem,
 } from "@/lib/api";
 import { REGIONS, krwToManwon, manwonToKrw } from "@/lib/profileOptions";
+import { formatApplicationPeriod } from "@/lib/policyFormat";
 
 const PAGE_SIZE = 4;
 
@@ -50,7 +51,7 @@ function PolicyRow({
           <span className="text-[15px] font-extrabold tracking-[-.03em] text-ink">{item.policy_name}</span>
         </div>
         <p className="mt-2 text-[12px] leading-5 text-slate-500">{item.benefit_description}</p>
-        <div className="mt-2 text-[11px] font-semibold text-slate-400">신청 기간 {item.application_period}</div>
+        <div className="mt-2 text-[11px] font-semibold text-slate-400">신청 기간 {formatApplicationPeriod(item.application_period)}</div>
         {item.change_reason && (
           <div className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-[#f5f8fd] px-2.5 py-1.5 text-[11px] font-bold text-slate-500">
             <AlertCircle size={12} className="shrink-0 text-[#2457d6]" />

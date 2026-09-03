@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AlertTriangle, Home, ListChecks, TrendingDown } from "lucide-react";
 import { getMe, simulateHousingLoan, type HousingLoanOutput } from "@/lib/api";
 import { krwToManwon, manwonToKrw } from "@/lib/profileOptions";
+import { formatApplicationPeriod } from "@/lib/policyFormat";
 import PolicyDetailLink from "@/components/PolicyDetailLink";
 
 const HOUSING_TYPE_OPTIONS = [
@@ -212,7 +213,7 @@ export default function HousingLoanSimulator() {
                   <div key={p.policy_key} className="rounded-xl border border-slate-200/80 bg-[#f7f9fc] p-4">
                     <div className="text-[13px] font-extrabold text-ink">{p.policy_name}</div>
                     <p className="mt-1.5 text-[12px] leading-5 text-slate-500">{p.benefit_description}</p>
-                    <div className="mt-1.5 text-[11px] font-semibold text-slate-400">신청 기간 {p.application_period}</div>
+                    <div className="mt-1.5 text-[11px] font-semibold text-slate-400">신청 기간 {formatApplicationPeriod(p.application_period)}</div>
                     <PolicyDetailLink url={p.reference_url} className="mt-1.5" />
                   </div>
                 ))}

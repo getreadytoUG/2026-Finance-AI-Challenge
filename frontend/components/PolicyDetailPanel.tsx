@@ -4,6 +4,7 @@ import { CalendarClock, Tag } from "lucide-react";
 import PolicyDetailLink from "@/components/PolicyDetailLink";
 import StatusPill from "@/components/StatusPill";
 import type { PolicyBrowseItem } from "@/lib/api";
+import { formatApplicationPeriod } from "@/lib/policyFormat";
 
 // 정책 "문서" 읽기 화면 — 백엔드 _policy_text()가 챗봇 프롬프트에 넣는 정보와
 // 사람이 보는 필드가 1:1 대응되도록 구성한다(정책명/분야/설명/신청기간/상태).
@@ -22,7 +23,7 @@ export default function PolicyDetailPanel({ item }: { item: PolicyBrowseItem }) 
         </div>
         <div className="flex items-center gap-2">
           <CalendarClock size={14} className="text-slate-400" />
-          신청 기간 {item.application_period}
+          신청 기간 {formatApplicationPeriod(item.application_period)}
         </div>
       </div>
 

@@ -6,6 +6,7 @@ import { MessageCircle } from "lucide-react";
 import { getMe, getRecommendations, markRecommendationRead, refreshRecommendations, updateProfile } from "@/lib/api";
 import type { Recommendation, UserProfile } from "@/lib/api";
 import { OCCUPATION_OPTIONS, manwonToKrw, type OccupationType } from "@/lib/profileOptions";
+import { formatApplicationPeriod } from "@/lib/policyFormat";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import Pagination from "@/components/Pagination";
 import PolicyChatDrawer from "@/components/PolicyChatDrawer";
@@ -262,7 +263,7 @@ export default function RecommendationsPage() {
                       <StatusPill status={rec.status} />
                     </div>
                     <p className="mt-2 text-[12px] leading-5 text-slate-500">{rec.benefit_description}</p>
-                    <div className="mt-2 text-[11px] font-semibold text-slate-400">신청 기간 {rec.application_period}</div>
+                    <div className="mt-2 text-[11px] font-semibold text-slate-400">신청 기간 {formatApplicationPeriod(rec.application_period)}</div>
                     {/* 2026-09-03 사용자 지적: 링크 유무에 따라 "자세히 보기"/"이 정책
                         물어보기" 중 하나만 보여서 같은 목록 안에서도 카드마다 다른
                         액션이 섞여 보였다. PolicyDetailLink는 링크가 없으면 이미

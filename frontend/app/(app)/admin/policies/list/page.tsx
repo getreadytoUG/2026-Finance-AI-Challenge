@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getAdminPolicyList, getPolicyCategories, type AdminPolicyItem, type PolicyCategory } from "@/lib/api";
+import { formatApplicationPeriod } from "@/lib/policyFormat";
 import AdminGuard from "@/components/AdminGuard";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import PolicyDetailLink from "@/components/PolicyDetailLink";
@@ -135,7 +136,7 @@ function PoliciesListContent() {
                   </td>
                   <td className={`${TD_CLASS} whitespace-nowrap`}>{p.large_category}</td>
                   <td className={`${TD_CLASS} whitespace-nowrap`}>{p.status}</td>
-                  <td className={`${TD_CLASS} whitespace-nowrap`}>{p.application_period}</td>
+                  <td className={`${TD_CLASS} whitespace-nowrap`}>{formatApplicationPeriod(p.application_period)}</td>
                   <td className={TD_CLASS}>
                     <ExpandableCell text={p.region_code} maxLength={20} />
                   </td>

@@ -9,6 +9,7 @@ import PolicyDetailLink from "@/components/PolicyDetailLink";
 import StatusPill from "@/components/StatusPill";
 import { useAiPolicySearch } from "@/lib/useAiPolicySearch";
 import type { PolicyBrowseItem } from "@/lib/api";
+import { formatApplicationPeriod } from "@/lib/policyFormat";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -29,7 +30,7 @@ function DayItemRow({ item }: { item: PolicyBrowseItem }) {
         <StatusPill status={item.status} />
       </div>
       <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-slate-500">{item.benefit_description}</p>
-      <div className="mt-1 text-[10px] font-semibold text-slate-400">신청 기간 {item.application_period}</div>
+      <div className="mt-1 text-[10px] font-semibold text-slate-400">신청 기간 {formatApplicationPeriod(item.application_period)}</div>
       <PolicyDetailLink url={item.reference_url} className="mt-1 text-[12px]" />
     </div>
   );

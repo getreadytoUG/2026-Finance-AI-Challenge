@@ -11,6 +11,7 @@ import type { PolicyQaTarget } from "@/components/PolicyQaChatPanel";
 import StatusPill from "@/components/StatusPill";
 import { callTool, getMe, type UserProfile } from "@/lib/api";
 import { krwToManwon, occupationLabel } from "@/lib/profileOptions";
+import { formatApplicationPeriod } from "@/lib/policyFormat";
 
 const PAGE_SIZE = 10;
 
@@ -168,7 +169,7 @@ export default function PolicyPage() {
                         <StatusPill status={option.status} />
                       </div>
                       <p className="mt-2 text-[12px] leading-5 text-slate-500">{option.benefit_description}</p>
-                      <div className="mt-2 text-[11px] font-semibold text-slate-400">신청 기간 {option.application_period}</div>
+                      <div className="mt-2 text-[11px] font-semibold text-slate-400">신청 기간 {formatApplicationPeriod(option.application_period)}</div>
                       <PolicyDetailLink url={option.reference_url} className="mt-2" />
                     </div>
                     <button
