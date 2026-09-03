@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, computed_field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, computed_field, field_validator
 
 from app.auth.service import is_admin_email
 
@@ -9,7 +9,11 @@ OccupationType = Literal["student", "employee", "self_employed", "unemployed", "
 
 # 2026-09-01 UPGRADE.md 반영: 확장 프로필 필드용 타입. 전부 선택 입력(None 허용) —
 # 기존 signup/profile 테스트 payload가 이 필드들 없이도 그대로 통과해야 한다.
-MaritalStatusType = Literal["single", "engaged", "newlywed"]
+# 2026-09-03: 미혼/예비부부/신혼부부 3분류 → 미혼/기혼 2분류로 축소(frontend/lib/
+# profileOptions.ts와 동일한 변경). "예비신혼부부"는 별도 값 대신 UI 툴팁으로만
+# 안내한다. 아래 _normalize_marital_status가 구버전 값(engaged/newlywed)이 기존
+# DB 로우나 캐시된 프론트에서 들어와도 깨지지 않게 받아준다.
+MaritalStatusType = Literal["single", "married"]
 EmploymentType = Literal["regular", "gig_freelance", "business_owner"]
 HousingStatusType = Literal["homeless_head", "homeless_member", "homeowner"]
 
@@ -26,6 +30,18 @@ _MAX_AGE = 130
 
 class ExtendedProfileFields(BaseModel):
     marital_status: MaritalStatusType | None = None
+
+    # 2026-09-03: DB에 예전 3분류(engaged/newlywed) 값이 남아있는 로우를 UserOut으로
+    # 돌려줄 때도, 캐시된 구버전 프론트가 그 값을 그대로 다시 보낼 때도 이 validator를
+    # 거친다 — Literal이 좁아졌다고 기존 유저의 /auth/me가 500이 나면 안 된다.
+    @field_validator("marital_status", mode="before")
+    @classmethod
+    def _normalize_legacy_marital_status(cls, value: str | None) -> str | None:
+        if value == "engaged":
+            return "single"
+        if value == "newlywed":
+            return "married"
+        return value
     marriage_years: int | None = Field(default=None, ge=0, le=100)
     children_count: int | None = Field(default=None, ge=0, le=20)
     is_pregnant: bool | None = None

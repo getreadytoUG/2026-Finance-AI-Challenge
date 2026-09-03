@@ -123,6 +123,25 @@ def test_template_region_policy_from_central_government_is_not_excluded():
     assert [p.policy_key for p in result.both] == [policy.policy_key]
 
 
+def test_disability_only_policy_is_excluded_when_profile_says_no_disability():
+    # 2026-09-03 사용자 발견: 이 계산기 폼엔 장애인 여부 입력이 없어서
+    # has_disability가 항상 None으로 넘어갔고, TargetingRule은 None을
+    # fail-open으로 처리해 장애인 전용 정책("경계성지능청년" 등)이 일반
+    # 직장인 부부에게도 계속 나왔다. build_marriage_scenarios가 저장된
+    # 프로필의 has_disability=False를 받으면 걸러져야 한다.
+    policy = _policy(policy_name="경계성지능청년 지원", max_income_krw=100_000_000)
+    unmarried, married = build_marriage_scenarios(_input(), has_disability=False)
+    result = compare_marriage_scenarios([policy], unmarried, married, _TODAY)
+    assert result.both == result.married_only == result.unmarried_only == []
+
+
+def test_disability_only_policy_is_included_when_profile_says_disability():
+    policy = _policy(policy_name="경계성지능청년 지원", max_income_krw=100_000_000)
+    unmarried, married = build_marriage_scenarios(_input(), has_disability=True)
+    result = compare_marriage_scenarios([policy], unmarried, married, _TODAY)
+    assert [p.policy_key for p in result.both] == [policy.policy_key]
+
+
 def test_scenarios_are_identical_when_spouse_income_is_not_given():
     # is_eligible의 혼인상태 필드 비교는 죽은 코드라(matching.py 참고) 실제로
     # 자격을 바꾸는 건 가구소득 합산뿐이다 — 배우자 소득을 안 넣으면 두 시나리오가

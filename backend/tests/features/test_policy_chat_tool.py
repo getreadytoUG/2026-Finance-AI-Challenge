@@ -117,6 +117,24 @@ def test_run_filters_by_keyword(db_session):
     assert result.options[0].policy_name == "전세자금 대출"
 
 
+def test_run_filters_by_keyword_with_suffix_variation(db_session):
+    # 2026-09-03 사용자 발견: 실제 정책명은 "청소년 한부모 복지급여 지원"처럼
+    # "한부모"까지만 쓰는데 사용자는 "한부모가정"이라고 검색해서 0건이었다.
+    _seed_policy(db_session, policy_name="청소년 한부모 복지급여 지원")
+    _seed_policy(db_session, policy_name="창업 지원금")
+    result = run(PolicyChatSearchInput(keyword="한부모가정"), _ctx(db_session))
+    assert len(result.options) == 1
+    assert result.options[0].policy_name == "청소년 한부모 복지급여 지원"
+
+
+def test_run_keyword_suffix_trim_does_not_shrink_below_two_chars(db_session):
+    # 접미어를 1글자까지 줄이면 "여성청년"처럼 "여" 한 글자만 겹치는 무관한 정책까지
+    # 걸릴 수 있다 — 최소 2글자("여자")까지만 시도하고 그 밑으로는 안 줄여야 한다.
+    _seed_policy(db_session, policy_name="여성청년 지원")
+    result = run(PolicyChatSearchInput(keyword="여자들"), _ctx(db_session))
+    assert result.options == []
+
+
 def test_run_sorts_newlywed_policies_first_when_married(db_session):
     _seed_policy(db_session, policy_name="일반 대출")
     _seed_policy(db_session, policy_name="신혼부부 전세자금 대출")

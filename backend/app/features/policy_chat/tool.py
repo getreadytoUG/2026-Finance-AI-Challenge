@@ -17,6 +17,25 @@ from app.tools.base import ToolContext, ToolSpec
 
 MAX_RESULTS = 8
 
+_MIN_KEYWORD_SUFFIX_TRIM_LEN = 2
+
+
+def _keyword_matches(keyword: str, haystack: str) -> bool:
+    """정확히 일치하지 않으면 뒤에서부터 한 글자씩 줄여가며 재시도한다.
+
+    2026-09-03 사용자 발견: "한부모가정"을 검색하면 0건이 나왔다 — 실제 정책명은
+    "청소년 한부모 복지급여 지원"처럼 "한부모"까지만 쓰고 "가정"을 안 붙인다.
+    한국어는 "가정/가족/세대/가구"처럼 뜻이 겹치는 말이 복합명사 뒤에 공백 없이
+    자유롭게 붙어서, 사용자가 자연스럽게 입력한 표현이 정책명의 표현과 정확히
+    안 맞는 경우가 흔하다 — 접미어를 하나씩 떼어내며 부분일치를 허용한다(최소
+    길이 미만으로는 줄이지 않아 "여성"→"여" 같은 무의미한 매칭까지 넓어지진
+    않는다).
+    """
+    for end in range(len(keyword), _MIN_KEYWORD_SUFFIX_TRIM_LEN - 1, -1):
+        if keyword[:end] in haystack:
+            return True
+    return False
+
 
 # policy_matcher.matching.is_eligible과 달리 이 조건들은 챗봇 대화에서 자연스럽게
 # 다 언급되지 않을 수 있다 — 값이 주어진 필드만 체크하고, None인 필드는 그냥
@@ -46,7 +65,7 @@ def _matches(policy: CachedPolicy, input: PolicyChatSearchInput) -> bool:
             return False
     if input.keyword:
         haystack = policy.policy_name + policy.description
-        if input.keyword not in haystack:
+        if not _keyword_matches(input.keyword, haystack):
             return False
     if input.disability_target and not is_disability_targeted_policy(policy):
         return False

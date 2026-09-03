@@ -356,7 +356,7 @@ def test_signup_stores_extended_profile_fields(client):
         "/auth/signup",
         json=_signup_payload(
             "extended@example.com",
-            marital_status="newlywed",
+            marital_status="married",
             marriage_years=1,
             children_count=0,
             is_pregnant=False,
@@ -370,7 +370,7 @@ def test_signup_stores_extended_profile_fields(client):
     )
     assert response.status_code == 201
     body = response.json()
-    assert body["marital_status"] == "newlywed"
+    assert body["marital_status"] == "married"
     assert body["marriage_years"] == 1
     assert body["desired_region"] == "경기"
     assert body["employment_type"] == "regular"
@@ -378,7 +378,7 @@ def test_signup_stores_extended_profile_fields(client):
     assert body["housing_status"] == "homeless_head"
     assert body["net_worth_krw"] == 50_000_000
     assert body["monthly_savings_capacity_krw"] == 1_000_000
-    # marital_status가 있으면 is_married는 marital_status에서 파생된다("newlywed" → True).
+    # marital_status가 있으면 is_married는 marital_status에서 파생된다("married" → True).
     assert body["is_married"] is True
 
 
@@ -392,14 +392,36 @@ def test_signup_without_extended_fields_defaults_to_null(client):
     assert body["is_married"] is False
 
 
-def test_signup_marital_status_engaged_keeps_is_married_false(client):
-    # "예비부부"는 아직 혼인신고 전이라 정책 매칭 상으로는 미혼과 동일하게 취급한다.
+def test_signup_marital_status_single_keeps_is_married_false(client):
     response = client.post(
         "/auth/signup",
-        json=_signup_payload("engaged@example.com", is_married=True, marital_status="engaged"),
+        json=_signup_payload("single@example.com", is_married=True, marital_status="single"),
     )
     assert response.status_code == 201
     assert response.json()["is_married"] is False
+
+
+def test_signup_normalizes_legacy_marital_status_values(client):
+    # 2026-09-03 이전 3분류(engaged/newlywed) 값이 캐시된 구버전 프론트에서 그대로
+    # 올라와도 422 없이 받아서 새 2분류(single/married)로 정규화해야 한다 — 실제로
+    # 사용자가 겪은 "Input should be 'single', 'engaged' or 'newlywed'" 422 버그의
+    # 원인이 이 반대 방향(신버전 프론트가 "married"를 보냈는데 구버전 Literal이
+    # 거부)이었다.
+    engaged = client.post(
+        "/auth/signup",
+        json=_signup_payload("legacy-engaged@example.com", is_married=True, marital_status="engaged"),
+    )
+    assert engaged.status_code == 201
+    assert engaged.json()["marital_status"] == "single"
+    assert engaged.json()["is_married"] is False
+
+    newlywed = client.post(
+        "/auth/signup",
+        json=_signup_payload("legacy-newlywed@example.com", marital_status="newlywed"),
+    )
+    assert newlywed.status_code == 201
+    assert newlywed.json()["marital_status"] == "married"
+    assert newlywed.json()["is_married"] is True
 
 
 def test_update_profile_sets_extended_fields(client):
@@ -411,7 +433,7 @@ def test_update_profile_sets_extended_fields(client):
     response = client.put(
         "/auth/profile",
         json=_profile_payload(
-            marital_status="engaged",
+            marital_status="single",
             children_count=1,
             housing_status="homeowner",
         ),
@@ -419,7 +441,7 @@ def test_update_profile_sets_extended_fields(client):
     )
     assert response.status_code == 200
     body = response.json()
-    assert body["marital_status"] == "engaged"
+    assert body["marital_status"] == "single"
     assert body["children_count"] == 1
     assert body["housing_status"] == "homeowner"
     assert body["is_married"] is False

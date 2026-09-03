@@ -238,7 +238,16 @@ def compare_marriage_scenarios_endpoint(
     # 사용자가 그 자리에서 값(특히 배우자 소득)을 바꿔볼 수 있게 한다.
     try:
         policies = db.query(CachedPolicy).all()
-        unmarried_input, married_input = build_marriage_scenarios(payload)
+        # 2026-09-03 사용자 발견: 폼에 없는 필드(장애인/보훈/직업/중소기업 재직)가
+        # 항상 None으로 넘어가 장애인 전용 정책이 일반 부부에게도 노출됐다 — 폼이
+        # 안 다루는 고정 프로필 속성은 저장된 값을 그대로 넘긴다.
+        unmarried_input, married_input = build_marriage_scenarios(
+            payload,
+            has_disability=current_user.has_disability,
+            is_veteran=current_user.is_veteran,
+            occupation=current_user.occupation,
+            is_sme_employee=current_user.is_sme_employee,
+        )
         return compare_marriage_scenarios(policies, unmarried_input, married_input, today_kst())
     except Exception as e:
         _raise_as_http_500("/policy_matcher/marriage_comparison", f" for user_id={current_user.id}", e)

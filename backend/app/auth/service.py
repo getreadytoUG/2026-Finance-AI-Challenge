@@ -10,12 +10,14 @@ from app.features.savings_planner.models import SavingsLinkedBenefit
 
 
 def derive_is_married(marital_status: str | None, explicit_is_married: bool | None) -> bool | None:
-    # marital_status(미혼/예비부부/신혼부부)가 주어지면 그걸 우선한다 — "예비부부"는
-    # 아직 혼인신고 전이라 정책 매칭 로직(is_married 기준) 상으로는 미혼과 동일하게
-    # 취급해야 한다. marital_status가 없으면(구버전 클라이언트, 관리자 등) 기존처럼
+    # marital_status(미혼/기혼)가 주어지면 그걸 우선한다. 2026-09-03 이전엔 미혼/
+    # 예비부부/신혼부부 3분류였고 "예비부부"는 혼인신고 전이라 미혼과 동일 취급이
+    # 필요했는데, 지금은 스키마 단(schemas.py의 _normalize_legacy_marital_status)에서
+    # 구버전 값을 이미 single/married로 정규화해서 넘겨주므로 여기선 단순 비교만
+    # 하면 된다. marital_status가 없으면(구버전 클라이언트, 관리자 등) 기존처럼
     # is_married 값을 그대로 쓴다.
     if marital_status is not None:
-        return marital_status == "newlywed"
+        return marital_status == "married"
     return explicit_is_married
 
 

@@ -32,8 +32,12 @@ class User(Base):
     # 그대로 로그인된다. 운영 DB(Supabase)엔 마이그레이션 스크립트로 컬럼을 추가함
     # (backend/scripts/migrate_add_profile_fields.py 참고, create_all()은 이미 있는
     # 테이블에 새 컬럼을 추가해주지 않는다 — created_at 컬럼과 동일한 사정).
-    marital_status = Column(String, nullable=True)  # "single" | "engaged" | "newlywed"
-    marriage_years = Column(Integer, nullable=True)  # newlywed일 때만 의미 있음
+    # 2026-09-03: 미혼/예비부부/신혼부부 3분류 → 미혼/기혼 2분류로 축소(schemas.py의
+    # MaritalStatusType 주석 참고). 구버전 값(engaged/newlywed)이 남아있는 로우는
+    # schemas.py의 _normalize_legacy_marital_status가 읽을 때 정규화한다 — 컬럼 자체는
+    # 마이그레이션하지 않았다.
+    marital_status = Column(String, nullable=True)  # "single" | "married"
+    marriage_years = Column(Integer, nullable=True)  # married일 때만 의미 있음
     children_count = Column(Integer, nullable=True)
     is_pregnant = Column(Boolean, nullable=True)
     desired_region = Column(String, nullable=True)  # 거주 지역(region)과 별개인 희망 지역
