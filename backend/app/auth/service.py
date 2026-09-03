@@ -97,15 +97,12 @@ def _placeholder_social_email(provider: str, provider_user_id: str) -> str:
     return f"{provider}_{provider_user_id}@social.trinity.local"
 
 
-def _backfill_if_empty(user: User, *, name: str | None, age: int | None) -> bool:
-    # 소셜에서 받은 이름/나이는 사용자가 직접 입력한 값이 없을 때만 채운다
+def _backfill_if_empty(user: User, *, name: str | None) -> bool:
+    # 소셜에서 받은 이름은 사용자가 직접 입력한 값이 없을 때만 채운다
     # (기존 프로필 데이터를 덮어쓰지 않는다).
     changed = False
     if name and not user.name:
         user.name = name
-        changed = True
-    if age is not None and user.age is None:
-        user.age = age
         changed = True
     return changed
 
@@ -117,7 +114,6 @@ def get_or_create_social_user(
     provider_user_id: str,
     email: str | None,
     name: str | None = None,
-    age: int | None = None,
 ) -> tuple[User, bool]:
     """소셜 로그인 사용자를 조회하거나 생성한다. ``(user, created)`` 반환.
 
@@ -127,7 +123,7 @@ def get_or_create_social_user(
          이 provider를 붙여 **자동 연동**한다.
       3. 둘 다 아니면 비밀번호 없는 새 계정을 만든다.
 
-    ``name``(프로바이더 닉네임)/``age``(네이버 출생연도 기반)는 빈 필드에만 채운다.
+    ``name``(프로바이더 닉네임)은 빈 필드에만 채운다.
     """
     existing = (
         db.query(User)
@@ -135,7 +131,7 @@ def get_or_create_social_user(
         .first()
     )
     if existing is not None:
-        if _backfill_if_empty(existing, name=name, age=age):
+        if _backfill_if_empty(existing, name=name):
             db.commit()
             db.refresh(existing)
         return existing, False
@@ -145,7 +141,7 @@ def get_or_create_social_user(
         if by_email is not None:
             by_email.provider = provider
             by_email.provider_user_id = provider_user_id
-            _backfill_if_empty(by_email, name=name, age=age)
+            _backfill_if_empty(by_email, name=name)
             db.commit()
             db.refresh(by_email)
             return by_email, False
@@ -156,7 +152,6 @@ def get_or_create_social_user(
         provider=provider,
         provider_user_id=provider_user_id,
         name=name,
-        age=age,
         created_at=datetime.now(timezone.utc),
     )
     db.add(user)
