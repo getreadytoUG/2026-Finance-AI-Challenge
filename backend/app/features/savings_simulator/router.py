@@ -10,14 +10,14 @@ from app.features.policy_matcher.status import today_kst
 from app.features.savings_simulator.schemas import (
     HousingLoanInput,
     HousingLoanOutput,
-    YouthLeapAccountInput,
-    YouthLeapAccountOutput,
+    YouthFutureSavingsInput,
+    YouthFutureSavingsOutput,
 )
 from app.features.savings_simulator.simulator import (
     match_real_housing_policies,
     match_real_savings_policies,
     simulate_housing_loan,
-    simulate_youth_leap_account,
+    simulate_youth_future_savings,
 )
 
 router = APIRouter()
@@ -41,13 +41,18 @@ def _match_input(current_user: User, annual_income_krw: int) -> PolicyMatchInput
     )
 
 
-@router.post("/youth_leap_account", response_model=YouthLeapAccountOutput)
-def youth_leap_account(
-    payload: YouthLeapAccountInput,
+@router.post("/youth_future_savings", response_model=YouthFutureSavingsOutput)
+def youth_future_savings(
+    payload: YouthFutureSavingsInput,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    result = simulate_youth_leap_account(payload)
+    # 2026-09-03: 나이(만 19~34세)/중소기업 재직여부(우대형 매칭)는 이 폼에 없는
+    # 고정 프로필 값이라, marriage_comparison.py와 동일한 패턴으로 저장된 프로필에서
+    # 채운다(폼엔 없는 정보를 다시 물어보지 않는다).
+    result = simulate_youth_future_savings(
+        payload, age=current_user.age, is_sme_employee=current_user.is_sme_employee
+    )
     match_input = _match_input(current_user, payload.annual_income_krw)
     if match_input is not None:
         policies = db.query(CachedPolicy).all()
@@ -61,7 +66,9 @@ def housing_loan(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    result = simulate_housing_loan(payload)
+    # 2026-09-03: 신혼가구 여부(소득상한/LTV/한도가 갈린다)와 청년전용 버팀목의
+    # 나이 조건도 폼에 없는 고정 프로필 값이라 저장된 값을 그대로 넘긴다.
+    result = simulate_housing_loan(payload, is_married=bool(current_user.is_married), age=current_user.age)
     # household_annual_income_krw는 이미 가구 합산 값이라 배우자 소득을 또 더하지
     # 않는다(_match_input의 spouse_annual_income_krw 처리와 다른 지점).
     match_input = _match_input(current_user, payload.household_annual_income_krw)

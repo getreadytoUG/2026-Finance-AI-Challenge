@@ -494,19 +494,20 @@ export async function sendPolicyQaMessage(
   return res.json();
 }
 
-// 2026-09-01 UPGRADE.md 반영: 저축플랜 → 정책연계형 시뮬레이터. ⚠️ 백엔드 계산에
-// 쓰인 매칭비율/금리/LTV는 전부 예시 수치 — 프론트도 결과 카드에 이 사실을 항상
-// 표시한다(simulator.py 상단 주석 참고).
-export type YouthLeapAccountInput = {
+// 2026-09-01 UPGRADE.md 반영, 2026-09-03 전면 재작업: 저축플랜 → 정책연계형
+// 시뮬레이터. 청년도약계좌는 2025-12-31 신규가입이 종료돼 후속 상품인
+// 청년미래적금 기준으로 다시 만들었고, 매칭비율/금리/LTV도 예시가 아니라 실제
+// 정부 고시 수치로 교체했다(백엔드 savings_simulator/simulator.py 상단 주석 참고
+// — 다만 비교용 시중 금리 자체는 은행마다 달라 여전히 가정치다).
+export type YouthFutureSavingsInput = {
   monthly_amount_krw: number;
-  goal_years: 3 | 5;
   annual_income_krw: number;
   seed_money_krw?: number;
 };
 
-// 2026-09-02 추가: 위 계산은 여전히 예시 수치지만, 이 목록은 DB에 실제로 있는
-// 저축/자산형성 정책 중 지금 로그인한 유저가 진짜 자격되는 것만 골라 보여준다
-// (백엔드 savings_simulator/simulator.py의 match_real_savings_policies 참고).
+// 2026-09-02 추가: 위 계산과 별개로, 이 목록은 DB에 실제로 있는 저축/자산형성
+// 정책 중 지금 로그인한 유저가 진짜 자격되는 것만 골라 보여준다(백엔드
+// savings_simulator/simulator.py의 match_real_savings_policies 참고).
 export type MatchedSavingsPolicy = {
   policy_key: string;
   policy_name: string;
@@ -515,7 +516,7 @@ export type MatchedSavingsPolicy = {
   reference_url: string;
 };
 
-export type YouthLeapAccountOutput = {
+export type YouthFutureSavingsOutput = {
   eligible: boolean;
   matching_rate: number;
   eligibility_note: string;
@@ -526,11 +527,11 @@ export type YouthLeapAccountOutput = {
   matched_policies: MatchedSavingsPolicy[];
 };
 
-export async function simulateYouthLeapAccount(
+export async function simulateYouthFutureSavings(
   token: string,
-  input: YouthLeapAccountInput
-): Promise<YouthLeapAccountOutput> {
-  const res = await authedFetch("/savings_simulator/youth_leap_account", token, {
+  input: YouthFutureSavingsInput
+): Promise<YouthFutureSavingsOutput> {
+  const res = await authedFetch("/savings_simulator/youth_future_savings", token, {
     method: "POST",
     body: JSON.stringify(input),
   });
@@ -542,7 +543,8 @@ export type HousingLoanInput = {
   target_price_krw: number;
   self_capital_krw: number;
   household_annual_income_krw: number;
-  marriage_years?: number | null;
+  // 2026-09-03 추가: 디딤돌대출은 대출기간(10/15/20/30년)마다 금리가 다르다.
+  loan_term_years?: 10 | 15 | 20 | 30;
 };
 
 export type HousingLoanOutput = {

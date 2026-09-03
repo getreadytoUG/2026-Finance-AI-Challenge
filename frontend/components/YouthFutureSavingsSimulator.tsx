@@ -1,19 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, ListChecks, PiggyBank, TrendingUp } from "lucide-react";
-import { getMe, simulateYouthLeapAccount, type YouthLeapAccountOutput } from "@/lib/api";
+import { AlertCircle, AlertTriangle, ListChecks, PiggyBank, TrendingUp } from "lucide-react";
+import { getMe, simulateYouthFutureSavings, type YouthFutureSavingsOutput } from "@/lib/api";
 import { krwToManwon, manwonToKrw } from "@/lib/profileOptions";
 import PolicyDetailLink from "@/components/PolicyDetailLink";
 
-const GOAL_YEARS_OPTIONS = [3, 5] as const;
+// 2026-09-03: 청년도약계좌 신규가입 종료(2025-12-31) 이후 후속 상품인
+// 청년미래적금 기준으로 전면 재작업했다. 이 안내는 그 배경을 모르는 사용자에게
+// "왜 도약계좌가 아니라 미래적금이 나오지?"를 설명한다(사용자 요청, AiSearchResultsPanel의
+// 데이터 정합성 안내 아이콘과 동일한 hover 패턴 재사용).
+const YOUTH_LEAP_ACCOUNT_STATUS_NOTE =
+  "청년도약계좌는 조세특례제한법상 비과세 혜택이 일몰돼 2025년 12월 31일자로 신규가입이 종료됐어요(기존 가입자는 만기까지 그대로 유지). " +
+  "2026년 6월부터는 후속 상품인 청년미래적금이 정부기여금·비과세 혜택을 이어받았고, 이 시뮬레이터는 청년미래적금 기준으로 계산해요.";
 
-export default function YouthLeapAccountSimulator() {
-  const [monthlyAmount, setMonthlyAmount] = useState("40"); // 청년도약계좌 매칭 상한(40만원) 기본값, 프로필 로드 후 덮어씀
-  const [goalYears, setGoalYears] = useState<3 | 5>(3);
+export default function YouthFutureSavingsSimulator() {
+  const [monthlyAmount, setMonthlyAmount] = useState("50"); // 청년미래적금 월 납입 한도(50만원) 기본값, 프로필 로드 후 덮어씀
   const [annualIncome, setAnnualIncome] = useState("");
   const [seedMoney, setSeedMoney] = useState("0");
-  const [result, setResult] = useState<YouthLeapAccountOutput | null>(null);
+  const [result, setResult] = useState<YouthFutureSavingsOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -23,9 +28,9 @@ export default function YouthLeapAccountSimulator() {
       .then((me) => {
         if (me.annual_income_krw != null) setAnnualIncome(String(krwToManwon(me.annual_income_krw)));
         if (me.monthly_savings_capacity_krw != null) setMonthlyAmount(String(krwToManwon(me.monthly_savings_capacity_krw)));
-        else setMonthlyAmount("40"); // 청년도약계좌 매칭 상한(40만원)에 맞춘 기본값
+        else setMonthlyAmount("50"); // 청년미래적금 월 납입 한도(50만원)에 맞춘 기본값
       })
-      .catch(() => setMonthlyAmount("40"));
+      .catch(() => setMonthlyAmount("50"));
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -35,9 +40,8 @@ export default function YouthLeapAccountSimulator() {
     setLoading(true);
     try {
       const token = localStorage.getItem("token") ?? "";
-      const output = await simulateYouthLeapAccount(token, {
+      const output = await simulateYouthFutureSavings(token, {
         monthly_amount_krw: manwonToKrw(Number(monthlyAmount)),
-        goal_years: goalYears,
         annual_income_krw: manwonToKrw(Number(annualIncome)),
         seed_money_krw: manwonToKrw(Number(seedMoney) || 0),
       });
@@ -83,21 +87,10 @@ export default function YouthLeapAccountSimulator() {
               className="h-12 rounded-xl border border-slate-200 px-4 text-[13px] font-semibold outline-none focus:border-[#2457d6] focus:ring-4 focus:ring-[#2457d6]/10"
             />
           </label>
-          <div>
-            <div className="mb-2 text-[12px] font-extrabold text-slate-700">목표 저축 기간</div>
-            <div className="flex gap-2">
-              {GOAL_YEARS_OPTIONS.map((y) => (
-                <button
-                  key={y}
-                  type="button"
-                  onClick={() => setGoalYears(y)}
-                  className={`h-12 flex-1 rounded-xl text-[13px] font-extrabold transition ${
-                    goalYears === y ? "bg-[#2457d6] text-white" : "bg-[#eef3f9] text-slate-500 hover:bg-[#e3eaf6]"
-                  }`}
-                >
-                  {y}년
-                </button>
-              ))}
+          <div className="grid gap-2 text-[12px] font-extrabold text-slate-700">
+            가입 기간
+            <div className="flex h-12 items-center rounded-xl bg-[#eef3f9] px-4 text-[13px] font-extrabold text-slate-500">
+              3년 (고정)
             </div>
           </div>
           <button
@@ -116,7 +109,9 @@ export default function YouthLeapAccountSimulator() {
         <div className="mt-6">
           <div className="mb-4 flex items-start gap-2 rounded-xl bg-[#fff7e6] p-3.5 text-[12px] font-bold leading-5 text-[#946200]">
             <AlertTriangle size={15} className="mt-0.5 shrink-0" />
-            아래 매칭비율·금리는 실제 정부 고시가 아니라 예시 수치예요. 정확한 조건은 서민금융진흥원 공고를 확인하세요.
+            매칭비율·소득구간은 2026년 6월 출시 공고 기준 실제 수치예요. 다만 가구 중위소득 조건은 반영하지
+            못했고, 시중적금 비교 금리는 은행마다 달라 가정치예요 — 정확한 조건은 서민금융진흥원 공고를
+            확인하세요.
           </div>
 
           <div className="grid gap-5 xl:grid-cols-[1.4fr_.8fr]">
@@ -124,7 +119,13 @@ export default function YouthLeapAccountSimulator() {
               <div className="absolute inset-0 bg-[linear-gradient(100deg,#0d1b36_12%,rgba(13,27,54,.86)_54%,rgba(13,27,54,.35))]" />
               <div className="relative">
                 <div className="flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[.2em] text-[#9cc5ff]">
-                  <PiggyBank size={13} /> YOUTH LEAP ACCOUNT (예시)
+                  <PiggyBank size={13} /> 청년미래적금
+                  <span
+                    title={YOUTH_LEAP_ACCOUNT_STATUS_NOTE}
+                    className="inline-flex shrink-0 cursor-help text-[#9cc5ff]/70 hover:text-[#9cc5ff]"
+                  >
+                    <AlertCircle size={13} />
+                  </span>
                 </div>
                 <h2 className="mt-3 text-[26px] font-extrabold tracking-[-.06em] sm:text-[32px]">
                   {result.eligible ? (
@@ -132,17 +133,17 @@ export default function YouthLeapAccountSimulator() {
                       만기에 <span className="text-[#9cc5ff]">{result.policy_total_krw.toLocaleString()}원</span>을 받을 수 있어요.
                     </>
                   ) : (
-                    "이 상품은 지금 조건으로는 정부 매칭 대상이 아니에요."
+                    "이 상품은 지금 조건으로는 가입할 수 없어요."
                   )}
                 </h2>
                 <p className="mt-4 text-[12px] leading-6 text-blue-100/70">{result.eligibility_note}</p>
                 <div className="mt-8 grid max-w-[480px] grid-cols-2 gap-3">
                   <div className="rounded-xl bg-white/10 p-3.5">
-                    <div className="text-[10px] font-bold text-blue-100/60">정책상품(예시) 만기수령액</div>
+                    <div className="text-[10px] font-bold text-blue-100/60">청년미래적금 만기수령액</div>
                     <div className="mt-2 text-[16px] font-extrabold">{result.policy_total_krw.toLocaleString()}원</div>
                   </div>
                   <div className="rounded-xl bg-white/10 p-3.5">
-                    <div className="text-[10px] font-bold text-blue-100/60">일반 시중적금(예시)</div>
+                    <div className="text-[10px] font-bold text-blue-100/60">일반 시중적금(가정 금리 기준)</div>
                     <div className="mt-2 text-[16px] font-extrabold">{result.market_total_krw.toLocaleString()}원</div>
                   </div>
                 </div>
@@ -155,7 +156,7 @@ export default function YouthLeapAccountSimulator() {
                 </span>
                 <div>
                   <div className="text-[10px] font-extrabold uppercase tracking-[.18em] text-[#1eb8a6]">핵심 가치</div>
-                  <h2 className="mt-1 text-[15px] font-extrabold tracking-[-.03em]">추가 수익 (예시)</h2>
+                  <h2 className="mt-1 text-[15px] font-extrabold tracking-[-.03em]">추가 수익</h2>
                 </div>
               </div>
               <div className="mt-5 rounded-xl bg-[#f7f9fc] px-4 py-3.5">
@@ -169,9 +170,10 @@ export default function YouthLeapAccountSimulator() {
             </section>
           </div>
 
-          {/* 위 계산은 예시지만, 이 목록은 실제 DB 정책에서 지금 내 조건(나이/소득/지역
-              등, 저장된 프로필 기준)으로 진짜 자격되는 것만 골라온다(2026-09-02 추가) —
-              "예시 계산" vs "실제 신청 가능한 정책"을 명확히 구분해서 보여준다. */}
+          {/* 위 계산은 청년미래적금 하나만 다루지만, 이 목록은 실제 DB 정책에서 지금 내
+              조건(나이/소득/지역 등, 저장된 프로필 기준)으로 진짜 자격되는 것만 골라온다
+              (2026-09-02 추가) — "이 상품 계산" vs "그 외 실제 신청 가능한 정책"을
+              명확히 구분해서 보여준다. */}
           <section className="mt-5 rounded-[24px] border border-slate-200/80 bg-white p-6">
             <div className="flex items-center gap-3">
               <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#eef3ff] text-[#2457d6]">

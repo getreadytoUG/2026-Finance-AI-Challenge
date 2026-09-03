@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, Search, Sparkles, WalletCards } from "lucide-react";
+import { AlertCircle, MessageCircle, Search, Sparkles, WalletCards } from "lucide-react";
 import AiSearchFilterBar from "@/components/AiSearchFilterBar";
 import Pagination from "@/components/Pagination";
 import PolicyDetailLink from "@/components/PolicyDetailLink";
@@ -149,9 +149,18 @@ export function ResultCard({
           <PolicyDetailLink url={item.reference_url} />
         </span>
         {onSelectPolicy ? (
-          <span className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-[#2457d6]">
-            <Sparkles size={12} />이 정책 물어보기 →
-          </span>
+          // 2026-09-03 사용자 요청: "내 맞춤 정책 보기"(policy/page.tsx MatchTab)의
+          // "AI에게 물어보기" 버튼과 디자인을 통일했다 — 예전엔 그냥 텍스트 링크였다.
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelectPolicy(item);
+            }}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-[#e8f0ff] px-4 py-2.5 text-[11px] font-extrabold text-[#2457d6] transition hover:bg-[#d7e6ff]"
+          >
+            <MessageCircle size={13} /> 이 정책 물어보기
+          </button>
         ) : (
           <button
             type="button"

@@ -254,17 +254,20 @@ export default function DashboardPage() {
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className={`text-[12px] font-bold ${rec.is_read ? "text-slate-400" : "text-ink"}`}>{rec.policy_name}</div>
-                      {rec.reference_url ? (
-                        <PolicyDetailLink url={rec.reference_url} className="mt-1 text-[11px]" />
-                      ) : (
+                      {/* 2026-09-03: recommendations/page.tsx와 동일한 이유로 링크
+                          유무에 따른 either/or 대신 둘 다 항상 같이 보여준다
+                          (PolicyDetailLink는 링크가 없으면 자체적으로 "링크 정보
+                          없음"으로 안전하게 표시된다). */}
+                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <PolicyDetailLink url={rec.reference_url} className="text-[11px]" />
                         <button
                           type="button"
                           onClick={() => openChat({ policy_key: rec.policy_key, policy_name: rec.policy_name })}
-                          className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-[#2457d6] hover:underline"
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-[#2457d6] hover:underline"
                         >
                           <MessageCircle size={12} /> 이 정책 물어보기
                         </button>
-                      )}
+                      </div>
                     </div>
                   </div>
                 ))}

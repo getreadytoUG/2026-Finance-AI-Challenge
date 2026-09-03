@@ -263,17 +263,25 @@ export default function RecommendationsPage() {
                     </div>
                     <p className="mt-2 text-[12px] leading-5 text-slate-500">{rec.benefit_description}</p>
                     <div className="mt-2 text-[11px] font-semibold text-slate-400">신청 기간 {rec.application_period}</div>
-                    {rec.reference_url ? (
-                      <PolicyDetailLink url={rec.reference_url} className="mt-2" />
-                    ) : (
+                    {/* 2026-09-03 사용자 지적: 링크 유무에 따라 "자세히 보기"/"이 정책
+                        물어보기" 중 하나만 보여서 같은 목록 안에서도 카드마다 다른
+                        액션이 섞여 보였다. PolicyDetailLink는 링크가 없으면 이미
+                        "링크 정보 없음"으로 안전하게 표시되므로(PolicyDetailLink.tsx
+                        참고), 다른 화면(policy/page.tsx MatchTab 등)과 동일하게 둘 다
+                        항상 같이 보여준다. */}
+                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                      <PolicyDetailLink url={rec.reference_url} />
                       <button
                         type="button"
-                        onClick={() => openChat({ policy_key: rec.policy_key, policy_name: rec.policy_name })}
-                        className="mt-2 inline-flex items-center gap-1 text-[13px] font-bold text-[#2457d6] hover:underline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openChat({ policy_key: rec.policy_key, policy_name: rec.policy_name });
+                        }}
+                        className="inline-flex items-center gap-1 text-[13px] font-bold text-[#2457d6] hover:underline"
                       >
                         <MessageCircle size={14} /> 이 정책 물어보기
                       </button>
-                    )}
+                    </div>
                   </div>
                 ))}
               </div>
