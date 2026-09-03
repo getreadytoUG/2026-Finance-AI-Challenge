@@ -319,6 +319,9 @@ export type MarriagePolicyItem = {
   application_period: string;
   reference_url: string;
   is_newlywed_policy: boolean;
+  // married_only/unmarried_only 버킷에 왜 그 정책이 속했는지(혼인상태 조건 자체 /
+  // 가구소득 합산) 설명하는 한 줄. both 버킷은 변화가 없으므로 null.
+  change_reason: string | null;
 };
 
 export type MarriageComparisonOutput = {

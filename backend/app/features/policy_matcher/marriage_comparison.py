@@ -5,7 +5,9 @@ from app.features.policy_matcher.matching import (
     has_specific_eligibility_condition,
     is_eligible,
     is_likely_template_region_code,
+    is_married_only_policy,
     is_newlywed_policy,
+    is_unmarried_only_policy,
 )
 from app.features.policy_matcher.models import CachedPolicy
 from app.features.policy_matcher.schemas import (
@@ -65,7 +67,7 @@ def build_marriage_scenarios(
     return unmarried, married
 
 
-def _to_item(policy: CachedPolicy) -> MarriagePolicyItem:
+def _to_item(policy: CachedPolicy, change_reason: str | None = None) -> MarriagePolicyItem:
     return MarriagePolicyItem(
         policy_key=policy.policy_key,
         policy_name=policy.policy_name,
@@ -73,7 +75,27 @@ def _to_item(policy: CachedPolicy) -> MarriagePolicyItem:
         application_period=policy.application_period,
         reference_url=policy.apply_url,
         is_newlywed_policy=is_newlywed_policy(policy),
+        change_reason=change_reason,
     )
+
+
+# 2026-09-03 사용자 요청("혼인신고 계산기도 확실하게 업그레이드"): married_only/
+# unmarried_only 버킷은 예전엔 "정책이 바뀌었다"는 사실만 보여주고 왜 바뀌었는지는
+# 안 알려줬다. build_marriage_scenarios가 두 시나리오에 넘기는 값 중 실제로 다른
+# 건 딱 둘 — is_married 플래그(그래서 "기혼 전용"/"미혼 전용" TargetingRule 결과가
+# 갈릴 수 있다)와 배우자 소득 합산 여부(그래서 income_matches 결과가 갈릴 수
+# 있다) — 뿐이다. 나이/지역/장애/보훈/직업/중소기업재직 여부는 두 시나리오에서
+# 동일한 값을 쓰므로(build_marriage_scenarios 참고) 차이를 만들 수 없다. 혼인상태
+# 자체를 조건으로 거는 정책이면 그게 결정적 이유이므로(소득이 어떻든 그 조건부터
+# 걸린다) 우선한다.
+def _change_reason(policy: CachedPolicy, bucket: str) -> str:
+    if bucket == "married_only":
+        if is_married_only_policy(policy):
+            return "기혼자만 신청할 수 있는 정책이에요"
+        return "배우자 소득을 합산하면 소득 조건을 새로 충족해요"
+    if is_unmarried_only_policy(policy):
+        return "미혼일 때만 신청할 수 있는 정책이에요"
+    return "배우자 소득을 합산하면 소득 상한을 초과해요"
 
 
 def compare_marriage_scenarios(
@@ -109,11 +131,14 @@ def compare_marriage_scenarios(
     unmarried_only_keys = unmarried_eligible.keys() - married_eligible.keys()
     both_keys = married_eligible.keys() & unmarried_eligible.keys()
 
-    def _items(keys, source: dict[str, CachedPolicy]) -> list[MarriagePolicyItem]:
-        return sorted((_to_item(source[k]) for k in keys), key=lambda item: item.policy_name)
+    def _items(keys, source: dict[str, CachedPolicy], bucket: str | None = None) -> list[MarriagePolicyItem]:
+        return sorted(
+            (_to_item(source[k], _change_reason(source[k], bucket) if bucket else None) for k in keys),
+            key=lambda item: item.policy_name,
+        )
 
     return MarriageComparisonOutput(
-        married_only=_items(married_only_keys, married_eligible),
-        unmarried_only=_items(unmarried_only_keys, unmarried_eligible),
+        married_only=_items(married_only_keys, married_eligible, "married_only"),
+        unmarried_only=_items(unmarried_only_keys, unmarried_eligible, "unmarried_only"),
         both=_items(both_keys, married_eligible),
     )

@@ -142,6 +142,10 @@ class MarriagePolicyItem(BaseModel):
     application_period: str
     reference_url: str
     is_newlywed_policy: bool = False
+    # 2026-09-03 추가: married_only/unmarried_only 버킷에 왜 그 정책이 속했는지
+    # (혼인상태 조건 자체 때문인지, 가구소득 합산 때문인지) 설명하는 한 줄 —
+    # marriage_comparison._change_reason 참고. both 버킷은 변화가 없으므로 None.
+    change_reason: str | None = None
 
 
 class MarriageComparisonOutput(BaseModel):

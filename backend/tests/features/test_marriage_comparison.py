@@ -142,6 +142,37 @@ def test_disability_only_policy_is_included_when_profile_says_disability():
     assert [p.policy_key for p in result.both] == [policy.policy_key]
 
 
+def test_married_only_policy_gets_income_reason_by_default():
+    # 소득 하한(min_income_krw) 때문에 married_only가 된 케이스 — 혼인상태 자체를
+    # 조건으로 걸지 않는 정책이므로 이유는 "소득 조건 충족"이어야 한다.
+    policy = _policy(min_income_krw=50_000_000)
+    result = _compare([policy], _input())
+    assert len(result.married_only) == 1
+    assert result.married_only[0].change_reason == "배우자 소득을 합산하면 소득 조건을 새로 충족해요"
+
+
+def test_unmarried_only_policy_gets_income_reason_by_default():
+    policy = _policy(max_income_krw=50_000_000)
+    result = _compare([policy], _input())
+    assert len(result.unmarried_only) == 1
+    assert result.unmarried_only[0].change_reason == "배우자 소득을 합산하면 소득 상한을 초과해요"
+
+
+def test_marital_status_gated_policy_gets_marital_status_reason():
+    # mrgSttsCd(matching.MARITAL_STATUS_CODE_MARRIED)로 기혼 전용인 정책은 소득과
+    # 무관하게 혼인상태 자체가 결정적 이유다.
+    policy = _policy(marital_status="0055001", max_income_krw=100_000_000)
+    result = _compare([policy], _input())
+    assert len(result.married_only) == 1
+    assert result.married_only[0].change_reason == "기혼자만 신청할 수 있는 정책이에요"
+
+
+def test_both_bucket_has_no_change_reason():
+    policy = _policy(max_income_krw=100_000_000)
+    result = _compare([policy], _input())
+    assert result.both[0].change_reason is None
+
+
 def test_scenarios_are_identical_when_spouse_income_is_not_given():
     # is_eligible의 혼인상태 필드 비교는 죽은 코드라(matching.py 참고) 실제로
     # 자격을 바꾸는 건 가구소득 합산뿐이다 — 배우자 소득을 안 넣으면 두 시나리오가
