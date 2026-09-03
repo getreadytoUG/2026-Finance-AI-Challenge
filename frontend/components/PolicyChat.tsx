@@ -123,7 +123,9 @@ export default function PolicyChat() {
                           {p.policy_name}
                         </div>
                         <span className="whitespace-nowrap text-[11px] text-slate-400">
-                          {p.status_emoji} {p.status}
+                          {/* status="상시"는 실제로 "신청 마감일 데이터 없음"이라 StatusPill과
+                              동일하게 붉은 계열 + "기간 확인 필요"로 보여준다. */}
+                          {p.status === "상시" ? "🔴 기간 확인 필요" : `${p.status_emoji} ${p.status}`}
                         </span>
                       </div>
                       <div className="mt-1 text-[12px] text-slate-500">{p.benefit_description}</div>

@@ -209,6 +209,17 @@
   background: #9aa6bd;
 }
 
+/* "기간 확인 필요"(백엔드 status="상시") — 신청 마감일 데이터가 없는 정책.
+   urgent(주황)와 구분되는 붉은 계열로, "정상 상태 아님"을 드러낸다. */
+.policy-status.unknown {
+  color: #c0344d;
+  background: #fdecef;
+}
+
+.policy-status.unknown span {
+  background: #e0475f;
+}
+
 .stat-orb {
   position: absolute;
   top: -28px;

@@ -12,7 +12,8 @@ import type { AiPolicySearchState } from "@/lib/useAiPolicySearch";
 const STATUS_OPTIONS: { value: PolicyStatus; label: string }[] = [
   { value: "임박", label: "마감임박" },
   { value: "여유", label: "여유" },
-  { value: "상시", label: "상시모집" },
+  // value는 백엔드 status 계약("상시") 그대로, 라벨만 StatusPill과 동일하게 바꾼다.
+  { value: "상시", label: "기간 확인 필요" },
   { value: "예정", label: "예정" },
   { value: "만료", label: "마감됨" },
 ];

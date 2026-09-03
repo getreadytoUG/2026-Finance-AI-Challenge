@@ -197,7 +197,7 @@ export default function RecommendationCalendar() {
             ) : (
               alwaysOpen.length > 0 && (
                 <p className="text-[11px] font-semibold text-slate-400">
-                  상시 모집 {alwaysOpen.length}건은 마감일이 없어 캘린더에 표시되지 않아요 — 오른쪽 검색결과에서 확인하세요.
+                  기간 확인 필요 {alwaysOpen.length}건은 신청 마감일 정보가 없어 캘린더에 표시되지 않아요 — 오른쪽 검색결과에서 확인하세요.
                 </p>
               )
             )}
