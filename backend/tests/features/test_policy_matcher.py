@@ -232,21 +232,25 @@ def test_run_uses_combined_household_income_when_spouse_income_given(db_session)
 
 def test_run_computes_real_status_instead_of_hardcoding_available(db_session):
     # 2026-09-02 QA에서 발견: 대시보드가 이 output을 그대로 써서 "신청 가능"을
-    # 하드코딩했었다 — 실제로 만료된 정책도 status가 정확히 "만료"로 나와야 한다.
-    _seed_policy(db_session, policy_name="이미 마감된 정책", apply_start_ymd="20200101", apply_end_ymd="20200201")
+    # 하드코딩했었다 — status가 실제로 계산되는지는 아직 열려있는 정책으로 확인한다
+    # (만료 정책은 아래 test_run_excludes_expired_policies가 검증하듯 애초에
+    # options에 안 나온다).
     _seed_policy(db_session, policy_name="상시 모집 정책")
     result = run(PolicyMatchInput(age=29, is_married=False, annual_income_krw=40_000_000, region="서울"), _ctx(db_session))
     statuses = {o.policy_name: (o.status, o.status_emoji) for o in result.options}
-    assert statuses["이미 마감된 정책"] == ("만료", "🔴")
     assert statuses["상시 모집 정책"] == ("상시", "🟢")
 
 
-def test_run_sorts_expired_policies_after_open_ones(db_session):
+def test_run_excludes_expired_policies(db_session):
+    # 2026-09-03 사용자 발견: 만료된 정책이 목록 뒤쪽으로 정렬만 되고 여전히 보였다.
+    # router.py(/match)/ai_search.py/marriage_comparison.py/policy_chat 등 다른 모든
+    # 경로는 status == "만료"를 걸러내는데 여기만 빠져있었다 — 신청 불가능한 정책을
+    # "맞춤 정책"으로 보여주는 건 의미가 없으므로 완전히 제외해야 한다.
     _seed_policy(db_session, policy_name="이미 마감된 정책", apply_start_ymd="20200101", apply_end_ymd="20200201")
     _seed_policy(db_session, policy_name="상시 모집 정책")
     result = run(PolicyMatchInput(age=29, is_married=False, annual_income_krw=40_000_000, region="서울"), _ctx(db_session))
     names = [o.policy_name for o in result.options]
-    assert names == ["상시 모집 정책", "이미 마감된 정책"]
+    assert names == ["상시 모집 정책"]
 
 
 def test_run_maps_policy_fields_into_output_option(db_session):

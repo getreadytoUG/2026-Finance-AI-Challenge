@@ -35,10 +35,14 @@ def run(input: PolicyMatchInput, ctx: ToolContext) -> PolicyMatchOutput:
         policy.policy_key: compute_policy_status(policy.apply_start_ymd, policy.apply_end_ymd, today)
         for policy in eligible_policies
     }
-    # 기혼자에게는 신혼부부 대상 정책을 먼저, 그 다음은 신청 상태(임박-여유-상시-예정-만료)
+    # 2026-09-03 사용자 발견: 만료된 정책이 "뒤쪽으로 정렬만" 되고 목록에서 안 빠졌었다.
+    # router.py(/match), ai_search.py, marriage_comparison.py, savings_simulator,
+    # policy_chat/tool.py는 전부 status == "만료"를 걸러내는데 여기만 빠져있었다 —
+    # 신청 자체가 불가능한 정책을 "맞춤 정책"으로 보여주는 건 의미가 없으므로 제외한다.
+    eligible_policies = [policy for policy in eligible_policies if statuses[policy.policy_key][0] != "만료"]
+    # 기혼자에게는 신혼부부 대상 정책을 먼저, 그 다음은 신청 상태(임박-여유-상시-예정)
     # 순으로 정렬한다 — 2026-09-02 QA에서 "신청 가능" 배지가 이미 마감된 정책에도 하드코딩
-    # 돼 있던 걸 발견해 status/status_emoji를 실제로 계산해 채우게 됐는데, 정렬도 안 하면
-    # 만료된 정책이 목록 맨 위에 남아있을 수 있어 같이 손봤다.
+    # 돼 있던 걸 발견해 status/status_emoji를 실제로 계산해 채우게 됐다.
     eligible_policies.sort(
         key=lambda policy: (
             not is_newlywed_policy(policy) if input.is_married else False,
