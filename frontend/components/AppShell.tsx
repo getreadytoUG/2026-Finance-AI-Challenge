@@ -144,9 +144,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {isAdmin ? "Admin" : "My briefing"}
         </div>
         <nav className="grid gap-1" aria-label="서비스 내비게이션">
+          {/* 2026-09-03: "정책 달력" 옆 안읽음 배지가 (숫자만이든, "안읽음" 라벨을
+              붙이든) "정책 전체 보기"의 라이브 검색 결과 개수와 달라서 계속 헷갈림을
+              줬다 — 사용자 요청으로 배지 자체를 없앴다. unreadCount 상태/폴링은
+              SiteHeader의 종 아이콘 점(dot) 표시가 여전히 쓰므로 그대로 둔다. */}
           {navItems.map(({ href, label, icon: Icon }) => {
             const active = pathname === href;
-            const count = href === "/recommendations" && unreadCount > 0 ? String(unreadCount) : undefined;
             return (
               <Link
                 key={href}
@@ -158,19 +161,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <Icon size={17} strokeWidth={active ? 2.2 : 1.8} />
                   <span>{label}</span>
                 </span>
-                {count && (
-                  // 2026-09-03: 숫자만 있으니 "정책 달력에 이만큼 있다"로 오해하기 쉬웠다
-                  // (사용자 지적 — "41개 보여줄 것처럼 해놓고 전체 보기 누르면 245개로
-                  // 늘어난다") — 실제로는 배치가 그동안 쌓아둔 것 중 "안 읽은" 알림
-                  // 개수일 뿐, 지금 조건에 맞는 전체 정책 수(정책 전체 보기의 라이브
-                  // 검색 결과)와는 다른 숫자다. "안읽음" 라벨을 붙여 구분해준다.
-                  <span
-                    title="아직 안 읽은 추천 알림 개수예요 — 지금 조건에 맞는 정책 전체 개수는 '정책 전체 보기'에서 확인하세요."
-                    className={`whitespace-nowrap rounded-lg px-2 py-0.5 text-[10px] font-extrabold ${active ? "bg-[#2457d6] text-white" : "bg-slate-100 text-slate-400"}`}
-                  >
-                    안읽음 {count}
-                  </span>
-                )}
               </Link>
             );
           })}

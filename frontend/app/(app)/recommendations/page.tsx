@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Bell, Clock, MessageCircle } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import { getMe, getRecommendations, markRecommendationRead, refreshRecommendations, updateProfile } from "@/lib/api";
 import type { Recommendation, UserProfile } from "@/lib/api";
 import { OCCUPATION_OPTIONS, manwonToKrw, type OccupationType } from "@/lib/profileOptions";
@@ -70,10 +70,10 @@ export default function RecommendationsPage() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadProfileAndRecommendations().catch((err) => {
       setError(err instanceof Error ? err.message : "불러오기에 실패했습니다.");
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleProfileSubmit(e: React.FormEvent) {
@@ -140,27 +140,6 @@ export default function RecommendationsPage() {
         ) : undefined
       }
     >
-      <div className="mb-6 grid gap-3 sm:grid-cols-2">
-        <div className="flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-white p-4">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#eef3ff] text-[#2457d6]">
-            <Clock size={17} />
-          </span>
-          <div>
-            <div className="text-[13px] font-extrabold text-ink">매일 새벽 자동 매칭</div>
-            <p className="mt-1 text-[12px] leading-5 text-slate-500">저장된 프로필 기준으로 매일 새벽 새로 등록된 정책을 찾아 쌓아둬요.</p>
-          </div>
-        </div>
-        <div className="flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-white p-4">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#e6f8f5] text-[#159c8d]">
-            <Bell size={17} />
-          </span>
-          <div>
-            <div className="text-[13px] font-extrabold text-ink">안 읽은 것만 표시</div>
-            <p className="mt-1 text-[12px] leading-5 text-slate-500">확인 안 한 추천은 사이드바 종 아이콘에 숫자로 뜹니다.</p>
-          </div>
-        </div>
-      </div>
-
       {error && <p className="mb-4 text-[13px] font-bold text-rose-500">{error}</p>}
 
       {!hasCompleteProfile(profile) && (
@@ -281,13 +260,6 @@ export default function RecommendationsPage() {
                     <div className="flex flex-wrap items-center gap-2 text-[15px] font-extrabold text-ink">
                       {rec.policy_name}
                       <StatusPill status={rec.status} />
-                      <span
-                        className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold ${
-                          rec.is_read ? "bg-slate-100 text-slate-400" : "bg-ink text-white"
-                        }`}
-                      >
-                        {rec.is_read ? "읽음" : "안읽음"}
-                      </span>
                     </div>
                     <p className="mt-2 text-[12px] leading-5 text-slate-500">{rec.benefit_description}</p>
                     <div className="mt-2 text-[11px] font-semibold text-slate-400">신청 기간 {rec.application_period}</div>

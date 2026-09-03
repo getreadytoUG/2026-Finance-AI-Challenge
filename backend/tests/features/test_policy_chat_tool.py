@@ -76,6 +76,22 @@ def test_run_uses_combined_household_income_when_given(db_session):
     assert len(matched.options) == 1
 
 
+_15_PROVINCE_CODES = ",".join(
+    f"{p}110" for p in ("11", "26", "27", "28", "29", "30", "31", "36", "41", "51", "43", "44", "52", "46", "47")
+)  # 17개 시도 중 15개 — matching.is_likely_template_region_code 임계치
+
+
+def test_run_excludes_policy_with_template_region_code(db_session):
+    # 2026-09-03 사용자 지적: "정책 전체 보기"(AI 정책 검색)에서 서울로 필터링해도
+    # 의성/서산 같은 지자체 전용 정책이 나왔다 — zipCd에 거의 모든 시/도가 나열된
+    # 레코드가 region_matches()엔 "서울도 포함"으로 보였기 때문. _matches()가
+    # 이런 레코드를 걸러야 한다(ai_search.py의 search_policies도 _matches를
+    # 그대로 쓰므로 같이 고쳐진다).
+    _seed_policy(db_session, region_code=_15_PROVINCE_CODES)
+    result = run(PolicyChatSearchInput(region="서울"), _ctx(db_session))
+    assert result.options == []
+
+
 def test_run_filters_by_marital_status_only_when_given(db_session):
     # "0055001"은 온통청년 공식 mrgSttsCd 기혼 코드다(matching.MARITAL_STATUS_LABELS,
     # 2026-09-03 수정 전에는 _matches가 "기혼" 문자열과 비교하는 별도 복붙 로직이라

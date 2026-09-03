@@ -58,6 +58,21 @@ def test_run_excludes_applicant_outside_age_range(db_session):
     assert result.options == []
 
 
+_15_PROVINCE_CODES = ",".join(
+    f"{p}110" for p in ("11", "26", "27", "28", "29", "30", "31", "36", "41", "51", "43", "44", "52", "46", "47")
+)  # 17개 시도 중 15개 — matching.is_likely_template_region_code 임계치
+
+
+def test_run_excludes_policy_with_template_region_code(db_session):
+    # 2026-09-03 사용자 지적: 서울로 프로필을 해놨는데 의성/서산 같은 지자체 전용
+    # 정책이 나왔다 — zipCd에 거의 모든 시/도가 나열된(템플릿/기본값) 레코드가
+    # region_matches()엔 "서울도 포함"으로 보였기 때문. "내 맞춤 정책 보기"도
+    # recommender.py와 동일하게 이런 레코드를 걸러야 한다.
+    _seed_policy(db_session, region_code=_15_PROVINCE_CODES)
+    result = run(PolicyMatchInput(age=29, is_married=False, annual_income_krw=40_000_000, region="서울"), _ctx(db_session))
+    assert result.options == []
+
+
 def test_run_requires_marriage_when_policy_restricts_to_married(db_session):
     # "0055001" = 온통청년 공식 mrgSttsCd 기혼 코드(matching.MARITAL_STATUS_LABELS).
     _seed_policy(db_session, marital_status="0055001")

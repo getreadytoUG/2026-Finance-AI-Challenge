@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, Sparkles, WalletCards } from "lucide-react";
+import { AlertCircle, Search, Sparkles, WalletCards } from "lucide-react";
 import AiSearchFilterBar from "@/components/AiSearchFilterBar";
 import Pagination from "@/components/Pagination";
 import PolicyDetailLink from "@/components/PolicyDetailLink";
@@ -72,8 +72,17 @@ export default function AiSearchResultsPanel({
 
       {!hideFilterBar && <AiSearchFilterBar state={state} compact={compact} />}
 
-      <div className={`mb-4 shrink-0 ${compact ? "text-[13px]" : "text-[15px]"} font-extrabold text-ink`}>
+      <div className={`mb-4 flex shrink-0 items-center gap-1.5 ${compact ? "text-[13px]" : "text-[15px]"} font-extrabold text-ink`}>
         맞춤 검색 결과: <span className="text-[#2457d6]">{total}개</span>
+        {/* 2026-09-03 사용자 요청: 필터링을 다 손봐도 온통청년 원본 데이터 자체의
+            분류 오류(지역/카테고리 오분류 등)까지는 못 잡는다 — 그건 우리 쪽 버그가
+            아니라는 걸 사용자가 알 수 있게 최소한의 안내를 남겨둔다. */}
+        <span
+          title="해당 데이터는 온통청년에서 가져오는 데이터로 정책 분류상 오류가 발생할 수 있습니다."
+          className="inline-flex shrink-0 cursor-help text-slate-300"
+        >
+          <AlertCircle size={14} />
+        </span>
       </div>
 
       <div className={compact ? "flex-1" : undefined}>

@@ -84,12 +84,18 @@ export default function DashboardPage() {
         const complete = me.age != null && me.region != null && me.annual_income_krw != null;
         setProfileComplete(complete);
         if (!complete) return null;
+        // 2026-09-03 사용자 지적: "한눈에 보기"와 "내 맞춤 정책 보기"가 서로 다른
+        // 목록을 보여줬다 — 여기가 has_disability/is_veteran을 아예 안 보내서
+        // 장애인/보훈대상자 전용 정책(경계성지능청년지원 등)이 fail-open으로
+        // 항상 섞여 들어왔다(policy/page.tsx와 동일한 payload로 맞춘다).
         return callTool<PolicyMatchOutput>(token, "policy_matcher", {
           age: me.age,
-          is_married: me.is_married,
+          is_married: me.is_married ?? false,
           annual_income_krw: me.annual_income_krw,
-          spouse_annual_income_krw: me.spouse_annual_income_krw,
+          spouse_annual_income_krw: me.is_married && me.spouse_annual_income_krw != null ? me.spouse_annual_income_krw : null,
           region: me.region,
+          has_disability: me.has_disability,
+          is_veteran: me.is_veteran,
         });
       })
       .then((res) => {

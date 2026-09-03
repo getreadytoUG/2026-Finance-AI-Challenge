@@ -4,6 +4,7 @@ from app.features.policy_matcher.matching import (
     age_matches,
     income_matches,
     is_disability_targeted_policy,
+    is_likely_template_region_code,
     is_married_only_policy,
     is_newlywed_policy,
     is_unmarried_only_policy,
@@ -23,6 +24,15 @@ MAX_RESULTS = 8
 # 비교 자체는 matching.py의 공유 헬퍼를 그대로 쓴다 — 예전엔 여기 따로 복붙돼 있어서
 # is_eligible만 고치고 이쪽은 못 고치는 일이 있었다(2026-09-03, 사용자 지적).
 def _matches(policy: CachedPolicy, input: PolicyChatSearchInput) -> bool:
+    # 2026-09-03 사용자 지적("서울로 해놨는데 의성/창원 정책이 나온다"): zipCd에
+    # 17개 시/도 코드를 거의 다 나열해놓은(실측 419건, 전체의 15%) 레코드가 있다 —
+    # 실제 지역 조건이 아니라 데이터 입력 실수/기본값이라, region_matches()에게는
+    # "이 정책은 어디든 다 해당된다"로 보인다. recommender.py의 배치 추천은 이미
+    # 이 필터를 쓰고 있었는데 AI 정책 검색/챗봇 쪽엔 빠져 있었다. 같은 정책이 올바른
+    # 지역코드로 중복 등록된 경우도 실측으로 확인해서(예: 서산시청년정책네트워크
+    # 운영), 걸러내도 정보 손실은 거의 없다.
+    if is_likely_template_region_code(policy):
+        return False
     if not age_matches(policy, input.age):
         return False
     if is_married_only_policy(policy) and input.is_married is False:

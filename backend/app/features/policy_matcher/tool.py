@@ -1,5 +1,5 @@
 from app.features.policy_matcher.categories import FINANCIAL_LARGE_CATEGORY, category_tags
-from app.features.policy_matcher.matching import is_eligible, is_newlywed_policy
+from app.features.policy_matcher.matching import is_eligible, is_likely_template_region_code, is_newlywed_policy
 from app.features.policy_matcher.models import CachedPolicy
 from app.features.policy_matcher.schemas import PolicyMatchInput, PolicyMatchOutput, PolicyOption
 from app.features.policy_matcher.status import STATUS_ORDER, compute_policy_status, today_kst
@@ -13,7 +13,20 @@ def run(input: PolicyMatchInput, ctx: ToolContext) -> PolicyMatchOutput:
     financial_policies = [
         policy for policy in policies if FINANCIAL_LARGE_CATEGORY in category_tags(policy.large_category)
     ]
-    eligible_policies = [policy for policy in financial_policies if is_eligible(policy, input)]
+    # 2026-09-03 사용자 지적("서울로 해놨는데 의성/창원 정책이 나온다"): zipCd에
+    # 17개 시/도 코드를 전부(또는 거의 다) 나열해 사실상 지역 조건이 아니라 데이터
+    # 입력 실수/기본값인 레코드가 실측상 419건(전체의 15%)이나 있다 — 그래서
+    # region_matches()가 "이 정책은 서울도 포함한다"고 정직하게 답해도, 실제로는
+    # 그 지자체(예: 서산시) 전용 정책이 잘못 전체 지역으로 찍힌 것뿐이다. 실제로
+    # 같은 정책이 올바른 지역코드로 중복 등록된 경우도 있어(서산시청년정책네트워크
+    # 운영 — 정상 44210 버전과 이 쓰레기 버전이 둘 다 캐시에 있었다), 걸러내도
+    # 정보 손실은 거의 없다. recommender.py의 배치 추천이 이미 이 필터를 쓰고
+    # 있었는데 "내 맞춤 정책 보기" 탭은 빠져 있었다.
+    eligible_policies = [
+        policy
+        for policy in financial_policies
+        if is_eligible(policy, input) and not is_likely_template_region_code(policy)
+    ]
     today = today_kst()
     statuses = {
         policy.policy_key: compute_policy_status(policy.apply_start_ymd, policy.apply_end_ymd, today)
