@@ -10,6 +10,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   BarChart3,
   Bell,
+  Calculator,
   ClipboardList,
   FolderOpen,
   Heart,
@@ -38,6 +39,9 @@ const NAV_ITEMS = [
   { href: "/policy", label: "내 맞춤 정책 보기", icon: Search },
   { href: "/marriage", label: "혼인신고 계산기", icon: Heart },
   { href: "/savings", label: "저축플랜", icon: PiggyBank },
+  // 2026-09-04: "저축플랜"(실계산)은 그대로 두고, 스크린샷 기준 3단계 마법사
+  // UI(정책연계 저축계좌상품 / 정책연계 대출)를 목업 탭으로 별도 추가했다.
+  { href: "/finance-simulator", label: "정책금융 시뮬레이터", icon: Calculator },
   { href: "/recommendations", label: "정책 달력", icon: Bell },
 ];
 
