@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
-import YouthLeapAccountSimulator from "@/components/YouthLeapAccountSimulator";
+import YouthFutureSavingsSimulator from "@/components/YouthFutureSavingsSimulator";
 import HousingLoanSimulator from "@/components/HousingLoanSimulator";
 
 const SUB_TABS = [
@@ -34,7 +34,7 @@ export default function SavingsPage() {
         ))}
       </div>
 
-      {activeTab === "leap" ? <YouthLeapAccountSimulator /> : <HousingLoanSimulator />}
+      {activeTab === "leap" ? <YouthFutureSavingsSimulator /> : <HousingLoanSimulator />}
     </DashboardLayout>
   );
 }

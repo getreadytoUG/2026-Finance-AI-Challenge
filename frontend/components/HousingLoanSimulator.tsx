@@ -11,11 +11,16 @@ const HOUSING_TYPE_OPTIONS = [
   { value: "purchase" as const, label: "매매" },
 ];
 
+const LOAN_TERM_OPTIONS = [10, 15, 20, 30] as const;
+
 export default function HousingLoanSimulator() {
   const [housingType, setHousingType] = useState<"jeonse" | "purchase">("jeonse");
   const [targetPrice, setTargetPrice] = useState("25000");
   const [selfCapital, setSelfCapital] = useState("5000");
   const [householdIncome, setHouseholdIncome] = useState("");
+  // 디딤돌대출(매매)만 기간별로 금리가 다르다 — 전세(버팀목)엔 이 개념이 없어
+  // housing_type === "purchase"일 때만 폼에 노출한다.
+  const [loanTermYears, setLoanTermYears] = useState<10 | 15 | 20 | 30>(30);
   const [result, setResult] = useState<HousingLoanOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -42,6 +47,7 @@ export default function HousingLoanSimulator() {
         target_price_krw: manwonToKrw(Number(targetPrice)),
         self_capital_krw: manwonToKrw(Number(selfCapital)),
         household_annual_income_krw: manwonToKrw(Number(householdIncome)),
+        loan_term_years: loanTermYears,
       });
       setResult(output);
     } catch (err) {
@@ -92,7 +98,7 @@ export default function HousingLoanSimulator() {
               className="h-12 rounded-xl border border-slate-200 px-4 text-[13px] font-semibold outline-none focus:border-[#2457d6] focus:ring-4 focus:ring-[#2457d6]/10"
             />
           </label>
-          <label className="grid gap-2 text-[12px] font-extrabold text-slate-700 sm:col-span-2">
+          <label className={`grid gap-2 text-[12px] font-extrabold text-slate-700 ${housingType === "purchase" ? "" : "sm:col-span-2"}`}>
             부부 합산 연소득 (만원)
             <input
               type="number"
@@ -102,6 +108,25 @@ export default function HousingLoanSimulator() {
               className="h-12 rounded-xl border border-slate-200 px-4 text-[13px] font-semibold outline-none focus:border-[#2457d6] focus:ring-4 focus:ring-[#2457d6]/10"
             />
           </label>
+          {housingType === "purchase" && (
+            <div>
+              <div className="mb-2 text-[12px] font-extrabold text-slate-700">대출 기간</div>
+              <div className="flex gap-2">
+                {LOAN_TERM_OPTIONS.map((y) => (
+                  <button
+                    key={y}
+                    type="button"
+                    onClick={() => setLoanTermYears(y)}
+                    className={`h-12 flex-1 rounded-xl text-[13px] font-extrabold transition ${
+                      loanTermYears === y ? "bg-[#2457d6] text-white" : "bg-[#eef3f9] text-slate-500 hover:bg-[#e3eaf6]"
+                    }`}
+                  >
+                    {y}년
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <button
             type="submit"
             disabled={loading || !targetPrice || !selfCapital || !householdIncome}
@@ -118,7 +143,9 @@ export default function HousingLoanSimulator() {
         <div className="mt-6">
           <div className="mb-4 flex items-start gap-2 rounded-xl bg-[#fff7e6] p-3.5 text-[12px] font-bold leading-5 text-[#946200]">
             <AlertTriangle size={15} className="mt-0.5 shrink-0" />
-            아래 LTV·금리는 실제 정부 고시가 아니라 예시 수치예요. 정확한 조건은 주택도시기금 공고를 확인하세요.
+            LTV·소득구간·금리는 2026년 8월 고시 기준 실제 수치예요. 다만 생애최초 주택구입자 우대, 지방
+            주택 인하, 자녀 수 등 이 계산기가 반영하지 못한 조건이 있고 시중 비교 금리는 은행마다 달라
+            가정치예요 — 정확한 조건은 주택도시기금 공고를 확인하세요.
           </div>
 
           <div className="grid gap-5 xl:grid-cols-[1.4fr_.8fr]">
@@ -148,7 +175,7 @@ export default function HousingLoanSimulator() {
                 </span>
                 <div>
                   <div className="text-[10px] font-extrabold uppercase tracking-[.18em] text-[#1eb8a6]">SAVINGS</div>
-                  <h2 className="mt-1 text-[15px] font-extrabold tracking-[-.03em]">시중 대비 절감 (예시)</h2>
+                  <h2 className="mt-1 text-[15px] font-extrabold tracking-[-.03em]">시중 대비 절감</h2>
                 </div>
               </div>
               <div className="mt-5 grid gap-3">
@@ -164,7 +191,7 @@ export default function HousingLoanSimulator() {
             </section>
           </div>
 
-          {/* 저축 시뮬레이터와 동일한 이유로 추가 — 위 계산은 예시지만, 이 목록은
+          {/* 저축 시뮬레이터와 동일한 이유로 추가 — 위 계산과 별개로, 이 목록은
               실제 DB의 전세/구입자금 대출이자 지원류 정책 중 지금 내 조건으로 진짜
               자격되는 것만 골라온다(2026-09-02 추가). */}
           <section className="mt-5 rounded-[24px] border border-slate-200/80 bg-white p-6">

@@ -76,6 +76,32 @@ def test_run_uses_combined_household_income_when_given(db_session):
     assert len(matched.options) == 1
 
 
+_15_PROVINCE_CODES = ",".join(
+    f"{p}110" for p in ("11", "26", "27", "28", "29", "30", "31", "36", "41", "51", "43", "44", "52", "46", "47")
+)  # 17개 시도 중 15개 — matching.is_likely_template_region_code 임계치
+
+
+def test_run_excludes_policy_with_template_region_code(db_session):
+    # 2026-09-03 사용자 지적: "정책 전체 보기"(AI 정책 검색)에서 서울로 필터링해도
+    # 의성/서산 같은 지자체 전용 정책이 나왔다 — zipCd에 거의 모든 시/도가 나열된
+    # 레코드가 region_matches()엔 "서울도 포함"으로 보였기 때문. _matches()가
+    # 이런 레코드를 걸러야 한다(ai_search.py의 search_policies도 _matches를
+    # 그대로 쓰므로 같이 고쳐진다).
+    _seed_policy(db_session, region_code=_15_PROVINCE_CODES)
+    result = run(PolicyChatSearchInput(region="서울"), _ctx(db_session))
+    assert result.options == []
+
+
+def test_run_filters_by_marital_status_only_when_given(db_session):
+    # "0055001"은 온통청년 공식 mrgSttsCd 기혼 코드다(matching.MARITAL_STATUS_LABELS,
+    # 2026-09-03 수정 전에는 _matches가 "기혼" 문자열과 비교하는 별도 복붙 로직이라
+    # 이 필터가 실제로는 한 번도 안 걸렸다).
+    _seed_policy(db_session, marital_status="0055001")
+    assert run(PolicyChatSearchInput(is_married=False), _ctx(db_session)).options == []
+    assert len(run(PolicyChatSearchInput(is_married=True), _ctx(db_session)).options) == 1
+    assert len(run(PolicyChatSearchInput(), _ctx(db_session)).options) == 1  # 혼인여부 안 주면 통과
+
+
 def test_run_filters_by_region_only_when_given(db_session):
     _seed_policy(db_session, region_code="26110")
     assert run(PolicyChatSearchInput(region="서울"), _ctx(db_session)).options == []
@@ -89,6 +115,24 @@ def test_run_filters_by_keyword(db_session):
     result = run(PolicyChatSearchInput(keyword="전세"), _ctx(db_session))
     assert len(result.options) == 1
     assert result.options[0].policy_name == "전세자금 대출"
+
+
+def test_run_filters_by_keyword_with_suffix_variation(db_session):
+    # 2026-09-03 사용자 발견: 실제 정책명은 "청소년 한부모 복지급여 지원"처럼
+    # "한부모"까지만 쓰는데 사용자는 "한부모가정"이라고 검색해서 0건이었다.
+    _seed_policy(db_session, policy_name="청소년 한부모 복지급여 지원")
+    _seed_policy(db_session, policy_name="창업 지원금")
+    result = run(PolicyChatSearchInput(keyword="한부모가정"), _ctx(db_session))
+    assert len(result.options) == 1
+    assert result.options[0].policy_name == "청소년 한부모 복지급여 지원"
+
+
+def test_run_keyword_suffix_trim_does_not_shrink_below_two_chars(db_session):
+    # 접미어를 1글자까지 줄이면 "여성청년"처럼 "여" 한 글자만 겹치는 무관한 정책까지
+    # 걸릴 수 있다 — 최소 2글자("여자")까지만 시도하고 그 밑으로는 안 줄여야 한다.
+    _seed_policy(db_session, policy_name="여성청년 지원")
+    result = run(PolicyChatSearchInput(keyword="여자들"), _ctx(db_session))
+    assert result.options == []
 
 
 def test_run_sorts_newlywed_policies_first_when_married(db_session):

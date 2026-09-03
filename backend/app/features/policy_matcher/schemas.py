@@ -1,6 +1,17 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
+
+# app.auth.schemas.OccupationType과 값이 반드시 같아야 한다 — 여기서 재수입하지
+# 않고 복제해둔 이유는 순환 임포트 때문이다: app.auth.service가
+# policy_matcher.models를 임포트하고, features/__init__.py가 그걸 통해
+# policy_chat.tool → policy_chat.schemas → policy_matcher.matching →
+# policy_matcher.schemas로 이어지는데, 이 시점에 policy_matcher.schemas가
+# app.auth.schemas를 다시 임포트하면 app.auth.schemas가 필요로 하는
+# app.auth.service가 아직 로딩 중이라 ImportError가 난다(2026-09-03 실제로
+# 재현됨). OccupationType이 바뀌면 auth/schemas.py도 같이 고칠 것.
+OccupationType = Literal["student", "employee", "self_employed", "unemployed", "other"]
 
 
 class PolicyMatchInput(BaseModel):
@@ -15,6 +26,15 @@ class PolicyMatchInput(BaseModel):
     # 참고). None(미입력)이면 필터링하지 않는다(fail-open, 하위 호환).
     has_disability: bool | None = None
     is_veteran: bool | None = None
+    # 2026-09-03 추가: "학생 아닌데 국가근로장학금이 뜬다"(사용자 지적) — 대학
+    # 재학생 전용 정책이 나이/소득 조건만으로는 안 걸러진다(schoolCd라는 별도
+    # 구조화 필드가 있는데 그동안 안 썼다). None(미입력)이면 필터링하지 않는다
+    # (fail-open, matching.is_eligible 참고).
+    occupation: OccupationType | None = None
+    # 2026-09-03 추가: "중소기업 다니는데도 관련 없는 정책이 뜬다"(사용자 지적) —
+    # sbizCd(정책특화요건코드)의 중소기업 전용(0014001) 정책을 거르는 데 쓴다.
+    # User 모델에 이미 있던 필드(2026-09-01 UPGRADE.md 확장 프로필)를 재사용한다.
+    is_sme_employee: bool | None = None
 
 
 class PolicyOption(BaseModel):
@@ -122,6 +142,10 @@ class MarriagePolicyItem(BaseModel):
     application_period: str
     reference_url: str
     is_newlywed_policy: bool = False
+    # 2026-09-03 추가: married_only/unmarried_only 버킷에 왜 그 정책이 속했는지
+    # (혼인상태 조건 자체 때문인지, 가구소득 합산 때문인지) 설명하는 한 줄 —
+    # marriage_comparison._change_reason 참고. both 버킷은 변화가 없으므로 None.
+    change_reason: str | None = None
 
 
 class MarriageComparisonOutput(BaseModel):

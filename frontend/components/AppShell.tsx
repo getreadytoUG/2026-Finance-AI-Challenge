@@ -18,6 +18,7 @@ import {
   PiggyBank,
   Search,
   Settings,
+  Tags,
   Users,
   X,
 } from "lucide-react";
@@ -40,11 +41,16 @@ const NAV_ITEMS = [
   { href: "/recommendations", label: "정책 달력", icon: Bell },
 ];
 
+// "코드값" 탭(2026-09-03 추가): 온통청년 원본 코드값(혼인상태 mrgSttsCd/지역코드
+// zipCd 접두사/대분류 lclsfNm)이 matching.py·categories.py의 정적 매핑표와 실제로
+// 맞는지 admin이 직접 확인할 수 있게 한다 — "필터링이 다 꼬여있다"(사용자 요청,
+// 2026-09-03)는 문제의 원인이 이 코드값들을 눈으로 볼 방법이 없었던 것도 있어서다.
 const ADMIN_NAV_ITEMS = [
   { href: "/admin", label: "개요", icon: BarChart3 },
   { href: "/admin/users", label: "회원", icon: Users },
   { href: "/admin/policies", label: "정책", icon: FolderOpen },
   { href: "/admin/policies/list", label: "정책 목록", icon: ClipboardList },
+  { href: "/admin/code-values", label: "코드값", icon: Tags },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -138,9 +144,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {isAdmin ? "Admin" : "My briefing"}
         </div>
         <nav className="grid gap-1" aria-label="서비스 내비게이션">
+          {/* 2026-09-03: "정책 달력" 옆 안읽음 배지가 (숫자만이든, "안읽음" 라벨을
+              붙이든) "정책 전체 보기"의 라이브 검색 결과 개수와 달라서 계속 헷갈림을
+              줬다 — 사용자 요청으로 배지 자체를 없앴다. unreadCount 상태/폴링은
+              SiteHeader의 종 아이콘 점(dot) 표시가 여전히 쓰므로 그대로 둔다. */}
           {navItems.map(({ href, label, icon: Icon }) => {
             const active = pathname === href;
-            const count = href === "/recommendations" && unreadCount > 0 ? String(unreadCount) : undefined;
             return (
               <Link
                 key={href}
@@ -152,11 +161,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <Icon size={17} strokeWidth={active ? 2.2 : 1.8} />
                   <span>{label}</span>
                 </span>
-                {count && (
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] ${active ? "bg-[#2457d6] text-white" : "bg-slate-100 text-slate-400"}`}>
-                    {count}
-                  </span>
-                )}
               </Link>
             );
           })}

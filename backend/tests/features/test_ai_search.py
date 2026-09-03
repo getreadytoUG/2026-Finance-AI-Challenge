@@ -67,8 +67,24 @@ def test_search_filters_by_income(db_session):
     assert total == 1
 
 
+_15_PROVINCE_CODES = ",".join(
+    f"{p}110" for p in ("11", "26", "27", "28", "29", "30", "31", "36", "41", "51", "43", "44", "52", "46", "47")
+)  # 17개 시도 중 15개 — matching.is_likely_template_region_code 임계치
+
+
+def test_search_excludes_policy_with_template_region_code(db_session):
+    # 2026-09-03 사용자 지적 — search_policies는 _matches()를 그대로 쓰므로
+    # policy_chat/tool.py에서 고친 게 여기도 그대로 적용된다.
+    _seed_policy(db_session, region_code=_15_PROVINCE_CODES)
+    items, total = search_policies(db_session, _filters(region="서울"), include_closed=False, page=1, page_size=10)
+    assert total == 0
+
+
 def test_search_filters_by_marital_status(db_session):
-    _seed_policy(db_session, marital_status="기혼")
+    # "0055001"은 온통청년 공식 코드정의서상 실제 mrgSttsCd 기혼 코드다
+    # (matching.MARITAL_STATUS_LABELS 참고, 2026-09-03 이전엔 "기혼" 문자열과
+    # 비교하는 죽은 코드였다).
+    _seed_policy(db_session, marital_status="0055001")
     items, total = search_policies(
         db_session, _filters(is_married=False), include_closed=False, page=1, page_size=10
     )

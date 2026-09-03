@@ -26,7 +26,10 @@ import { isTokenExpired } from "@/lib/api";
 // 연결돼 실제로는 카테고리별 구분 기능이 없었다 — 사용자 요청으로 섹션 자체를 제거.)
 const FEATURE_CARDS = [
   {
-    title: "금융 정책 추천",
+    // 2026-09-03: /policy가 "금융･복지･문화" 대분류로만 좁혔을 땐 이 이름이
+    // 맞았는데, 이제 전 분야를 다 보여주도록 바뀌어서 "금융"이라고 하면 범위를
+    // 오해하게 된다(사용자 요청으로 카테고리 제한을 없앰, tool.py 참고).
+    title: "맞춤 정책 추천",
     detail: "내 조건에 맞는 정책만 모아봐요.",
     icon: WalletCards,
     loggedInPath: "/policy",
@@ -64,7 +67,7 @@ const STEPS = [
 // 2026-09-02: 예전엔 로그인 상태면 이 랜딩 페이지를 건너뛰고 바로 /dashboard로
 // 리다이렉트했는데, 사용자 요청으로 이제 로그인 여부와 상관없이 누구나 이 페이지를
 // 먼저 보게 한다 — 이 페이지가 곧 메인 페이지다. 로그인한 사용자가 기존 대시보드로
-// 들어가려면 헤더의 "대시보드로 이동" 버튼(SiteHeader.tsx)을 누르면 된다.
+// 들어가려면 헤더의 "시작하기" 버튼(SiteHeader.tsx)을 누르면 된다.
 export default function Home() {
   // 카테고리/기능 카드가 로그인 여부와 상관없이 전부 /signup으로 고정돼 있었다 —
   // 로그인 상태여도 이 페이지가 먼저 뜨게 바뀌면서, 이미 로그인한 유저가 다른
@@ -103,7 +106,7 @@ export default function Home() {
                 style={{ color: "#2457d6" }}
                 className="group inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3.5 text-[13px] font-extrabold shadow-[0_14px_30px_rgba(7,21,58,.28)] transition hover:-translate-y-1"
               >
-                {loggedIn ? "대시보드로 이동" : "내 맞춤 혜택 진단"} <ArrowRight size={16} className="transition group-hover:translate-x-1" />
+                {loggedIn ? "시작하기" : "내 맞춤 혜택 진단"} <ArrowRight size={16} className="transition group-hover:translate-x-1" />
               </Link>
               <a href="#how" className="rounded-xl border border-white/25 px-5 py-3.5 text-[13px] font-bold text-white transition hover:bg-white/10">
                 어떻게 연결되나요?
@@ -225,7 +228,7 @@ export default function Home() {
             href={loggedIn ? "/dashboard" : "/signup"}
             className="group flex shrink-0 items-center gap-3 rounded-xl bg-white px-5 py-3.5 text-[13px] font-extrabold text-[#2457d6] transition hover:-translate-y-1"
           >
-            {loggedIn ? "대시보드로 이동" : "무료로 시작하기"} <ArrowRight size={16} className="transition group-hover:translate-x-1" />
+            {loggedIn ? "시작하기" : "무료로 시작하기"} <ArrowRight size={16} className="transition group-hover:translate-x-1" />
           </Link>
         </div>
       </section>

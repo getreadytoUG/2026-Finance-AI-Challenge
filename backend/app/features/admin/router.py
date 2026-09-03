@@ -1,5 +1,7 @@
 import logging
-from datetime import timedelta, timezone
+from collections import Counter
+from datetime import datetime, timedelta, timezone
+from typing import get_args
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -9,11 +11,16 @@ from app.auth.router import require_admin
 from app.core.db import get_db
 from app.features.admin.schemas import (
     AdminCategoryStat,
+    AdminCategoryTag,
+    AdminCodeValuesResponse,
+    AdminMaritalStatusCode,
+    AdminMidCategoryValue,
     AdminOverview,
     AdminPolicyItem,
     AdminPolicyListResponse,
     AdminPolicyStatsResponse,
     AdminRefreshResponse,
+    AdminRegionPrefix,
     AdminSignupTrendPoint,
     AdminSignupTrendResponse,
     AdminStatusStat,
@@ -21,8 +28,12 @@ from app.features.admin.schemas import (
     AdminUserListResponse,
 )
 from app.features.policy_matcher.cache import refresh_policy_cache
-from app.features.policy_matcher.categories import category_tags
-from app.features.policy_matcher.matching import is_likely_template_region_code
+from app.features.policy_matcher.categories import PolicyCategoryTag, category_tags
+from app.features.policy_matcher.matching import (
+    MARITAL_STATUS_LABELS,
+    is_likely_template_region_code,
+    region_names_for_prefix,
+)
 from app.features.policy_matcher.models import CachedPolicy, PolicyRecommendation
 from app.features.policy_matcher.status import STATUS_ORDER, compute_policy_status, today_kst
 
@@ -220,6 +231,68 @@ def list_policies(
         )
     except Exception as e:
         _raise_as_http_500("/admin/policies/list", e)
+
+
+@router.get("/policies/code-values", response_model=AdminCodeValuesResponse)
+def get_code_values(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    # 별도 테이블을 안 두고 매 요청마다 cached_policies를 그대로 집계한다 — 배치가
+    # 갱신할 때마다(또는 "지금 갱신" 수동 트리거 시) 자동으로 최신 상태가 되므로
+    # 이 화면 자체를 위한 갱신 로직이 따로 필요 없다(admin/schemas.py 주석 참고).
+    try:
+        policies = db.query(CachedPolicy).all()
+
+        marital_counts = Counter(p.marital_status for p in policies)
+        marital_status_codes = [
+            AdminMaritalStatusCode(value=value, count=count, label=MARITAL_STATUS_LABELS.get(value))
+            for value, count in sorted(marital_counts.items(), key=lambda kv: -kv[1])
+        ]
+
+        nationwide_region_count = sum(1 for p in policies if not p.region_code)
+        prefix_counts: Counter[str] = Counter()
+        for p in policies:
+            if not p.region_code:
+                continue
+            # 같은 정책 안에 같은 접두사가 여러 번 나와도(예: "11110,11140") 정책
+            # 1건으로만 센다 — set으로 중복 제거 후 접두사별로 1씩 더한다.
+            prefixes = {code.strip()[:2] for code in p.region_code.split(",") if code.strip()}
+            for prefix in prefixes:
+                prefix_counts[prefix] += 1
+        region_prefixes = [
+            AdminRegionPrefix(prefix=prefix, count=count, mapped_region_names=region_names_for_prefix(prefix))
+            for prefix, count in sorted(prefix_counts.items(), key=lambda kv: -kv[1])
+        ]
+
+        known_tags = set(get_args(PolicyCategoryTag))
+        tag_counts: Counter[str] = Counter()
+        for p in policies:
+            for tag in category_tags(p.large_category):
+                tag_counts[tag] += 1
+        large_category_tags = [
+            AdminCategoryTag(value=value, count=count, is_known=value in known_tags)
+            for value, count in sorted(tag_counts.items(), key=lambda kv: -kv[1])
+        ]
+
+        mid_counts = Counter(p.mid_category for p in policies if p.mid_category)
+        mid_categories = [
+            AdminMidCategoryValue(value=value, count=count)
+            for value, count in sorted(mid_counts.items(), key=lambda kv: -kv[1])
+        ]
+
+        return AdminCodeValuesResponse(
+            generated_at=datetime.now(timezone.utc),
+            cache_last_refreshed_at=max((p.refreshed_at for p in policies), default=None),
+            total_policies=len(policies),
+            marital_status_codes=marital_status_codes,
+            nationwide_region_count=nationwide_region_count,
+            region_prefixes=region_prefixes,
+            large_category_tags=large_category_tags,
+            mid_categories=mid_categories,
+        )
+    except Exception as e:
+        _raise_as_http_500("/admin/policies/code-values", e)
 
 
 @router.post("/policies/refresh", response_model=AdminRefreshResponse)

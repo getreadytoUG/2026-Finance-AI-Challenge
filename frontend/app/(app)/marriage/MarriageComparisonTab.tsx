@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronDown, ChevronUp, Heart, Info, Minus, Plus, Sparkles, Users } from "lucide-react";
+import { AlertCircle, ChevronDown, ChevronUp, Heart, Info, Minus, Plus, Sparkles, Users } from "lucide-react";
 import { SectionLabel } from "@/components/DashboardLayout";
 import Pagination from "@/components/Pagination";
 import PolicyDetailLink from "@/components/PolicyDetailLink";
@@ -13,11 +13,17 @@ import {
   type MarriageComparisonOutput,
   type MarriagePolicyItem,
 } from "@/lib/api";
-import { krwToManwon, manwonToKrw } from "@/lib/profileOptions";
+import { REGIONS, krwToManwon, manwonToKrw } from "@/lib/profileOptions";
 
 const PAGE_SIZE = 4;
 
 type BucketKey = "married" | "unmarried" | "both";
+
+function pillClass(active: boolean) {
+  return `rounded-lg px-3.5 py-2 text-[11px] font-extrabold transition ${
+    active ? "bg-[#2457d6] text-white" : "bg-[#eef3f9] text-slate-500 hover:bg-[#e3eaf6]"
+  }`;
+}
 
 function PolicyRow({
   item,
@@ -45,6 +51,12 @@ function PolicyRow({
         </div>
         <p className="mt-2 text-[12px] leading-5 text-slate-500">{item.benefit_description}</p>
         <div className="mt-2 text-[11px] font-semibold text-slate-400">신청 기간 {item.application_period}</div>
+        {item.change_reason && (
+          <div className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-[#f5f8fd] px-2.5 py-1.5 text-[11px] font-bold text-slate-500">
+            <AlertCircle size={12} className="shrink-0 text-[#2457d6]" />
+            {item.change_reason}
+          </div>
+        )}
         <PolicyDetailLink url={item.reference_url} className="mt-2" />
         {reason && (
           <div className="mt-3 rounded-xl bg-[#f7f9fc] p-3 text-[12px] leading-relaxed text-slate-600">
@@ -233,13 +245,14 @@ export default function MarriageComparisonTab() {
             혼인신고 전(미혼)과 후(부부합산소득) 시나리오로 지금 정책 데이터를 두 번 조회해 자격이 달라지는
             정책만 보여줘요. 청약 가점, 대출 금리 데이터는 포함하지 않습니다. &quot;AI로 우선순위 정렬&quot;은
             정책 설명을 AI가 읽고 판단한 추천 순서이며, 실제 심사 결과와 다를 수 있어요.
-            {/* 2026-09-02 QA에서 발견: 원본 API의 혼인상태 코드를 기혼/미혼으로 매핑하지
-                못해(matching.py 참고) 대부분 정책은 소득 변화로만 자격이 갈린다 — 배우자
-                소득을 안 넣으면 두 시나리오가 똑같아 위 두 항목이 항상 0개로 나올 수
-                있다는 걸 미리 알려준다. */}{" "}
-            현재는 소득 조건 변화(배우자 소득 합산)로만 자격 변화가 반영돼요 — 혼인 여부 자체를
-            조건으로 거는 정책은 아직 구분해내지 못해, 배우자 소득을 안 넣으면 두 시나리오가 같게
-            나올 수 있어요.
+            {/* 2026-09-03: 온통청년 공식 혼인상태 코드(mrgSttsCd)를 기혼/미혼 조건으로
+                반영해서(matching.py의 TargetingRule "기혼 전용"/"미혼 전용" 참고), 이제
+                혼인 여부 자체를 조건으로 거는 정책도 반영된다 — 배우자 소득을 안 넣어도
+                그런 정책은 두 시나리오에서 갈릴 수 있다. 다만 실측상(2,750건 중 71건)
+                비중이 작아 여전히 대부분은 소득 합산 여부로 갈린다. */}{" "}
+            정책마다 왜 자격이 달라졌는지(혼인상태 조건 자체인지, 배우자 소득 합산 때문인지)도
+            카드에 표시해요. 다만 혼인 여부를 직접 조건으로 거는 정책은 실제로 많지 않아서
+            (약 2,750건 중 71건), 배우자 소득을 안 넣으면 대부분 두 시나리오가 같게 나올 수 있어요.
           </p>
         </div>
       </div>
@@ -264,15 +277,21 @@ export default function MarriageComparisonTab() {
               className="h-12 rounded-xl border border-slate-200 px-4 text-[13px] font-semibold outline-none focus:border-[#2457d6] focus:ring-4 focus:ring-[#2457d6]/10"
             />
           </label>
-          <label className="grid gap-2 text-[12px] font-extrabold text-slate-700">
+          <div className="grid gap-2 text-[12px] font-extrabold text-slate-700 sm:col-span-2">
             지역
-            <input
-              type="text"
-              value={region}
-              onChange={(e) => setRegion(e.target.value)}
-              className="h-12 rounded-xl border border-slate-200 px-4 text-[13px] font-semibold outline-none focus:border-[#2457d6] focus:ring-4 focus:ring-[#2457d6]/10"
-            />
-          </label>
+            {/* 2026-09-03 사용자 요청으로 자유 텍스트 입력을 REGIONS 목록 선택으로
+                바꿨다 — 목록에 없는 표기("전라도" 등)를 입력하면 matching.region_matches가
+                안전한 쪽으로 fail-open(필터링 없이 통과)해버려서, 지역을 입력해도
+                실제로는 전혀 안 걸러지는 조용한 버그가 있었다(ProfileFieldsForm/
+                AiSearchFilterBar와 동일하게 REGIONS 고정 목록만 고르게 강제한다). */}
+            <div className="flex flex-wrap gap-2">
+              {REGIONS.map((r) => (
+                <button key={r} type="button" className={pillClass(region === r)} onClick={() => setRegion(r)}>
+                  {r}
+                </button>
+              ))}
+            </div>
+          </div>
           <label className="grid gap-2 text-[12px] font-extrabold text-slate-700">
             배우자(예정) 연소득 (만원, 선택)
             <input

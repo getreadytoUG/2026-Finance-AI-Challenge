@@ -138,7 +138,7 @@ export function SiteHeader({
             href={loggedIn ? "/dashboard" : "/signup"}
             className="group flex items-center gap-2 rounded-full bg-[#2457d6] px-4 py-2.5 text-[13px] font-extrabold text-white shadow-[0_8px_18px_rgba(36,87,214,.2)] transition hover:-translate-y-0.5 hover:bg-[#1949c1]"
           >
-            {loggedIn ? "대시보드로 이동" : "내 맞춤 혜택 진단"}
+            {loggedIn ? "시작하기" : "내 맞춤 혜택 진단"}
             <ArrowRight size={14} className="transition group-hover:translate-x-0.5" />
           </Link>
         </nav>
@@ -180,7 +180,7 @@ export function SiteHeader({
               onClick={() => setMobileOpen(false)}
               className="mt-1 rounded-xl bg-[#2457d6] px-3 py-3 text-center text-sm font-extrabold text-white"
             >
-              {loggedIn ? "대시보드로 이동" : "내 맞춤 혜택 진단"}
+              {loggedIn ? "시작하기" : "내 맞춤 혜택 진단"}
             </Link>
           </div>
         </div>

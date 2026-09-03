@@ -87,7 +87,17 @@ def test_run_recommendation_batch_for_user_saves_eligible_policy(db_session):
 
 def test_run_recommendation_batch_for_user_skips_ineligible_policy(db_session):
     user = _make_user(db_session, email="c@example.com")
-    _seed_policy(db_session, policy_key="P002", marital_status="기혼")
+    # "0055001" = 온통청년 공식 mrgSttsCd 기혼 코드(matching.MARITAL_STATUS_LABELS).
+    _seed_policy(db_session, policy_key="P002", marital_status="0055001")
+    created = recommender.run_recommendation_batch_for_user(db_session, user)
+    assert created == 0
+
+
+def test_run_recommendation_batch_for_user_skips_student_only_policy_for_non_student(db_session):
+    # 2026-09-03 사용자 지적("40대인데 국가근로장학금이 뜬다") — 배치 추천도
+    # occupation을 넘겨받아야 재학생 전용 정책을 거른다.
+    user = _make_user(db_session, email="employee@example.com", occupation="employee")
+    _seed_policy(db_session, policy_key="P901", min_age=19, max_age=34, school_code="0049005")
     created = recommender.run_recommendation_batch_for_user(db_session, user)
     assert created == 0
 

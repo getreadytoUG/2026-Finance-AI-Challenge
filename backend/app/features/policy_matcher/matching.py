@@ -1,5 +1,6 @@
-from typing import Literal
+from typing import Callable, Literal
 
+from app.features.policy_matcher.district_codes import DISTRICT_CODES_BY_PROVINCE
 from app.features.policy_matcher.models import CachedPolicy
 from app.features.policy_matcher.schemas import PolicyMatchInput
 
@@ -55,13 +56,67 @@ _REGION_PREFIXES: dict[str, tuple[str, ...]] = {
 }
 
 
+def region_names_for_prefix(prefix: str) -> list[str]:
+    # admin "코드값" 화면(2026-09-03 추가)이 zipCd 접두사별로 REGIONS 중 어디에
+    # 매핑되는지 보여줄 때 쓴다 — REGIONS는 별칭("서울시"/"서울특별시" 등) 없이
+    # 정식 표기 17개만 담고 있어서, 그 각각의 _REGION_PREFIXES 튜플에 이 접두사가
+    # 있는지만 확인하면 별칭 중복 없이 정확히 한 번씩만 나온다.
+    return [name for name in REGIONS if prefix in _REGION_PREFIXES.get(name, ())]
+
+
+# 별칭 -> REGIONS/DISTRICT_CODES_BY_PROVINCE가 쓰는 정식 표기(canonical). 구/군
+# 표는 canonical 이름으로만 키가 잡혀있어서(district_codes.py 참고), "서울특별시
+# 강남구"처럼 별칭으로 들어온 입력도 구 조회 전에 canonical로 정규화해야 한다.
+_PROVINCE_CANONICAL: dict[str, str] = {
+    alias: canonical for canonical, aliases in {
+        "서울": ("서울", "서울시", "서울특별시"),
+        "부산": ("부산", "부산시", "부산광역시"),
+        "대구": ("대구", "대구시", "대구광역시"),
+        "인천": ("인천", "인천시", "인천광역시"),
+        "광주": ("광주", "광주시", "광주광역시"),
+        "대전": ("대전", "대전시", "대전광역시"),
+        "울산": ("울산", "울산시", "울산광역시"),
+        "세종": ("세종", "세종시", "세종특별자치시"),
+        "경기": ("경기", "경기도"),
+        "강원": ("강원", "강원도", "강원특별자치도"),
+        "충북": ("충북", "충청북도"),
+        "충남": ("충남", "충청남도"),
+        "전북": ("전북", "전라북도", "전북특별자치도"),
+        "전남": ("전남", "전라남도"),
+        "경북": ("경북", "경상북도"),
+        "경남": ("경남", "경상남도"),
+        "제주": ("제주", "제주도", "제주특별자치도"),
+    }.items() for alias in aliases
+}
+
+
+def _split_region_input(input_region: str) -> tuple[str, str | None]:
+    """"서울 강남구" -> ("서울", "강남구"), "서울" -> ("서울", None)."""
+    parts = input_region.strip().split(maxsplit=1)
+    if not parts:
+        return "", None
+    if len(parts) == 1:
+        return parts[0], None
+    return parts[0], parts[1].strip() or None
+
+
 def region_matches(policy_region_code: str, input_region: str) -> bool:
-    prefixes = _REGION_PREFIXES.get(input_region.strip())
+    province_input, district_name = _split_region_input(input_region)
+    prefixes = _REGION_PREFIXES.get(province_input)
     if prefixes is None:
-        # 매핑에 없는 표기("서울 강남구" 등)는 잘못 걸러내는 것보다 노출하는 쪽이
-        # 안전하므로 필터링하지 않는다.
+        # 매핑에 없는 시/도 표기는 잘못 걸러내는 것보다 노출하는 쪽이 안전하므로
+        # 필터링하지 않는다.
         return True
     codes = [c.strip() for c in policy_region_code.split(",") if c.strip()]
+    if district_name:
+        # 2026-09-03 추가: 구/군까지 지정된 입력이면 5자리 법정동코드로 더 정밀하게
+        # 매칭한다(district_codes.py 참고). 표에 없는 구/군(광주/전남처럼 아예 표가
+        # 없거나, 오타)이면 시/도 단위로 완화해서 계속 거른다 — 구/군을 못 찾았다고
+        # 필터링을 통째로 포기하지 않는다.
+        canonical = _PROVINCE_CANONICAL.get(province_input)
+        district_code = DISTRICT_CODES_BY_PROVINCE.get(canonical or "", {}).get(district_name)
+        if district_code is not None:
+            return any(code.startswith(district_code) for code in codes)
     return any(code.startswith(prefix) for code in codes for prefix in prefixes)
 
 
@@ -93,48 +148,107 @@ def _distinct_province_count(region_code: str) -> int:
 # 15개를 커버하는 값으로 뭉쳐 있다 — 그 사이(2~14개)는 8건뿐이라 자연스러운
 # 다지역 정책(예: "대구 경북 청년 아카데미" 2개 시도, "고립은둔청년 지원 시범사업"
 # 4개 시도)과 뚜렷이 구분된다. 실제로 "울산 동구 청년의 날 기념행사 운영"처럼
-# 제목은 특정 구 단위인데 zipCd는 이 15개 시도 패턴으로 찍힌 사례를 확인했다 —
-# 진짜 전국 대상 정책은 보통 zipCd를 아예 비워두므로(397건, is_eligible의
-# fail-open으로 이미 통과) 이 패턴은 실제 지역 조건이 아니라 지역 필드를 복붙한
-# 템플릿/기본값일 뿐이다. 나이·소득의 "0/0" sentinel과 같은 부류의 데이터 결함이라
-# has_specific_eligibility_condition과 같은 방식으로 "맞춤 추천"에서만 걸러낸다.
+# 제목은 특정 구 단위인데 zipCd는 이 15개 시도 패턴으로 찍힌 사례를 확인했다.
 _NATIONWIDE_TEMPLATE_PROVINCE_THRESHOLD = 15
+
+# 2026-09-03: 위 "넓은 지역코드" 패턴이 전부 데이터 결함인 건 아니었다 — "햇살론유스"
+# 처럼 서민금융진흥원이 운영하는 진짜 전국 단위 금융 상품도 zipCd에 17개 시도를 다
+# 나열해서 같은 패턴으로 찍힌다(사용자 지적: "햇살론유스가 왜 안 나오지?" — 이
+# 필터에 잘못 걸려서 빠지고 있었다). 온통청년 공식 코드정의서(pvsnInstGroupCd,
+# 제공기관그룹코드)로 실측 교차검증한 결과(2026-09-03, 2,750건 기준):
+#   - (중앙부처, 15개 이상 시도) 300건 — 햇살론유스처럼 진짜 전국 상품
+#   - (지자체,   15개 이상 시도) 120건 — 서산시/의성군처럼 데이터 입력 실수로
+#     보이는 건(같은 정책이 올바른 zipCd로 중복 등록된 사례도 확인됨)
+# 지자체가 등록한 정책이 시/도 대부분을 커버하는 건 있을 수 없는 일에 가깝지만,
+# 중앙부처가 그러는 건 오히려 정상이다 — 그래서 제공기관이 중앙부처(0054001)로
+# 확인된 경우엔 이 필터를 아예 적용하지 않는다. institution_group_code가 아직
+# None/빈 값인 기존 캐시 레코드(마이그레이션 직후, 다음 배치 전)는 예전처럼
+# 안전한 쪽(지자체로 간주해 필터링)으로 취급한다.
+_INSTITUTION_GROUP_CENTRAL = "0054001"
 
 
 def is_likely_template_region_code(policy: CachedPolicy) -> bool:
     if not policy.region_code:
         return False
+    if policy.institution_group_code == _INSTITUTION_GROUP_CENTRAL:
+        return False
     return _distinct_province_count(policy.region_code) >= _NATIONWIDE_TEMPLATE_PROVINCE_THRESHOLD
 
 
-def is_eligible(policy: CachedPolicy, input: PolicyMatchInput) -> bool:
-    if policy.min_age is not None and input.age < policy.min_age:
+# 2026-09-03: 온통청년 공식 "API코드정보.xlsx" 코드정의서(오픈API 소개 페이지의
+# "코드정의서 다운로드" 링크, /downloadform/API코드정보.xlsx)를 직접 받아 확인한
+# mrgSttsCd(결혼상태코드, 코드그룹 0055)의 실제 뜻이다 — 그동안 "기혼"/"미혼"이라는
+# 사람이 읽는 문자열과 비교하고 있었는데, 실제 저장되는 값은 이 코드였다(아래 참고).
+# 라이브 조회(2026-09-03, 2,750건)로 세 값 다 실제로 쓰이는 걸 확인했다:
+#   0055001 기혼    48건
+#   0055002 미혼    23건
+#   0055003 제한없음 2,677건 (그 외 나머지 정책은 이 필드가 빈 문자열)
+MARITAL_STATUS_CODE_MARRIED = "0055001"
+MARITAL_STATUS_CODE_UNMARRIED = "0055002"
+MARITAL_STATUS_CODE_UNRESTRICTED = "0055003"
+MARITAL_STATUS_LABELS: dict[str, str] = {
+    MARITAL_STATUS_CODE_MARRIED: "기혼",
+    MARITAL_STATUS_CODE_UNMARRIED: "미혼",
+    MARITAL_STATUS_CODE_UNRESTRICTED: "제한없음",
+}
+
+
+def is_married_only_policy(policy: CachedPolicy) -> bool:
+    return policy.marital_status == MARITAL_STATUS_CODE_MARRIED
+
+
+def is_unmarried_only_policy(policy: CachedPolicy) -> bool:
+    return policy.marital_status == MARITAL_STATUS_CODE_UNMARRIED
+
+
+# is_eligible()과 policy_chat/tool.py의 _matches()가 나이/소득 조건을 똑같이 비교하는
+# 코드를 각자 복붙해 갖고 있었다(사용자 지적, 2026-09-03 "필터링이 다 꼬여있다") —
+# 여기로 합쳐서 두 곳이 항상 같은 로직을 쓰게 한다. 두 호출부의 차이는 "값이
+# 없을 때 어떻게 하느냐"뿐이라 그것만 파라미터(age/annual_income_krw를 Optional로)로
+# 흡수한다: is_eligible은 항상 값이 있는 PolicyMatchInput을 넘기고, _matches는
+# 대화에서 아직 언급 안 된 조건에 None을 넘겨 "그 조건은 안 본다"는 뜻으로 쓴다.
+def age_matches(policy: CachedPolicy, age: int | None) -> bool:
+    if age is None:
+        return True
+    if policy.min_age is not None and age < policy.min_age:
         return False
-    if policy.max_age is not None and input.age > policy.max_age:
+    if policy.max_age is not None and age > policy.max_age:
         return False
-    # marital_status는 youth_center_client가 원본 코드값(예: "0055003")을 그대로 담는다
-    # — 온통청년 공통코드 표를 확보하지 못해 "기혼"/"미혼" 문자열과는 매치되지 않는다.
-    if policy.marital_status == "기혼" and not input.is_married:
-        return False
-    if policy.marital_status == "미혼" and input.is_married:
-        return False
+    return True
+
+
+def income_matches(
+    policy: CachedPolicy, annual_income_krw: int | None, spouse_annual_income_krw: int | None = None
+) -> bool:
+    if annual_income_krw is None:
+        return True
     # 소득 요건은 개인이 아니라 가구소득 기준인 정책이 많으므로, 배우자 소득이
     # 있으면 합산한 가구소득으로 심사한다.
-    household_income = input.annual_income_krw + (input.spouse_annual_income_krw or 0)
+    household_income = annual_income_krw + (spouse_annual_income_krw or 0)
     if policy.min_income_krw is not None and household_income < policy.min_income_krw:
         return False
     if policy.max_income_krw is not None and household_income > policy.max_income_krw:
         return False
+    return True
+
+
+def is_eligible(policy: CachedPolicy, input: PolicyMatchInput) -> bool:
+    # 나이/소득/지역은 "범위" 또는 "접두사 매칭"이라 코드값 하나로 비교하는
+    # TARGETING_RULES와 성격이 달라 여기서 직접 처리한다. 나머지 "이 정책은
+    # 특정 대상군 전용이다" 조건들은 전부 TARGETING_RULES 표 하나로 처리된다 —
+    # 2026-09-03 이전엔 조건이 늘어날 때마다(혼인/장애/보훈/재학생...) 여기에
+    # `if X(policy) and Y: return False` 한 줄씩 계속 덧붙이는 식이었다. 새 대상군
+    # 조건이 생기면 이 함수를 고칠 필요 없이 TARGETING_RULES에 한 줄만 추가하면 된다.
+    if not age_matches(policy, input.age):
+        return False
+    if not income_matches(policy, input.annual_income_krw, input.spouse_annual_income_krw):
+        return False
     if policy.region_code:
         if not input.region or not region_matches(policy.region_code, input.region):
             return False
-    # 장애인/국가보훈대상자 전용 정책은 명시적으로 "아님"(False)이라고 답한 사용자
-    # 에게만 걸러낸다 — 값을 아직 입력하지 않은 기존 유저(None)는 다른 확장
-    # 필드들과 동일하게 fail-open으로 계속 노출한다(하위 호환).
-    if is_disability_targeted_policy(policy) and input.has_disability is False:
-        return False
-    if is_veteran_targeted_policy(policy) and input.is_veteran is False:
-        return False
+    for rule in TARGETING_RULES:
+        if rule.applies_to(policy) and rule.user_satisfies(input) is False:
+            return False
     return True
 
 
@@ -143,9 +257,9 @@ def is_eligible(policy: CachedPolicy, input: PolicyMatchInput) -> bool:
 #   - plcyKywdNm(정책 키워드명)은 대출/주거지원/보조금 같은 "혜택 종류" 태그이지
 #     대상(신혼부부 등) 태그가 아니다. "신혼부부"가 들어간 정책 69건 중 이 필드에
 #     "신혼부부"가 찍힌 건 0건.
-#   - mrgSttsCd(혼인상태코드)는 전체 정책의 97%(2,655/2,728)가 "0055003" 하나로
-#     쏠려 있고 그 안엔 국가근로장학금처럼 혼인과 무관한 정책도 섞여 있다 — "제한
-#     없음" sentinel일 뿐 혼인상태 분류값이 아니다(위 is_eligible 주석 참고).
+#   - mrgSttsCd(혼인상태코드)는 기혼/미혼 둘로만 나뉘고(위 MARITAL_STATUS_LABELS
+#     참고) "신혼부부"라는 별도 값이 없다 — 대부분(97%)은 "제한없음"이라 국가근로
+#     장학금처럼 혼인과 무관한 정책도 여기 섞여 있다.
 # 그래서 정책명/설명 텍스트에 신혼부부 관련 키워드가 들어있는지로 판별한다. "결혼"
 # 단독 키워드는 오탐이 많아(미혼남녀 만남 프로그램, 결혼이민여성 취업지원 등) 뺐다.
 # CachedPolicy는 배치가 주기적으로 갱신하므로, 새 정책이 캐시에 들어오면 이름/설명에
@@ -188,6 +302,127 @@ def is_veteran_targeted_policy(policy: CachedPolicy) -> bool:
     if "일반" in policy.policy_name:
         return False
     return any(keyword in policy.policy_name for keyword in VETERAN_KEYWORDS)
+
+
+# 2026-09-03: 온통청년 공식 코드정의서(schoolCd, 정책학력요건코드 그룹 0049)로
+# "재학/입학예정" 상태를 나타내는 코드만 골랐다 — 고교 졸업/대학 졸업/석·박사처럼
+# "이미 마친 학력"을 나타내는 코드는 뺐다. 이미 졸업한 사람도 그 학력을 갖고
+# 있을 수 있어서(예: 대졸 직장인), 졸업 여부까지 "재학생 전용"으로 걸러버리면
+# 오탐이 생긴다 — 반면 "재학 중"이라는 건 지금 학생 신분이 아니면 명백히 해당이
+# 안 되므로 안전하게 거를 수 있다.
+#   0049002 고교 재학, 0049003 고졸 예정, 0049005 대학 재학, 0049006 대졸 예정
+STUDENT_ENROLLMENT_CODES = frozenset({"0049002", "0049003", "0049005", "0049006"})
+SCHOOL_CODE_UNRESTRICTED = "0049010"
+
+
+def _codes_of(value: str) -> set[str]:
+    return {c.strip() for c in value.split(",") if c.strip()}
+
+
+def _has_targeting_code(value: str, target_codes: frozenset[str], unrestricted_code: str) -> bool:
+    """콤마 구분 코드 문자열에 대상 코드가 있고, "제한없음" 코드는 없는지 —
+    schoolCd/jobCd/sbizCd 셋 다 이 모양(구체적 코드 여러 개 + 제한없음 sentinel
+    하나)이라 공통으로 뺐다."""
+    if not value:
+        return False
+    codes = _codes_of(value)
+    if unrestricted_code in codes:
+        return False
+    return bool(codes & target_codes)
+
+
+def is_student_only_policy(policy: CachedPolicy) -> bool:
+    return _has_targeting_code(policy.school_code, STUDENT_ENROLLMENT_CODES, SCHOOL_CODE_UNRESTRICTED)
+
+
+# 2026-09-03: jobCd(정책취업요건코드, 코드그룹 0013) — 실측(2,750건) 분포상
+# 0013010(제한없음) 2,061건이 압도적이고, 그다음이 재직자(93)/미취업자(288)/
+# (예비)창업자(97) 순이다. occupation(User 프로필)과 신뢰도 있게 대응되는 코드만
+# 규칙으로 등록한다 — 프리랜서/일용근로자/단기근로자/영농종사자(0013004/0005/
+# 0007/0008)는 occupation Literal에 대응 값이 아예 없어서(자영업자로 뭉뚱그리면
+# 오탐 위험) 규칙을 안 만들고 그냥 fail-open으로 둔다.
+JOB_CODE_UNRESTRICTED = "0013010"
+JOB_CODE_EMPLOYEE = frozenset({"0013001"})  # 재직자
+JOB_CODE_SELF_EMPLOYED = frozenset({"0013002", "0013006"})  # 자영업자, (예비)창업자
+JOB_CODE_UNEMPLOYED = frozenset({"0013003"})  # 미취업자
+
+
+def is_employee_only_policy(policy: CachedPolicy) -> bool:
+    return _has_targeting_code(policy.job_code, JOB_CODE_EMPLOYEE, JOB_CODE_UNRESTRICTED)
+
+
+def is_self_employed_only_policy(policy: CachedPolicy) -> bool:
+    return _has_targeting_code(policy.job_code, JOB_CODE_SELF_EMPLOYED, JOB_CODE_UNRESTRICTED)
+
+
+def is_unemployed_only_policy(policy: CachedPolicy) -> bool:
+    return _has_targeting_code(policy.job_code, JOB_CODE_UNEMPLOYED, JOB_CODE_UNRESTRICTED)
+
+
+# 2026-09-03 사용자 지적("중소기업 다닌다고 해도 관련 없는 정책 뜬다"): sbizCd
+# (정책특화요건코드, 코드그룹 0014)의 중소기업 재직 전용(0014001)을 User.is_sme_employee
+# (2026-09-01 UPGRADE.md 확장 프로필 필드, 이미 있던 값을 재사용)로 거른다. 같은
+# 코드그룹의 장애인(0014005)은 이번엔 손 안 댄다 — 실측상 채워진 비율이 낮아서
+# (5~6건) 정책명 키워드 판별을 대체하기엔 부족하고, 사용자도 "키워드 매칭은
+# 어쩔 수 없다"고 확인했다(is_disability_targeted_policy 그대로 유지).
+SBIZ_CODE_UNRESTRICTED = "0014010"
+SBIZ_CODE_SME = frozenset({"0014001"})
+
+
+def is_sme_only_policy(policy: CachedPolicy) -> bool:
+    return _has_targeting_code(policy.sbiz_code, SBIZ_CODE_SME, SBIZ_CODE_UNRESTRICTED)
+
+
+# ---------------------------------------------------------------------------
+# 2026-09-03 리팩터: "이 정책은 특정 대상군 전용이다" 판정을 전부 이 표 하나로
+# 모았다. 예전엔 새 대상군 조건(혼인/장애/보훈/재학생...)이 생길 때마다
+# is_eligible() 본문에 `if X(policy) and Y: return False` 한 줄씩 계속
+# 덧붙이는 식이었다(사용자 지적: "함수 하나로 퉁칠 수 있는데 왜 자꾸 예외
+# 케이스를 하나씩 고치냐"). 지금은 다음 두 개만 정의하면 새 규칙 하나가 끝난다:
+#   - applies_to(policy): 이 정책이 그 대상군 "전용"인지 (코드값 또는 키워드 기반)
+#   - user_satisfies(input): 유저가 그 조건을 만족하는지
+#     True=만족(통과) / False=명시적으로 불만족(제외) / None=아직 모름(fail-open, 통과)
+# is_eligible()은 이 표를 순회만 할 뿐 대상군 종류를 하나도 모른다 — 새 규칙을
+# 추가해도 is_eligible() 자체는 손댈 필요가 없다.
+class TargetingRule:
+    def __init__(
+        self,
+        label: str,
+        applies_to: Callable[[CachedPolicy], bool],
+        user_satisfies: Callable[[PolicyMatchInput], bool | None],
+    ) -> None:
+        self.label = label
+        self.applies_to = applies_to
+        self.user_satisfies = user_satisfies
+
+
+TARGETING_RULES: list[TargetingRule] = [
+    TargetingRule("기혼 전용", is_married_only_policy, lambda i: i.is_married),
+    TargetingRule("미혼 전용", is_unmarried_only_policy, lambda i: not i.is_married),
+    TargetingRule("장애인 전용", is_disability_targeted_policy, lambda i: i.has_disability),
+    TargetingRule("국가보훈대상자 전용", is_veteran_targeted_policy, lambda i: i.is_veteran),
+    TargetingRule(
+        "재학생 전용",
+        is_student_only_policy,
+        lambda i: None if i.occupation is None else i.occupation == "student",
+    ),
+    TargetingRule(
+        "재직자 전용",
+        is_employee_only_policy,
+        lambda i: None if i.occupation is None else i.occupation == "employee",
+    ),
+    TargetingRule(
+        "자영업자·(예비)창업자 전용",
+        is_self_employed_only_policy,
+        lambda i: None if i.occupation is None else i.occupation == "self_employed",
+    ),
+    TargetingRule(
+        "미취업자 전용",
+        is_unemployed_only_policy,
+        lambda i: None if i.occupation is None else i.occupation == "unemployed",
+    ),
+    TargetingRule("중소기업 재직 전용", is_sme_only_policy, lambda i: i.is_sme_employee),
+]
 
 
 # 2026-09-02 추가: 저축플랜 시뮬레이터가 "청년도약계좌" 하나로 고정된 예시 대신,
