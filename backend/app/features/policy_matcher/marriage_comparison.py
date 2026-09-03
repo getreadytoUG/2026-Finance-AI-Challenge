@@ -4,6 +4,7 @@ from app.features.policy_matcher.categories import FINANCIAL_LARGE_CATEGORY, cat
 from app.features.policy_matcher.matching import (
     has_specific_eligibility_condition,
     is_eligible,
+    is_likely_template_region_code,
     is_newlywed_policy,
 )
 from app.features.policy_matcher.models import CachedPolicy
@@ -62,21 +63,19 @@ def compare_marriage_scenarios(
     # 변화"를 보여주는 것이므로, 아무나 통과하는 더미 레코드나 이미 만료돼 신청
     # 불가능한 정책은 애초에 후보에서 제외한다.
     #
-    # recommender.py의 is_likely_template_region_code는 **여기서는 재사용하지
-    # 않는다** — 2026-09-02 실측: 서울 거주 유저로 실제 계산해보면 결과가 항상
-    # 0건이었는데, 원인이 이 필터였다. "경계선지능청년지원"/"햇살론유스" 같은 실제
-    # 전국 단위 금융 정책들이 zipCd를 비워두는 대신 전국 시군구 코드를 전부
-    # 나열하는 방식으로 표현돼 있어(16개 시도 이상 커버) 이 임계치에 걸려버렸다 —
-    # 추천 배치(recommender.py)에서는 "더미/템플릿 데이터로 추천 알림이 도배되는
-    # 것"을 막는 게 우선이라 이 필터가 맞지만, 사용자가 자기 지역을 직접 넣고
-    # "그 지역에서 실제로 뭘 받을 수 있는지" 확인하는 이 계산기에서는 정반대로
-    # 작동해 진짜 받을 수 있는 정책까지 통째로 사라지는 문제가 됐다.
+    # is_likely_template_region_code: 2026-09-02엔 여기 재사용하면 "햇살론유스"
+    # 같은 진짜 전국 단위 금융 정책까지 걸려서 결과가 항상 0건이 되는 문제가 있어
+    # 일부러 뺐었다. 2026-09-03에 이 함수 자체를 고쳤다 — 제공기관그룹코드
+    # (institution_group_code)로 중앙부처 상품은 애초에 걸지 않도록 구분했으므로
+    # (matching.py 주석 참고), 이제 다시 재사용해도 안전하다 — 서산시/의성군처럼
+    # 지자체가 지역코드를 잘못 전체로 찍은 진짜 데이터 결함만 걸러진다.
     candidates = [
         p
         for p in policies
         if FINANCIAL_LARGE_CATEGORY in category_tags(p.large_category)
         and compute_policy_status(p.apply_start_ymd, p.apply_end_ymd, today)[0] != "만료"
         and has_specific_eligibility_condition(p)
+        and not is_likely_template_region_code(p)
     ]
 
     unmarried_eligible = {p.policy_key: p for p in candidates if is_eligible(p, unmarried_input)}

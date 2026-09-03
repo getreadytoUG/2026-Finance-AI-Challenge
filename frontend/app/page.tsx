@@ -26,7 +26,10 @@ import { isTokenExpired } from "@/lib/api";
 // 연결돼 실제로는 카테고리별 구분 기능이 없었다 — 사용자 요청으로 섹션 자체를 제거.)
 const FEATURE_CARDS = [
   {
-    title: "금융 정책 추천",
+    // 2026-09-03: /policy가 "금융･복지･문화" 대분류로만 좁혔을 땐 이 이름이
+    // 맞았는데, 이제 전 분야를 다 보여주도록 바뀌어서 "금융"이라고 하면 범위를
+    // 오해하게 된다(사용자 요청으로 카테고리 제한을 없앰, tool.py 참고).
+    title: "맞춤 정책 추천",
     detail: "내 조건에 맞는 정책만 모아봐요.",
     icon: WalletCards,
     loggedInPath: "/policy",

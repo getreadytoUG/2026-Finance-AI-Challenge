@@ -101,16 +101,29 @@ def _distinct_province_count(region_code: str) -> int:
 # 15개를 커버하는 값으로 뭉쳐 있다 — 그 사이(2~14개)는 8건뿐이라 자연스러운
 # 다지역 정책(예: "대구 경북 청년 아카데미" 2개 시도, "고립은둔청년 지원 시범사업"
 # 4개 시도)과 뚜렷이 구분된다. 실제로 "울산 동구 청년의 날 기념행사 운영"처럼
-# 제목은 특정 구 단위인데 zipCd는 이 15개 시도 패턴으로 찍힌 사례를 확인했다 —
-# 진짜 전국 대상 정책은 보통 zipCd를 아예 비워두므로(397건, is_eligible의
-# fail-open으로 이미 통과) 이 패턴은 실제 지역 조건이 아니라 지역 필드를 복붙한
-# 템플릿/기본값일 뿐이다. 나이·소득의 "0/0" sentinel과 같은 부류의 데이터 결함이라
-# has_specific_eligibility_condition과 같은 방식으로 "맞춤 추천"에서만 걸러낸다.
+# 제목은 특정 구 단위인데 zipCd는 이 15개 시도 패턴으로 찍힌 사례를 확인했다.
 _NATIONWIDE_TEMPLATE_PROVINCE_THRESHOLD = 15
+
+# 2026-09-03: 위 "넓은 지역코드" 패턴이 전부 데이터 결함인 건 아니었다 — "햇살론유스"
+# 처럼 서민금융진흥원이 운영하는 진짜 전국 단위 금융 상품도 zipCd에 17개 시도를 다
+# 나열해서 같은 패턴으로 찍힌다(사용자 지적: "햇살론유스가 왜 안 나오지?" — 이
+# 필터에 잘못 걸려서 빠지고 있었다). 온통청년 공식 코드정의서(pvsnInstGroupCd,
+# 제공기관그룹코드)로 실측 교차검증한 결과(2026-09-03, 2,750건 기준):
+#   - (중앙부처, 15개 이상 시도) 300건 — 햇살론유스처럼 진짜 전국 상품
+#   - (지자체,   15개 이상 시도) 120건 — 서산시/의성군처럼 데이터 입력 실수로
+#     보이는 건(같은 정책이 올바른 zipCd로 중복 등록된 사례도 확인됨)
+# 지자체가 등록한 정책이 시/도 대부분을 커버하는 건 있을 수 없는 일에 가깝지만,
+# 중앙부처가 그러는 건 오히려 정상이다 — 그래서 제공기관이 중앙부처(0054001)로
+# 확인된 경우엔 이 필터를 아예 적용하지 않는다. institution_group_code가 아직
+# None/빈 값인 기존 캐시 레코드(마이그레이션 직후, 다음 배치 전)는 예전처럼
+# 안전한 쪽(지자체로 간주해 필터링)으로 취급한다.
+_INSTITUTION_GROUP_CENTRAL = "0054001"
 
 
 def is_likely_template_region_code(policy: CachedPolicy) -> bool:
     if not policy.region_code:
+        return False
+    if policy.institution_group_code == _INSTITUTION_GROUP_CENTRAL:
         return False
     return _distinct_province_count(policy.region_code) >= _NATIONWIDE_TEMPLATE_PROVINCE_THRESHOLD
 

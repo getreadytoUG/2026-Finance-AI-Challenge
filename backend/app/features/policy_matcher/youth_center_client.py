@@ -25,6 +25,9 @@ class RawYouthPolicy(BaseModel):
     mid_category: str = ""
     apply_start_ymd: str | None = None
     apply_end_ymd: str | None = None
+    # 2026-09-03 추가: pvsnInstGroupCd(제공기관그룹코드) — matching.py의
+    # is_likely_template_region_code 주석 참고.
+    institution_group_code: str = ""
 
 
 def fetch_policies(page_num: int = 1, page_size: int = 100) -> list[RawYouthPolicy]:
@@ -74,6 +77,7 @@ def _parse_youth_policy_json(payload: dict) -> list[RawYouthPolicy]:
                 mid_category=item.get("mclsfNm") or "",
                 apply_start_ymd=apply_start_ymd,
                 apply_end_ymd=apply_end_ymd,
+                institution_group_code=item.get("pvsnInstGroupCd") or "",
             )
         )
     return policies

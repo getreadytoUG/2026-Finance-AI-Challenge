@@ -22,12 +22,19 @@ zipCd 뒷자리(구/군 법정동코드)까지 매핑하는 표를 만들어야 
 
 (혼인상태 필터는 2026-09-03에 해결됨 — 온통청년 오픈API 소개 페이지의 "코드정의서
 다운로드"(`/downloadform/API코드정보.xlsx`)에서 실제 `mrgSttsCd` 코드값 매핑을
-확보해 `matching.MARITAL_STATUS_LABELS`로 반영했다. 같은 파일에 `sbizCd`
-(정책특화요건코드, `0014005`=장애인 포함)/`jobCd`/`schoolCd`/`plcyMajorCd`/
-`earnCndSeCd`/`aplyPrdSeCd`/`bizPrdSeCd` 공통코드도 있는데 아직 캐시에 안 담고
-있다 — 특히 `sbizCd`의 `0014005`(장애인)는 지금 정책명 키워드로만 판별하는
-`is_disability_targeted_policy()`를 보완할 수 있는 실제 구조화 필드라 다음
-후보로 남겨둔다. `md_files/DB.md` 부록에 전체 코드표를 옮겨뒀다.)
+확보해 `matching.MARITAL_STATUS_LABELS`로 반영했다. 같은 날, "지역코드에 17개
+시/도가 다 나열된 레코드"(`is_likely_template_region_code`) 판별도 같은 코드정의서의
+`pvsnInstGroupCd`(제공기관그룹코드)를 캐시에 새로 담아 고쳤다 — 지자체가 그러면
+데이터 실수(의성/서산 사례), 중앙부처가 그러면 "햇살론유스"처럼 정상적인 전국
+상품이라는 걸 구분한다(전에는 이 구분이 없어서 햇살론유스 등 300여 건이 잘못
+걸러지고 있었다). `policy_matcher/tool.py`("내 맞춤 정책 보기")도 이제 "금융･복지･
+문화" 대분류로 안 좁히고 전 분야를 보여준다.
+같은 코드정의서에 `sbizCd`(정책특화요건코드, `0014005`=장애인 포함)/`jobCd`/
+`schoolCd`/`plcyMajorCd`/`earnCndSeCd`/`aplyPrdSeCd`/`bizPrdSeCd` 공통코드도
+있는데 아직 캐시에 안 담고 있다 — 특히 `sbizCd`의 `0014005`(장애인)는 지금
+정책명 키워드로만 판별하는 `is_disability_targeted_policy()`를 보완할 수 있는
+실제 구조화 필드라 다음 후보로 남겨둔다. `md_files/DB.md` 부록에 전체 코드표를
+옮겨뒀다.)
 
 ### 3. `subscription_report` / `card_spending_report`가 완전히 가짜 데이터
 

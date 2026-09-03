@@ -20,7 +20,8 @@ logger = logging.getLogger(__name__)
 
 def ensure_schema(engine: Engine) -> None:
     inspector = inspect(engine)
-    if "users" not in inspector.get_table_names():
+    table_names = inspector.get_table_names()
+    if "users" not in table_names:
         return  # 완전히 새 DB — create_all()이 최신 스키마로 만든다.
 
     columns = {col["name"]: col for col in inspector.get_columns("users")}
@@ -64,6 +65,15 @@ def ensure_schema(engine: Engine) -> None:
     for column, col_type in extended_profile_columns.items():
         if column not in columns:
             ddl.append(f"ALTER TABLE users ADD COLUMN {column} {col_type}")
+
+    # --- 2026-09-03 추가: cached_policies.institution_group_code (matching.py
+    # is_likely_template_region_code 주석 참고) ---
+    if "cached_policies" in table_names:
+        policy_columns = {col["name"] for col in inspector.get_columns("cached_policies")}
+        if "institution_group_code" not in policy_columns:
+            ddl.append(
+                "ALTER TABLE cached_policies ADD COLUMN institution_group_code VARCHAR NOT NULL DEFAULT ''"
+            )
 
     if not ddl:
         return

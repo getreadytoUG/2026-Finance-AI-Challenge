@@ -73,6 +73,16 @@ def test_run_excludes_policy_with_template_region_code(db_session):
     assert result.options == []
 
 
+def test_run_includes_wide_region_policy_when_institution_is_central_government(db_session):
+    # 2026-09-03 사용자 지적: "햇살론유스가 왜 안 나오지?" — 서민금융진흥원(중앙부처)이
+    # 운영하는 진짜 전국 상품인데도 zipCd가 17개 시도를 다 나열한 형태라 위 필터에
+    # 잘못 걸려 빠지고 있었다. 제공기관그룹코드가 중앙부처(0054001)로 확인되면
+    # 걸러지지 않아야 한다(matching.py 주석 참고).
+    _seed_policy(db_session, policy_name="햇살론유스", region_code=_15_PROVINCE_CODES, institution_group_code="0054001")
+    result = run(PolicyMatchInput(age=29, is_married=False, annual_income_krw=40_000_000, region="서울"), _ctx(db_session))
+    assert [o.policy_name for o in result.options] == ["햇살론유스"]
+
+
 def test_run_requires_marriage_when_policy_restricts_to_married(db_session):
     # "0055001" = 온통청년 공식 mrgSttsCd 기혼 코드(matching.MARITAL_STATUS_LABELS).
     _seed_policy(db_session, marital_status="0055001")
@@ -120,17 +130,13 @@ def test_run_excludes_ineligible_policies_entirely(db_session):
     assert names == ["적격 정책"]
 
 
-def test_run_excludes_non_financial_policy_even_if_eligible(db_session):
+def test_run_includes_non_financial_policy_when_eligible(db_session):
+    # 2026-09-03 사용자 요청: "내 맞춤 정책 보기"가 예전엔 "금융･복지･문화"
+    # 대분류로만 좁혔었는데(그러다 보니 실제 조건으로는 0건이 나오는 경우가 잦았다),
+    # 이제 전 분야를 다 보여준다 — "정책 전체 보기"와 동일한 범위.
     _seed_policy(db_session, policy_name="일자리 정책", large_category="일자리")
     result = run(PolicyMatchInput(age=29, is_married=False, annual_income_krw=40_000_000, region="서울"), _ctx(db_session))
-    assert result.options == []
-
-
-def test_run_includes_financial_policy_tagged_with_multiple_large_categories(db_session):
-    _seed_policy(db_session, policy_name="복합 태그 정책", large_category=f"일자리,{FINANCIAL_LARGE_CATEGORY}")
-    result = run(PolicyMatchInput(age=29, is_married=False, annual_income_krw=40_000_000, region="서울"), _ctx(db_session))
-    assert len(result.options) == 1
-    assert result.options[0].policy_name == "복합 태그 정책"
+    assert [o.policy_name for o in result.options] == ["일자리 정책"]
 
 
 def test_run_sorts_newlywed_policies_first_when_married(db_session):

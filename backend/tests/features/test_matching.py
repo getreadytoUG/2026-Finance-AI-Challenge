@@ -135,6 +135,22 @@ def test_is_likely_template_region_code_is_true_when_15_or_more_provinces_are_co
     assert is_likely_template_region_code(_policy(region_code=_15_PROVINCE_CODES)) is True
 
 
+def test_is_likely_template_region_code_is_false_when_institution_is_central_government():
+    # 2026-09-03: 온통청년 공식 코드정의서의 pvsnInstGroupCd(제공기관그룹코드)로
+    # 교차검증한 결과 — 지자체(0054002)가 15개 이상 시도를 커버하면 데이터 실수일
+    # 확률이 높지만, 중앙부처(0054001)가 그러는 건 "햇살론유스"처럼 정상적인 전국
+    # 상품이다. 중앙부처로 확인되면 이 필터를 적용하지 않는다.
+    central = _policy(region_code=_15_PROVINCE_CODES, institution_group_code="0054001")
+    assert is_likely_template_region_code(central) is False
+
+
+def test_is_likely_template_region_code_still_true_for_unknown_institution_group():
+    # institution_group_code가 빈 값(기존 캐시 마이그레이션 직후 등)이면 안전한
+    # 쪽(지자체로 간주)으로 기존 동작을 유지한다.
+    unknown = _policy(region_code=_15_PROVINCE_CODES, institution_group_code="")
+    assert is_likely_template_region_code(unknown) is True
+
+
 def test_is_newlywed_policy_matches_keyword_in_name_or_description():
     assert is_newlywed_policy(_policy(policy_name="신혼부부 전세자금 대출이자 지원")) is True
     assert is_newlywed_policy(_policy(description="예비·신혼부부 대상 건강검진 지원")) is True

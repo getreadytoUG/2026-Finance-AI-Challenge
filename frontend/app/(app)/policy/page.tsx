@@ -139,7 +139,7 @@ export default function PolicyPage() {
       {!loading &&
         result &&
         (result.options.length === 0 ? (
-          <p className="text-[13px] font-bold text-slate-400">지금 신청 가능한 금융 정책을 찾지 못했습니다.</p>
+          <p className="text-[13px] font-bold text-slate-400">지금 신청 가능한 정책을 찾지 못했습니다.</p>
         ) : (
           <>
             <div className="grid gap-3">

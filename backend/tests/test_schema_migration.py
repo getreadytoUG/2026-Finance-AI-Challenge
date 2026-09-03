@@ -72,6 +72,46 @@ def test_noop_when_users_table_absent():
     ensure_schema(engine)  # 예외 없이 그냥 리턴
 
 
+def _legacy_cached_policies_engine():
+    """institution_group_code 컬럼이 없던 시절의 users+cached_policies 테이블을 흉내낸 엔진."""
+    engine = _legacy_users_engine()
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "CREATE TABLE cached_policies ("
+                " id INTEGER PRIMARY KEY,"
+                " policy_key VARCHAR,"
+                " region_code VARCHAR"
+                ")"
+            )
+        )
+    return engine
+
+
+def test_adds_institution_group_code_to_cached_policies():
+    engine = _legacy_cached_policies_engine()
+    ensure_schema(engine)
+    columns = {c["name"] for c in inspect(engine).get_columns("cached_policies")}
+    assert "institution_group_code" in columns
+
+
+def test_backfills_institution_group_code_default_for_existing_rows():
+    engine = _legacy_cached_policies_engine()
+    with engine.begin() as conn:
+        conn.execute(text("INSERT INTO cached_policies (policy_key, region_code) VALUES ('P1', '11110')"))
+    ensure_schema(engine)
+    with engine.connect() as conn:
+        value = conn.execute(
+            text("SELECT institution_group_code FROM cached_policies WHERE policy_key='P1'")
+        ).scalar_one()
+    assert value == ""
+
+
+def test_noop_when_cached_policies_table_absent():
+    engine = _legacy_users_engine()  # cached_policies 없이 users만 있는 엔진
+    ensure_schema(engine)  # 예외 없이 그냥 넘어가야 한다
+
+
 def test_adds_extended_profile_columns():
     engine = _legacy_users_engine()
     ensure_schema(engine)

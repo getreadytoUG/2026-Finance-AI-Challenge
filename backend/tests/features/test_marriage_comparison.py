@@ -98,18 +98,27 @@ def test_policy_without_specific_condition_is_excluded_entirely():
     assert result.married_only == result.unmarried_only == result.both == []
 
 
-def test_template_region_policy_is_not_excluded_here_unlike_recommender():
-    # recommender.py(추천 배치)는 is_likely_template_region_code로 이런 정책을
-    # 걸러내지만, 여기(혼인신고 계산기)는 일부러 그 필터를 재사용하지 않는다 —
-    # 2026-09-02 실측: "경계선지능청년지원"처럼 실제 전국 단위 금융 정책이 zipCd를
-    # 비워두는 대신 전국 시군구를 전부 나열하는 방식이라, 이 필터를 쓰면 서울 등
-    # 실제 거주 지역으로 계산했을 때 결과가 통째로 0건이 되는 문제가 있었다
-    # (marriage_comparison.py 주석 참고).
-    fifteen_provinces = ",".join(
-        f"{p}110"
-        for p in ("11", "26", "27", "28", "29", "30", "31", "36", "41", "51", "43", "44", "52", "46", "47")
-    )
-    policy = _policy(region_code=fifteen_provinces, max_income_krw=100_000_000)
+_15_PROVINCE_CODES = ",".join(
+    f"{p}110" for p in ("11", "26", "27", "28", "29", "30", "31", "36", "41", "51", "43", "44", "52", "46", "47")
+)
+
+
+def test_template_region_policy_from_local_government_is_excluded():
+    # 2026-09-02엔 여기서 is_likely_template_region_code를 일부러 안 썼다 —
+    # "햇살론유스"처럼 실제 전국 단위 금융 정책까지 걸려서 결과가 통째로 0건이
+    # 되는 문제가 있었기 때문. 2026-09-03에 그 함수 자체가 제공기관그룹코드로
+    # 중앙부처/지자체를 구분하도록 고쳐져서(matching.py 주석 참고), 이제 여기서도
+    # 안전하게 재사용한다 — 지자체(또는 institution_group_code 미상)가 15개 이상
+    # 시도를 커버하면 여전히 데이터 결함으로 보고 제외한다.
+    policy = _policy(region_code=_15_PROVINCE_CODES, max_income_krw=100_000_000)
+    result = _compare([policy], _input())
+    assert result.both == result.married_only == result.unmarried_only == []
+
+
+def test_template_region_policy_from_central_government_is_not_excluded():
+    # 반대로 제공기관이 중앙부처(0054001)로 확인되면 — "햇살론유스"처럼 진짜
+    # 전국 상품이라는 뜻이므로 — 걸러지지 않고 정상적으로 both에 들어가야 한다.
+    policy = _policy(region_code=_15_PROVINCE_CODES, max_income_krw=100_000_000, institution_group_code="0054001")
     result = _compare([policy], _input())
     assert [p.policy_key for p in result.both] == [policy.policy_key]
 

@@ -26,6 +26,7 @@ SAMPLE_PAYLOAD = {
                 "earnMaxAmt": "26000000",
                 "mrgSttsCd": "",
                 "zipCd": "11110,11140",
+                "pvsnInstGroupCd": "0054002",
                 "lclsfNm": "주거",
                 "mclsfNm": "전월세 및 주거급여 지원",
                 "bizPrdBgngYmd": "20260101",
@@ -69,6 +70,7 @@ def test_parse_youth_policy_json_parses_full_record():
     assert first.max_income_krw == 26_000_000
     assert first.marital_status == ""
     assert first.region_code == "11110,11140"
+    assert first.institution_group_code == "0054002"
 
 
 def test_parse_youth_policy_json_converts_small_income_values_from_manwon_to_krw():
