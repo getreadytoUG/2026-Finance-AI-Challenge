@@ -1,7 +1,8 @@
 "use client";
 
-import { AlertCircle, MessageCircle, Search, Sparkles, WalletCards } from "lucide-react";
+import { MessageCircle, Search, Sparkles, WalletCards } from "lucide-react";
 import AiSearchFilterBar from "@/components/AiSearchFilterBar";
+import NoteTooltip from "@/components/NoteTooltip";
 import Pagination from "@/components/Pagination";
 import PolicyDetailLink from "@/components/PolicyDetailLink";
 import StatusPill from "@/components/StatusPill";
@@ -77,12 +78,13 @@ export default function AiSearchResultsPanel({
         {/* 2026-09-03 사용자 요청: 필터링을 다 손봐도 온통청년 원본 데이터 자체의
             분류 오류(지역/카테고리 오분류 등)까지는 못 잡는다 — 그건 우리 쪽 버그가
             아니라는 걸 사용자가 알 수 있게 최소한의 안내를 남겨둔다. */}
-        <span
-          title="해당 데이터는 온통청년에서 가져오는 데이터로 정책 분류상 오류가 발생할 수 있습니다."
-          className="inline-flex shrink-0 cursor-help text-slate-300"
-        >
-          <AlertCircle size={14} />
-        </span>
+        <NoteTooltip
+          text="해당 데이터는 온통청년에서 가져오는 데이터로 정책 분류상 오류가 발생할 수 있습니다."
+          ariaLabel="데이터 안내"
+          iconSize={14}
+          triggerClassName="text-slate-300 hover:text-slate-400"
+          bubbleClassName="bg-[#0d1b36] text-white"
+        />
       </div>
 
       <div className={compact ? "flex-1" : undefined}>

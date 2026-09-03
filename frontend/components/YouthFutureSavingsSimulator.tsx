@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { AlertCircle, AlertTriangle, ListChecks, PiggyBank, TrendingUp } from "lucide-react";
+import { useEffect, useState } from "react";
+import { AlertTriangle, ListChecks, PiggyBank, TrendingUp } from "lucide-react";
 import { getMe, simulateYouthFutureSavings, type YouthFutureSavingsOutput } from "@/lib/api";
 import { krwToManwon, manwonToKrw } from "@/lib/profileOptions";
+import NoteTooltip from "@/components/NoteTooltip";
 import PolicyDetailLink from "@/components/PolicyDetailLink";
 
 // 2026-09-03: 청년도약계좌 신규가입 종료(2025-12-31) 이후 후속 상품인
@@ -13,66 +14,6 @@ import PolicyDetailLink from "@/components/PolicyDetailLink";
 const YOUTH_LEAP_ACCOUNT_STATUS_NOTE =
   "청년도약계좌는 2025년 12월 31일자로 신규가입이 종료됐어요(기존 가입자는 만기까지 그대로 유지). " +
   "2026년 6월부터는 후속 상품인 청년미래적금이 정부기여금·비과세 혜택을 이어받았고, 이 시뮬레이터는 청년미래적금 기준으로 계산해요.";
-
-// 안내 아이콘 팝오버. 브라우저 기본 title= 은 클릭에 반응하지 않고 hover 후 한참 있어야
-// 떠서(트랙패드/모바일에선 아예 안 뜸), 클릭 토글 + hover 로 모두 열리는 말풍선으로 만든다.
-// 바깥 클릭 / Esc 로 닫힌다. 부모가 uppercase·tracking 을 걸어둔 헤더 안에 들어가므로
-// 말풍선 본문은 normal-case·tracking-normal 로 되돌린다.
-function NoteTooltip({
-  text,
-  triggerClassName,
-  bubbleClassName,
-}: {
-  text: string;
-  triggerClassName: string;
-  bubbleClassName: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLSpanElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function onDocPointer(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("mousedown", onDocPointer);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDocPointer);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
-  return (
-    <span
-      ref={wrapRef}
-      className="relative inline-flex"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-    >
-      <button
-        type="button"
-        aria-label="상품 안내"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        className={`inline-flex shrink-0 cursor-pointer ${triggerClassName}`}
-      >
-        <AlertCircle size={13} />
-      </button>
-      <span
-        role="tooltip"
-        className={`absolute left-0 top-[calc(100%+6px)] z-30 w-64 max-w-[calc(100vw-4rem)] rounded-lg px-3 py-2 text-[11px] font-semibold normal-case leading-4 tracking-normal shadow-lg transition-opacity duration-150 ${bubbleClassName} ${
-          open ? "opacity-100" : "pointer-events-none opacity-0"
-        }`}
-      >
-        {text}
-      </span>
-    </span>
-  );
-}
 
 export default function YouthFutureSavingsSimulator() {
   const [monthlyAmount, setMonthlyAmount] = useState("50"); // 청년미래적금 월 납입 한도(50만원) 기본값, 프로필 로드 후 덮어씀
