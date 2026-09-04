@@ -310,6 +310,10 @@ export type MarriageComparisonInput = {
   annual_income_krw: number;
   spouse_age?: number | null;
   spouse_annual_income_krw?: number | null;
+  // 2026-09-03 추가("혼인신고 계산기 타겟팅" 재작업): 버팀목/디딤돌 실제 대출조건
+  // 비교에 쓰인다. 안 보내면 백엔드 기본값(2.5억/5천만원)이 적용된다.
+  target_price_krw?: number;
+  self_capital_krw?: number;
 };
 
 export type MarriagePolicyItem = {
@@ -324,7 +328,27 @@ export type MarriagePolicyItem = {
   change_reason: string | null;
 };
 
+export type HousingLoanScenario = {
+  eligible: boolean;
+  product_name: string;
+  policy_rate: number;
+  ltv_rate: number;
+  loan_amount_krw: number;
+  monthly_interest_krw: number;
+  summary: string;
+};
+
+// 2026-09-03 추가("혼인신고 계산기도 특정 정책 타겟팅해야 함", 사용자 요청): 정책
+// DB 전체 스캔 대신, 실제로 미혼용/기혼용 상품이 따로 있는 걸로 확인된 고정 기준
+// 2개(버팀목 전세자금대출/디딤돌대출)를 항상 먼저 비교해서 보여준다.
+export type HousingLoanMarriageComparison = {
+  housing_type: "jeonse" | "purchase";
+  unmarried: HousingLoanScenario;
+  married: HousingLoanScenario;
+};
+
 export type MarriageComparisonOutput = {
+  housing_loan_comparisons: HousingLoanMarriageComparison[];
   married_only: MarriagePolicyItem[];
   unmarried_only: MarriagePolicyItem[];
   both: MarriagePolicyItem[];

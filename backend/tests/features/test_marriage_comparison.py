@@ -2,7 +2,11 @@ import itertools
 from datetime import date, datetime, timezone
 
 from app.features.policy_matcher.categories import FINANCIAL_LARGE_CATEGORY
-from app.features.policy_matcher.marriage_comparison import build_marriage_scenarios, compare_marriage_scenarios
+from app.features.policy_matcher.marriage_comparison import (
+    build_marriage_scenarios,
+    compare_housing_loan_scenarios,
+    compare_marriage_scenarios,
+)
 from app.features.policy_matcher.models import CachedPolicy
 from app.features.policy_matcher.schemas import MarriageComparisonInput
 
@@ -41,7 +45,7 @@ def _input(**overrides) -> MarriageComparisonInput:
 
 def _compare(policies, marriage_input, today=_TODAY):
     unmarried, married = build_marriage_scenarios(marriage_input)
-    return compare_marriage_scenarios(policies, unmarried, married, today)
+    return compare_marriage_scenarios(policies, marriage_input, unmarried, married, today)
 
 
 def test_policy_with_ceiling_between_individual_and_household_income_is_unmarried_only():
@@ -131,14 +135,14 @@ def test_disability_only_policy_is_excluded_when_profile_says_no_disability():
     # 프로필의 has_disability=False를 받으면 걸러져야 한다.
     policy = _policy(policy_name="경계성지능청년 지원", max_income_krw=100_000_000)
     unmarried, married = build_marriage_scenarios(_input(), has_disability=False)
-    result = compare_marriage_scenarios([policy], unmarried, married, _TODAY)
+    result = compare_marriage_scenarios([policy], _input(), unmarried, married, _TODAY)
     assert result.both == result.married_only == result.unmarried_only == []
 
 
 def test_disability_only_policy_is_included_when_profile_says_disability():
     policy = _policy(policy_name="경계성지능청년 지원", max_income_krw=100_000_000)
     unmarried, married = build_marriage_scenarios(_input(), has_disability=True)
-    result = compare_marriage_scenarios([policy], unmarried, married, _TODAY)
+    result = compare_marriage_scenarios([policy], _input(), unmarried, married, _TODAY)
     assert [p.policy_key for p in result.both] == [policy.policy_key]
 
 
@@ -171,6 +175,38 @@ def test_both_bucket_has_no_change_reason():
     policy = _policy(max_income_krw=100_000_000)
     result = _compare([policy], _input())
     assert result.both[0].change_reason is None
+
+
+# ---------------------------------------------------------------------------
+# 2026-09-03 재작업("혼인신고 계산기도 특정 정책 타겟팅해야 함"): CachedPolicy 전체
+# 스캔 대신 항상 이 두 고정 기준 상품(버팀목/디딤돌)을 미혼/기혼으로 비교해서
+# 보여준다. 실제 계산 로직(savings_simulator/simulator.py)의 실수치를 그대로
+# 재사용하므로, 여기서는 "미혼/기혼 상품이 실제로 다르게 나오는지"만 검증한다 —
+# 요율표 자체의 세부 경계값 테스트는 test_savings_simulator.py에 이미 있다.
+
+
+def test_compare_housing_loan_scenarios_returns_jeonse_and_purchase():
+    result = compare_housing_loan_scenarios(_input())
+    assert [c.housing_type for c in result] == ["jeonse", "purchase"]
+
+
+def test_compare_housing_loan_scenarios_uses_different_product_names_by_marital_status():
+    result = compare_housing_loan_scenarios(_input())
+    jeonse = result[0]
+    assert jeonse.unmarried.product_name == "청년전용 버팀목 전세자금대출"
+    assert jeonse.married.product_name == "신혼부부전용 버팀목 전세자금대출"
+    purchase = result[1]
+    assert purchase.unmarried.product_name == "내집마련 디딤돌대출"
+    assert purchase.married.product_name == "신혼부부전용 디딤돌대출"
+
+
+def test_compare_housing_loan_scenarios_married_uses_combined_household_income():
+    # 미혼 시나리오는 본인 소득(4천만)만, 기혼 시나리오는 배우자 소득(2천만)을
+    # 합산한 6천만원 기준으로 금리가 갈려야 한다(버팀목 4~6천만원 구간 2.9%).
+    result = compare_housing_loan_scenarios(_input(annual_income_krw=40_000_000, spouse_annual_income_krw=20_000_000))
+    jeonse = result[0]
+    assert jeonse.unmarried.policy_rate == 0.025  # 4천만원 이하 구간
+    assert jeonse.married.policy_rate == 0.029  # 6천만원 구간(4~6천)
 
 
 def test_scenarios_are_identical_when_spouse_income_is_not_given():

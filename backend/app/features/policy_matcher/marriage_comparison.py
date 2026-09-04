@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Literal
 
 from app.features.policy_matcher.categories import FINANCIAL_LARGE_CATEGORY, category_tags
 from app.features.policy_matcher.matching import (
@@ -11,6 +12,8 @@ from app.features.policy_matcher.matching import (
 )
 from app.features.policy_matcher.models import CachedPolicy
 from app.features.policy_matcher.schemas import (
+    HousingLoanMarriageComparison,
+    HousingLoanScenario,
     MarriageComparisonInput,
     MarriageComparisonOutput,
     MarriagePolicyItem,
@@ -18,6 +21,8 @@ from app.features.policy_matcher.schemas import (
     PolicyMatchInput,
 )
 from app.features.policy_matcher.status import compute_policy_status
+from app.features.savings_simulator.schemas import HousingLoanInput, HousingLoanOutput
+from app.features.savings_simulator.simulator import simulate_housing_loan
 
 
 def build_marriage_scenarios(
@@ -98,8 +103,68 @@ def _change_reason(policy: CachedPolicy, bucket: str) -> str:
     return "배우자 소득을 합산하면 소득 상한을 초과해요"
 
 
+def _to_scenario(output: HousingLoanOutput) -> HousingLoanScenario:
+    return HousingLoanScenario(
+        eligible=output.eligible,
+        product_name=output.product_name,
+        policy_rate=output.policy_rate,
+        ltv_rate=output.ltv_rate,
+        loan_amount_krw=output.loan_amount_krw,
+        monthly_interest_krw=output.monthly_interest_krw,
+        summary=output.summary,
+    )
+
+
+# 2026-09-03 사용자 요청("혼인신고 계산기도 특정 정책 타겟팅해야 함"): CachedPolicy
+# 전체를 스캔해서 자격이 바뀌는 정책을 찾는 방식(아래 compare_marriage_scenarios)은
+# 실제로 혼인상태를 조건으로 거는 정책이 2,750건 중 71건뿐이라(matching.py의
+# MARITAL_STATUS_LABELS 주석 참고) 대부분 밋밋한 결과만 냈다. 반대로 이 두 국가
+# 주택금융 상품은 미혼용/기혼용이 이름부터 별도 상품으로 존재하고 실제 소득상한·
+# 금리·한도가 다르다(savings_simulator/simulator.py 조사 결과) — 그 실제 계산
+# 로직을 그대로 재사용해서(중복 구현하지 않음) 고정 기준으로 항상 먼저 보여준다:
+#   전세: [미혼] 청년전용 버팀목 전세자금대출 vs [기혼] 신혼부부전용 버팀목 전세자금대출
+#   매매: [미혼] 내집마련 디딤돌대출(청년/일반) vs [기혼] 신혼가구 디딤돌대출
+# (simulate_housing_loan의 is_married 플래그가 이 두 상품 갈래를 결정한다.)
+_HOUSING_TYPES: tuple[Literal["jeonse", "purchase"], ...] = ("jeonse", "purchase")
+
+
+def compare_housing_loan_scenarios(input: MarriageComparisonInput) -> list[HousingLoanMarriageComparison]:
+    married_income = input.annual_income_krw + (input.spouse_annual_income_krw or 0)
+    comparisons = []
+    for housing_type in _HOUSING_TYPES:
+        unmarried_output = simulate_housing_loan(
+            HousingLoanInput(
+                housing_type=housing_type,
+                target_price_krw=input.target_price_krw,
+                self_capital_krw=input.self_capital_krw,
+                household_annual_income_krw=input.annual_income_krw,
+            ),
+            is_married=False,
+            age=input.age,
+        )
+        married_output = simulate_housing_loan(
+            HousingLoanInput(
+                housing_type=housing_type,
+                target_price_krw=input.target_price_krw,
+                self_capital_krw=input.self_capital_krw,
+                household_annual_income_krw=married_income,
+            ),
+            is_married=True,
+            age=input.age,
+        )
+        comparisons.append(
+            HousingLoanMarriageComparison(
+                housing_type=housing_type,
+                unmarried=_to_scenario(unmarried_output),
+                married=_to_scenario(married_output),
+            )
+        )
+    return comparisons
+
+
 def compare_marriage_scenarios(
     policies: list[CachedPolicy],
+    input: MarriageComparisonInput,
     unmarried_input: PolicyMatchInput,
     married_input: PolicyMatchInput,
     today: date,
@@ -138,6 +203,7 @@ def compare_marriage_scenarios(
         )
 
     return MarriageComparisonOutput(
+        housing_loan_comparisons=compare_housing_loan_scenarios(input),
         married_only=_items(married_only_keys, married_eligible, "married_only"),
         unmarried_only=_items(unmarried_only_keys, unmarried_eligible, "unmarried_only"),
         both=_items(both_keys, married_eligible),

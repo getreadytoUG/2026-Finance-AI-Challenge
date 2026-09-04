@@ -133,6 +133,12 @@ class MarriageComparisonInput(BaseModel):
     annual_income_krw: int
     spouse_age: int | None = None
     spouse_annual_income_krw: int | None = None
+    # 2026-09-03 추가("혼인신고 계산기 타겟팅" 재작업): 버팀목/디딤돌 실제 대출조건
+    # 비교(marriage_comparison.compare_housing_loan_scenarios)에 필요한 입력 —
+    # LTV·대출한도 계산은 목표가/자기자본이 있어야 의미 있는 금액이 나온다.
+    # savings_simulator/HousingLoanInput과 동일한 기본값(2.5억/5천만원)을 쓴다.
+    target_price_krw: int = 250_000_000
+    self_capital_krw: int = 50_000_000
 
 
 class MarriagePolicyItem(BaseModel):
@@ -148,7 +154,30 @@ class MarriagePolicyItem(BaseModel):
     change_reason: str | None = None
 
 
+class HousingLoanScenario(BaseModel):
+    eligible: bool
+    product_name: str
+    policy_rate: float
+    ltv_rate: float
+    loan_amount_krw: int
+    monthly_interest_krw: int
+    summary: str
+
+
+class HousingLoanMarriageComparison(BaseModel):
+    housing_type: Literal["jeonse", "purchase"]
+    unmarried: HousingLoanScenario
+    married: HousingLoanScenario
+
+
 class MarriageComparisonOutput(BaseModel):
+    # 2026-09-03 재작업("혼인신고 계산기도 특정 정책 타겟팅해야 함", 사용자 요청):
+    # CachedPolicy 전체를 스캔해 자격 변화를 찾는 방식은 실제로 혼인상태를 조건으로
+    # 거는 정책이 2,750건 중 71건뿐이라 대부분 밋밋한 결과만 냈다. 실제로 미혼용/
+    # 기혼용 상품이 이름부터 따로 있고 조건도 다른 걸로 확인된 고정 기준 상품 2개
+    # (버팀목/디딤돌 전세·구입자금대출)를 항상 우선 비교해서 보여준다
+    # (marriage_comparison.compare_housing_loan_scenarios 참고).
+    housing_loan_comparisons: list[HousingLoanMarriageComparison]
     married_only: list[MarriagePolicyItem]
     unmarried_only: list[MarriagePolicyItem]
     both: list[MarriagePolicyItem]

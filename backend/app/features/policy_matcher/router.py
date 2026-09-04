@@ -248,7 +248,7 @@ def compare_marriage_scenarios_endpoint(
             occupation=current_user.occupation,
             is_sme_employee=current_user.is_sme_employee,
         )
-        return compare_marriage_scenarios(policies, unmarried_input, married_input, today_kst())
+        return compare_marriage_scenarios(policies, payload, unmarried_input, married_input, today_kst())
     except Exception as e:
         _raise_as_http_500("/policy_matcher/marriage_comparison", f" for user_id={current_user.id}", e)
 

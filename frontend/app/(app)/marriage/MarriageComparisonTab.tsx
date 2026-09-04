@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertCircle, ChevronDown, ChevronUp, Heart, Info, Minus, Plus, Sparkles, Users } from "lucide-react";
+import { AlertCircle, ChevronDown, ChevronUp, Heart, Home, Info, Minus, Plus, Sparkles, Users } from "lucide-react";
 import { SectionLabel } from "@/components/DashboardLayout";
 import Pagination from "@/components/Pagination";
 import PolicyDetailLink from "@/components/PolicyDetailLink";
@@ -10,6 +10,7 @@ import {
   compareMarriageScenarios,
   getMe,
   rankMarriagePolicies,
+  type HousingLoanMarriageComparison,
   type MarriageComparisonOutput,
   type MarriagePolicyItem,
 } from "@/lib/api";
@@ -142,11 +143,53 @@ function RankButton({
   );
 }
 
+// 2026-09-03 추가("혼인신고 계산기도 특정 정책 타겟팅해야 함", 사용자 요청): 정책
+// DB 전체 스캔 대신, 실제로 미혼용/기혼용 상품이 이름부터 따로 있는 고정 기준
+// 2개(버팀목 전세자금대출/디딤돌대출)의 실제 조건 차이를 항상 먼저 보여준다.
+function HousingComparisonCard({ comparison }: { comparison: HousingLoanMarriageComparison }) {
+  const title = comparison.housing_type === "jeonse" ? "전세자금대출" : "구입자금대출(디딤돌)";
+  const columns: { label: string; tone: "unmarried" | "married"; scenario: HousingLoanMarriageComparison["unmarried"] }[] = [
+    { label: "미혼", tone: "unmarried", scenario: comparison.unmarried },
+    { label: "기혼", tone: "married", scenario: comparison.married },
+  ];
+  return (
+    <div className="rounded-2xl border border-slate-200/80 bg-white p-5">
+      <div className="flex items-center gap-2">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#eef3ff] text-[#2457d6]">
+          <Home size={15} />
+        </span>
+        <div className="text-[13px] font-extrabold text-ink">{title}</div>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        {columns.map(({ label, tone, scenario }) => (
+          <div key={tone} className={`rounded-xl p-4 ${tone === "married" ? "bg-[#eef3ff]" : "bg-[#f7f9fc]"}`}>
+            <div className={`text-[10px] font-bold ${tone === "married" ? "text-[#2457d6]" : "text-slate-400"}`}>{label}</div>
+            <div className="mt-1 text-[12px] font-extrabold leading-5 text-ink">{scenario.product_name}</div>
+            {scenario.eligible ? (
+              <>
+                <div className="mt-2 text-[19px] font-extrabold text-[#2457d6]">연 {(scenario.policy_rate * 100).toFixed(2)}%</div>
+                <div className="mt-1 text-[11px] font-semibold text-slate-500">
+                  대출 가능액 {scenario.loan_amount_krw.toLocaleString()}원 · 월 이자 약 {scenario.monthly_interest_krw.toLocaleString()}원
+                </div>
+              </>
+            ) : (
+              <div className="mt-2 text-[12px] font-bold text-rose-500">대상 아님</div>
+            )}
+            <p className="mt-2 text-[11px] leading-5 text-slate-500">{scenario.summary}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function MarriageComparisonTab() {
   const [age, setAge] = useState("29");
   const [income, setIncome] = useState("4000");
   const [region, setRegion] = useState("서울");
   const [spouseIncome, setSpouseIncome] = useState("");
+  const [targetPrice, setTargetPrice] = useState("25000");
+  const [selfCapital, setSelfCapital] = useState("5000");
   const [result, setResult] = useState<MarriageComparisonOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -193,6 +236,8 @@ export default function MarriageComparisonTab() {
         region,
         annual_income_krw: manwonToKrw(Number(income)),
         spouse_annual_income_krw: spouseIncome ? manwonToKrw(Number(spouseIncome)) : null,
+        target_price_krw: manwonToKrw(Number(targetPrice) || 0),
+        self_capital_krw: manwonToKrw(Number(selfCapital) || 0),
       });
       setResult(output);
     } catch (err) {
@@ -243,17 +288,18 @@ export default function MarriageComparisonTab() {
         <div>
           <div className="text-[13px] font-extrabold text-ink">실제 정책 데이터 기준 비교입니다</div>
           <p className="mt-1 text-[12px] leading-5 text-slate-500">
-            혼인신고 전(미혼)과 후(부부합산소득) 시나리오로 지금 정책 데이터를 두 번 조회해 자격이 달라지는
-            정책만 보여줘요. 청약 가점, 대출 금리 데이터는 포함하지 않습니다. &quot;AI로 우선순위 정렬&quot;은
-            정책 설명을 AI가 읽고 판단한 추천 순서이며, 실제 심사 결과와 다를 수 있어요.
-            {/* 2026-09-03: 온통청년 공식 혼인상태 코드(mrgSttsCd)를 기혼/미혼 조건으로
-                반영해서(matching.py의 TargetingRule "기혼 전용"/"미혼 전용" 참고), 이제
-                혼인 여부 자체를 조건으로 거는 정책도 반영된다 — 배우자 소득을 안 넣어도
-                그런 정책은 두 시나리오에서 갈릴 수 있다. 다만 실측상(2,750건 중 71건)
-                비중이 작아 여전히 대부분은 소득 합산 여부로 갈린다. */}{" "}
-            정책마다 왜 자격이 달라졌는지(혼인상태 조건 자체인지, 배우자 소득 합산 때문인지)도
-            카드에 표시해요. 다만 혼인 여부를 직접 조건으로 거는 정책은 실제로 많지 않아서
-            (약 2,750건 중 71건), 배우자 소득을 안 넣으면 대부분 두 시나리오가 같게 나올 수 있어요.
+            {/* 2026-09-03 재작업("혼인신고 계산기도 특정 정책 타겟팅해야 함", 사용자
+                요청): 정책 DB 2,750건을 통째로 스캔해 자격 변화를 찾는 방식은 실제로
+                혼인상태를 조건으로 거는 정책이 71건뿐이라 대부분 밋밋한 결과만 냈다.
+                실제로 미혼용/기혼용 상품이 이름부터 따로 있는 걸로 확인된 고정 기준
+                2개를 항상 먼저 비교한다(marriage_comparison.compare_housing_loan_scenarios
+                참고). */}
+            혼인 여부에 따라 조건이 실제로 달라지는 국가 주택금융 상품 2가지를 고정 기준으로 비교해요 —
+            전세는 <b>[미혼] 청년전용 버팀목 전세자금대출</b> vs <b>[기혼] 신혼부부전용 버팀목 전세자금대출</b>,
+            매매는 <b>[미혼] 내집마련 디딤돌대출</b> vs <b>[기혼] 신혼부부전용 디딤돌대출</b>로 소득상한·금리·
+            대출한도를 나란히 보여드려요. 그 아래는 그 외 정책 중 배우자 소득 합산(대부분) 또는 혼인상태
+            조건(2,750건 중 71건) 때문에 자격이 달라지는 것들이에요. &quot;AI로 우선순위 정렬&quot;은 정책
+            설명을 AI가 읽고 판단한 추천 순서이며, 실제 심사 결과와 다를 수 있어요.
           </p>
         </div>
       </div>
@@ -303,6 +349,26 @@ export default function MarriageComparisonTab() {
               className="h-12 rounded-xl border border-slate-200 px-4 text-[13px] font-semibold outline-none focus:border-[#2457d6] focus:ring-4 focus:ring-[#2457d6]/10"
             />
           </label>
+          <label className="grid gap-2 text-[12px] font-extrabold text-slate-700">
+            목표 주택가격/전세보증금 (만원)
+            <input
+              type="number"
+              min={0}
+              value={targetPrice}
+              onChange={(e) => setTargetPrice(e.target.value)}
+              className="h-12 rounded-xl border border-slate-200 px-4 text-[13px] font-semibold outline-none focus:border-[#2457d6] focus:ring-4 focus:ring-[#2457d6]/10"
+            />
+          </label>
+          <label className="grid gap-2 text-[12px] font-extrabold text-slate-700">
+            보유 자기자본 (만원)
+            <input
+              type="number"
+              min={0}
+              value={selfCapital}
+              onChange={(e) => setSelfCapital(e.target.value)}
+              className="h-12 rounded-xl border border-slate-200 px-4 text-[13px] font-semibold outline-none focus:border-[#2457d6] focus:ring-4 focus:ring-[#2457d6]/10"
+            />
+          </label>
           <button
             type="submit"
             disabled={loading}
@@ -323,7 +389,17 @@ export default function MarriageComparisonTab() {
 
       {result && (
         <div className="mt-6">
+          {/* 고정 기준 상품 비교 — 이 탭의 핵심. DB 스캔 버킷(아래)보다 먼저, 항상
+              보여준다(2026-09-03 사용자 요청). */}
+          <div className="mb-3 text-[13px] font-extrabold text-ink">기준 정책 비교</div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {result.housing_loan_comparisons.map((c) => (
+              <HousingComparisonCard key={c.housing_type} comparison={c} />
+            ))}
+          </div>
+
           {/* 결과를 한눈에 — 아래 목록을 하나씩 읽지 않아도 핵심 숫자가 바로 보이도록. */}
+          <div className="mb-3 mt-8 text-[13px] font-extrabold text-ink">그 외 정책 중 자격이 달라지는 것</div>
           <div className="grid gap-3 sm:grid-cols-3">
             <StatCard
               label="혼인신고 후 새로 자격됨"

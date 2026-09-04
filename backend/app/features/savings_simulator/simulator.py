@@ -207,7 +207,11 @@ def _jeonse_rate(income_krw: int) -> float:
 
 
 def _simulate_jeonse(input: HousingLoanInput, *, is_married: bool | None, age: int | None) -> HousingLoanOutput:
-    product_name = "청년전용 버팀목 전세자금대출"
+    # 2026-09-03: 혼인신고 계산기가 이 두 상품을 "고정 기준"으로 타겟팅하면서
+    # (marriage_comparison.compare_housing_loan_scenarios 참고) 미혼/기혼 상품명이
+    # 실제로도 다르다는 게 중요해졌다 — 같은 소득구간 표를 쓰지만 버팀목전세자금은
+    # 신혼부부 대상 상품이 별도 이름으로 존재한다.
+    product_name = "신혼부부전용 버팀목 전세자금대출" if is_married else "청년전용 버팀목 전세자금대출"
     income = input.household_annual_income_krw
     income_cap = _JEONSE_INCOME_CAP_NEWLYWED_KRW if is_married else _JEONSE_INCOME_CAP_GENERAL_KRW
     age_ok = age is None or (_JEONSE_AGE_MIN <= age <= _JEONSE_AGE_MAX)
@@ -223,7 +227,7 @@ def _simulate_jeonse(input: HousingLoanInput, *, is_married: bool | None, age: i
     monthly_saving = market_monthly_interest - monthly_interest
 
     if not age_ok:
-        summary = f"청년전용 버팀목전세자금대출은 만 {_JEONSE_AGE_MIN}~{_JEONSE_AGE_MAX}세만 신청할 수 있어요."
+        summary = f"{product_name}은 만 {_JEONSE_AGE_MIN}~{_JEONSE_AGE_MAX}세만 신청할 수 있어요."
     elif not eligible:
         summary = f"부부합산 연소득이 기준({income_cap:,}원)을 초과해 이 상품 대상이 아니에요."
     else:
@@ -280,8 +284,10 @@ def _purchase_rate(newlywed: bool, income_krw: int, loan_term_years: int) -> flo
 
 
 def _simulate_purchase(input: HousingLoanInput, *, is_married: bool | None) -> HousingLoanOutput:
+    # 2026-09-03: 혼인신고 계산기의 고정 기준 상품명과 맞춘다(marriage_comparison.
+    # compare_housing_loan_scenarios, jeonse 쪽 주석과 동일한 이유).
     newlywed = bool(is_married)
-    product_name = "신혼가구 디딤돌대출" if newlywed else "내집마련 디딤돌대출"
+    product_name = "신혼부부전용 디딤돌대출" if newlywed else "내집마련 디딤돌대출"
     income = input.household_annual_income_krw
     income_cap = _PURCHASE_INCOME_CAP_NEWLYWED_KRW if newlywed else _PURCHASE_INCOME_CAP_GENERAL_KRW
     loan_cap = _PURCHASE_LOAN_CAP_NEWLYWED_KRW if newlywed else _PURCHASE_LOAN_CAP_GENERAL_KRW

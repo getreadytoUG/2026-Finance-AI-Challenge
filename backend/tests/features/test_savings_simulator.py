@@ -269,7 +269,7 @@ def test_housing_loan_jeonse_within_newlywed_income_cap_is_eligible(client):
     assert response.status_code == 200
     body = response.json()
     assert body["eligible"] is True
-    assert body["product_name"] == "청년전용 버팀목 전세자금대출"
+    assert body["product_name"] == "신혼부부전용 버팀목 전세자금대출"
     # min(250M*0.8=200M, 250M-50M=200M, 대출한도 150M) = 150M
     assert body["loan_amount_krw"] == 150_000_000
     assert body["monthly_saving_krw"] > 0
@@ -344,7 +344,7 @@ def test_housing_loan_purchase_uses_newlywed_table_when_married(client):
     assert response.status_code == 200
     body = response.json()
     assert body["eligible"] is True
-    assert body["product_name"] == "신혼가구 디딤돌대출"
+    assert body["product_name"] == "신혼부부전용 디딤돌대출"
     assert body["policy_rate"] == 0.0350  # 신혼가구 4천~7천만원 구간, 30년
 
 
