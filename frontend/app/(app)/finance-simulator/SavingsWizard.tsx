@@ -20,6 +20,7 @@ import {
   DisclaimerNote,
   NextButton,
   PrelimRow,
+  ResetButton,
   Segmented,
   SliderField,
   StepRail,
@@ -281,7 +282,10 @@ export default function SavingsWizard() {
           title="예상 만기수령액"
           footer={
             <>
-              <BackButton onClick={() => setStep(1)} />
+              <div className="flex items-center gap-1">
+                <BackButton onClick={() => setStep(1)} />
+                <ResetButton onClick={() => setStep(0)} />
+              </div>
               <NextButton
                 label="다른 상품 보기"
                 onClick={() => {

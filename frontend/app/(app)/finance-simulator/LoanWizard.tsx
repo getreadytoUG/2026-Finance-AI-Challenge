@@ -16,7 +16,7 @@ import { getMe, simulateHousingLoan, type HousingLoanOutput } from "@/lib/api";
 import { krwToManwon, manwonToKrw } from "@/lib/profileOptions";
 import { formatApplicationPeriod } from "@/lib/policyFormat";
 import PolicyDetailLink from "@/components/PolicyDetailLink";
-import { BackButton, DisclaimerNote, NextButton, SliderField, StepRail, WizardFrame, manwon, type WizardStep } from "./wizardUi";
+import { BackButton, DisclaimerNote, NextButton, ResetButton, SliderField, StepRail, WizardFrame, manwon, type WizardStep } from "./wizardUi";
 
 type HousingType = "jeonse" | "purchase";
 
@@ -210,7 +210,10 @@ export default function LoanWizard() {
           title="예상 대출 가능액"
           footer={
             <>
-              <BackButton onClick={() => setStep(1)} />
+              <div className="flex items-center gap-1">
+                <BackButton onClick={() => setStep(1)} />
+                <ResetButton onClick={() => setStep(0)} />
+              </div>
               <span />
             </>
           }

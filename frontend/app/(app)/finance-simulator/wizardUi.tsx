@@ -182,6 +182,18 @@ export function BackButton({ onClick }: { onClick: () => void }) {
   );
 }
 
+export function ResetButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="h-11 rounded-xl px-4 text-[13px] font-extrabold text-slate-400 transition hover:text-slate-600"
+    >
+      초기화
+    </button>
+  );
+}
+
 export function NextButton({ label, onClick, disabled }: { label: string; onClick: () => void; disabled?: boolean }) {
   return (
     <button
