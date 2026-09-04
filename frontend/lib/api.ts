@@ -386,6 +386,11 @@ export type AiSearchFilters = {
   // 2026-09-03 추가: "직업 구분" 필터(회원가입/내 정보 수정의 occupation과 동일한
   // 5분류). age/region처럼 프로필 값으로 자동 채워지고, 필터바에서 바꿀 수 있다.
   occupation?: OccupationType | null;
+  // 2026-09-04 추가: 정책달력 "맞춤 검색 결과"와 한눈에보기 "신청 가능한 정책"
+  // 개수가 달랐던 원인 중 하나(사용자 지적) — 중소기업 재직 전용 정책을 거르는 데
+  // 쓴다. occupation과 마찬가지로 프로필 값(profile.is_sme_employee)으로 자동
+  // 채워진다(useAiPolicySearch.ts 참고).
+  is_sme_employee?: boolean | null;
   // 2026-09-02 추가: "장애인 대상만"/"보훈대상자 대상만" 좁혀보기 필터. 다른
   // 필드와 달리 프로필 값으로 자동 채우지 않는다(useAiPolicySearch.ts 참고) —
   // "나에게 맞는 조건"이 아니라 "이 대상군 정책만 보고 싶다"는 명시적 선택이라
@@ -443,6 +448,7 @@ export async function fetchAiSearchResults(
   if (filters.keyword) search.set("keyword", filters.keyword);
   if (filters.status) search.set("status", filters.status);
   if (filters.occupation) search.set("occupation", filters.occupation);
+  if (filters.is_sme_employee != null) search.set("is_sme_employee", String(filters.is_sme_employee));
   if (filters.disability_target) search.set("disability_target", "true");
   if (filters.veteran_target) search.set("veteran_target", "true");
   if (includeClosed) search.set("include_closed", "true");

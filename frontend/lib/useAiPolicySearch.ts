@@ -96,6 +96,7 @@ export function useAiPolicySearch(pageSize: number = 10, opts: { clientPaginate?
           spouse_annual_income_krw: profile.spouse_annual_income_krw,
           region: profile.region,
           occupation: profile.occupation,
+          is_sme_employee: profile.is_sme_employee,
         };
         setFilters(initial);
         return refetch(initial, 1, false);
@@ -167,6 +168,7 @@ export function useAiPolicySearch(pageSize: number = 10, opts: { clientPaginate?
       spouse_annual_income_krw: null,
       region: null,
       occupation: null,
+      is_sme_employee: null,
       category: null,
       keyword: null,
       status: null,

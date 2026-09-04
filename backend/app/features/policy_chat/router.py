@@ -26,6 +26,7 @@ from app.features.policy_chat.tool import TOOL_SPEC
 from app.features.policy_matcher.categories import PolicyCategoryTag
 from app.features.policy_matcher.matching import PolicyRegion
 from app.features.policy_matcher.models import CachedPolicy
+from app.features.policy_matcher.schemas import OccupationType
 from app.features.policy_matcher.status import PolicyStatusLabel
 from app.llm.base import Message
 from app.llm.factory import get_provider
@@ -129,6 +130,8 @@ def _profile_default_filters(user: User) -> PolicyChatSearchInput:
         annual_income_krw=user.annual_income_krw,
         spouse_annual_income_krw=user.spouse_annual_income_krw,
         region=user.region,
+        occupation=user.occupation,
+        is_sme_employee=user.is_sme_employee,
     )
 
 
@@ -261,6 +264,8 @@ def get_ai_search_results(
     status: PolicyStatusLabel | None = None,
     disability_target: bool | None = None,
     veteran_target: bool | None = None,
+    occupation: OccupationType | None = None,
+    is_sme_employee: bool | None = None,
     include_closed: bool = False,
     page: int = 1,
     page_size: int = 10,
@@ -279,6 +284,8 @@ def get_ai_search_results(
             status=status,
             disability_target=disability_target,
             veteran_target=veteran_target,
+            occupation=occupation,
+            is_sme_employee=is_sme_employee,
         )
         items, total = search_policies(db, filters, include_closed=include_closed, page=page, page_size=page_size)
         return AiSearchResultsResponse(items=items, total=total, page=page, page_size=page_size)

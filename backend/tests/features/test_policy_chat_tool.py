@@ -170,6 +170,33 @@ def test_run_filters_by_veteran_target_only_when_true(db_session):
     assert len(run(PolicyChatSearchInput(veteran_target=True), _ctx(db_session)).options) == 1
 
 
+def test_run_filters_job_targeted_policy_by_occupation_only_when_given(db_session):
+    # 2026-09-04 추가(사용자 지적: "정책달력 맞춤검색결과랑 한눈에보기 신청가능
+    # 정책 개수가 왜 달라?") — matching.is_eligible()의 TARGETING_RULES와 똑같이
+    # 재학생/재직자/자영업자/미취업자 전용 정책은 occupation이 안 맞으면 걸러져야
+    # 한다. 그동안 이 스키마엔 occupation 필드 자체가 없어서 한 번도 안 걸렸다.
+    _seed_policy(db_session, policy_name="대학생 전용 장학금", school_code="0049005")
+    _seed_policy(db_session, policy_name="재직자 전용 지원", job_code="0013001")
+    _seed_policy(db_session, policy_name="자영업자 전용 지원", job_code="0013002")
+    _seed_policy(db_session, policy_name="미취업자 전용 지원", job_code="0013003")
+    _seed_policy(db_session, policy_name="일반 청년 지원")
+
+    result = run(PolicyChatSearchInput(occupation="employee"), _ctx(db_session))
+    assert [o.policy_name for o in result.options] == ["재직자 전용 지원", "일반 청년 지원"]
+
+    # occupation을 안 주면(대화 초반이라 아직 안 밝혀졌으면) 예전처럼 전부 통과한다
+    assert len(run(PolicyChatSearchInput(), _ctx(db_session)).options) == 5
+
+
+def test_run_filters_sme_only_policy_by_is_sme_employee_only_when_given(db_session):
+    _seed_policy(db_session, policy_name="중소기업 재직자 전용 지원", sbiz_code="0014001")
+    _seed_policy(db_session, policy_name="일반 청년 지원")
+
+    assert len(run(PolicyChatSearchInput(is_sme_employee=False), _ctx(db_session)).options) == 1
+    assert len(run(PolicyChatSearchInput(is_sme_employee=True), _ctx(db_session)).options) == 2
+    assert len(run(PolicyChatSearchInput(), _ctx(db_session)).options) == 2  # 안 주면 전체 통과
+
+
 def test_run_caps_results_at_max(db_session):
     for i in range(20):
         _seed_policy(db_session, policy_name=f"정책{i}")

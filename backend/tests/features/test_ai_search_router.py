@@ -91,6 +91,10 @@ def test_ai_search_message_first_turn_uses_profile_as_initial_filters(client, mo
     assert body["filters"]["age"] == 33
     assert body["filters"]["is_married"] is True
     assert body["filters"]["region"] == "부산"
+    # 2026-09-04 추가: occupation/is_sme_employee도 age/region처럼 프로필 기본값으로
+    # 채워져야 한다 — 그동안 빠져있어서 "정책달력 맞춤검색결과"가 한눈에보기(policy_matcher)
+    # 와 달리 직업 전용 정책을 걸러내지 못했다(사용자 지적).
+    assert body["filters"]["occupation"] == "employee"
     # tool_call이 없어도 화면에 실제로 보일 검색 결과에 근거해 답변을 재생성하려고
     # 항상 2차 호출을 한다 — 2026-08-27, 근거 없는 1차 응답을 그대로 돌려주다가
     # 화면 결과와 다른 말을 하는 문제가 있었다.
@@ -256,6 +260,8 @@ def test_ai_search_message_without_tool_call_keeps_filters_unchanged(client, db_
         "status": None,
         "disability_target": None,
         "veteran_target": None,
+        "occupation": None,
+        "is_sme_employee": None,
     }
     response = client.post(
         "/policy_chat/ai_search/message",
@@ -314,6 +320,55 @@ def test_ai_search_results_filters_by_veteran_target(client, db_session):
     body = response.json()
     assert body["total"] == 1
     assert body["items"][0]["policy_name"] == "제대군인 직업능력 개발훈련"
+
+
+def test_ai_search_results_filters_out_job_targeted_policy_not_matching_occupation(client, db_session):
+    # 2026-09-04 추가(사용자 지적: "정책달력 맞춤검색결과랑 한눈에보기 신청가능
+    # 정책 개수가 왜 달라?") — matching.is_eligible()의 TARGETING_RULES처럼
+    # 재직자 전용 정책은 occupation이 안 맞으면 걸러져야 한다.
+    _seed_policy(db_session, policy_name="재직자 전용 지원", job_code="0013001")
+    _seed_policy(db_session, policy_name="일반 청년 지원", job_code="0013010")
+    token = _signup_login(client)
+
+    response = client.get(
+        "/policy_chat/ai_search/results",
+        params={"occupation": "student"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == 1
+    assert body["items"][0]["policy_name"] == "일반 청년 지원"
+
+
+def test_ai_search_results_keeps_job_targeted_policy_when_occupation_not_given(client, db_session):
+    # occupation을 안 넘기면(fail-open) 예전처럼 필터링하지 않는다 — 대화 초반이라
+    # 아직 직업을 안 밝힌 경우까지 잘못 걸러내면 안 된다.
+    _seed_policy(db_session, policy_name="재직자 전용 지원", job_code="0013001")
+    token = _signup_login(client)
+
+    response = client.get(
+        "/policy_chat/ai_search/results",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    assert response.json()["total"] == 1
+
+
+def test_ai_search_results_filters_out_sme_only_policy_when_not_sme_employee(client, db_session):
+    _seed_policy(db_session, policy_name="중소기업 재직자 전용 지원", sbiz_code="0014001")
+    _seed_policy(db_session, policy_name="일반 청년 지원", sbiz_code="0014010")
+    token = _signup_login(client)
+
+    response = client.get(
+        "/policy_chat/ai_search/results",
+        params={"is_sme_employee": "false"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == 1
+    assert body["items"][0]["policy_name"] == "일반 청년 지원"
 
 
 def test_ai_search_results_includes_raw_apply_ymd_fields(client, db_session):

@@ -4,9 +4,14 @@ from app.features.policy_matcher.matching import (
     age_matches,
     income_matches,
     is_disability_targeted_policy,
+    is_employee_only_policy,
     is_likely_template_region_code,
     is_married_only_policy,
     is_newlywed_policy,
+    is_self_employed_only_policy,
+    is_sme_only_policy,
+    is_student_only_policy,
+    is_unemployed_only_policy,
     is_unmarried_only_policy,
     is_veteran_targeted_policy,
     region_matches,
@@ -70,6 +75,20 @@ def _matches(policy: CachedPolicy, input: PolicyChatSearchInput) -> bool:
     if input.disability_target and not is_disability_targeted_policy(policy):
         return False
     if input.veteran_target and not is_veteran_targeted_policy(policy):
+        return False
+    # 2026-09-04 추가: matching.is_eligible()의 TARGETING_RULES와 동일한 "직업 전용
+    # 정책 자동 제외"를 여기도 적용한다 — occupation이 아직 안 밝혀졌으면(None)
+    # 지금까지처럼 필터링하지 않는다(fail-open).
+    if input.occupation is not None:
+        if is_student_only_policy(policy) and input.occupation != "student":
+            return False
+        if is_employee_only_policy(policy) and input.occupation != "employee":
+            return False
+        if is_self_employed_only_policy(policy) and input.occupation != "self_employed":
+            return False
+        if is_unemployed_only_policy(policy) and input.occupation != "unemployed":
+            return False
+    if input.is_sme_employee is False and is_sme_only_policy(policy):
         return False
     return True
 

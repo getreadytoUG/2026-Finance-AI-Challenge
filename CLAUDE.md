@@ -145,6 +145,21 @@ OR로 보완하는 쪽이 안전해 보인다).
 두 곳이 항상 같은 로직을 쓰게 했다. 이 조건들을 손볼 땐 두 파일 다 살펴볼 필요 없이
 `matching.py`만 고치면 된다.
 
+**위 통합이 불완전했던 부분(2026-09-04 발견·수정)**: 사용자 지적("정책달력
+맞춤검색결과랑 한눈에보기 신청가능 정책 개수가 왜 달라?") — `matching.py`의
+`TARGETING_RULES`에 있는 재학생/재직자/자영업자/미취업자/중소기업재직 "전용"
+정책 자동 제외가 `is_eligible()`(한눈에보기, `/tools/policy_matcher`)에만 적용되고
+`_matches()`(정책달력 "맞춤 검색 결과", `/policy_chat/ai_search/results`)에는
+빠져 있었다 — `PolicyChatSearchInput`에 애초에 `occupation`/`is_sme_employee`
+필드가 없어서, 프론트가 `occupation`을 쿼리로 보내도(`fetchAiSearchResults`)
+백엔드가 받는 파라미터 자체가 없어 조용히 무시됐다. `PolicyChatSearchInput`에 두
+필드를 추가하고 `_matches()`에 `is_student_only_policy()` 등 동일한 predicate로
+필터를 걸고, `get_ai_search_results`/`_profile_default_filters`(router.py)가
+`User.occupation`/`is_sme_employee`를 채워 넣게 고쳤다. 장애인/보훈대상자
+(`disability_target`/`veteran_target`)는 이 두 화면이 의도적으로 다르게 동작한다
+— "한눈에보기"는 프로필 기준 fail-closed로 자동 제외하지만, "정책달력"은 명시적
+opt-in 열람 필터라 켜지 않으면 기본적으로 다 보여준다(그대로 둠).
+
 ## 코딩 컨벤션
 
 - 테스트: `pytest`(backend). 기능 추가/수정 시 반드시 함께 작성하고 전체 스위트

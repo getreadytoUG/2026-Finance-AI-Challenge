@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 from app.features.policy_matcher.categories import PolicyCategoryTag
 from app.features.policy_matcher.matching import PolicyRegion
-from app.features.policy_matcher.schemas import PolicyBrowseItem
+from app.features.policy_matcher.schemas import OccupationType, PolicyBrowseItem
 from app.features.policy_matcher.status import PolicyStatusLabel
 
 
@@ -33,6 +33,14 @@ class PolicyChatSearchInput(BaseModel):
     # 전체를 그대로 보여준다(tool.py._matches 참고).
     disability_target: bool | None = None
     veteran_target: bool | None = None
+    # 2026-09-04 추가(사용자 지적: "정책달력 맞춤검색결과랑 한눈에보기 신청가능
+    # 정책 개수가 왜 달라?") — policy_matcher.is_eligible()의 TARGETING_RULES는
+    # 재학생/재직자/자영업자/미취업자/중소기업재직 "전용" 정책을 프로필이 안 맞으면
+    # 자동 제외하는데, 이 스키마엔 애초에 occupation/is_sme_employee 필드가 없어서
+    # ai_search._matches()가 그 필터를 아예 못 걸었다 — "맞춤"이라는 이름과 달리
+    # 직업 조건과 무관한 전용 정책까지 다 섞여 나와 개수가 더 크게 나온 원인이었다.
+    occupation: OccupationType | None = None
+    is_sme_employee: bool | None = None
 
 
 FilterFieldName = Literal[
@@ -46,6 +54,8 @@ FilterFieldName = Literal[
     "status",
     "disability_target",
     "veteran_target",
+    "occupation",
+    "is_sme_employee",
 ]
 
 
