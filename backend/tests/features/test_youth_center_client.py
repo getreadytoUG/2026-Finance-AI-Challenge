@@ -30,6 +30,8 @@ SAMPLE_PAYLOAD = {
                 "schoolCd": "0049005",
                 "jobCd": "0013001",
                 "sbizCd": "0014001",
+                "sbmsnDcmntCn": "주민등록등본, 소득금액증명원",
+                "plcyAplyMthdCn": "온라인 신청 후 서류 제출",
                 "lclsfNm": "주거",
                 "mclsfNm": "전월세 및 주거급여 지원",
                 "bizPrdBgngYmd": "20260101",
@@ -77,6 +79,8 @@ def test_parse_youth_policy_json_parses_full_record():
     assert first.school_code == "0049005"
     assert first.job_code == "0013001"
     assert first.sbiz_code == "0014001"
+    assert first.required_documents == "주민등록등본, 소득금액증명원"
+    assert first.application_method == "온라인 신청 후 서류 제출"
 
 
 def test_parse_youth_policy_json_converts_small_income_values_from_manwon_to_krw():
@@ -110,6 +114,10 @@ def test_parse_youth_policy_json_treats_zero_sentinel_as_no_limit():
     assert second.max_income_krw is None
     assert second.application_period == "상시"
     assert second.region_code == ""
+    # K패스처럼 실제로 제출서류/신청방법이 없는(필드 자체가 응답에 없는) 정책은
+    # 빈 문자열로 정규화돼야 한다(2026-09-04, "필요서류가 뭐냐" 챗봇 답변 조사).
+    assert second.required_documents == ""
+    assert second.application_method == ""
 
 
 def test_parse_youth_policy_json_returns_all_items():

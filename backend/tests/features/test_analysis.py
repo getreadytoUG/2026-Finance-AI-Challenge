@@ -64,6 +64,26 @@ def test_policy_text_omits_raw_marital_status_code():
     assert "혼인 조건 코드" not in text
 
 
+def test_policy_text_includes_required_documents_and_application_method_when_present():
+    # 2026-09-04 사용자 지적("K패스 필요서류 모른다는데 실제로 없어서 그런거야,
+    # 아니면 못찾아오는거야?") 조사 중 발견 — sbmsnDcmntCn/plcyAplyMthdCn은 실제
+    # API 필드인데 캐시에 안 담고 있어서, 값이 있는 정책도 챗봇이 "모른다"고
+    # 답할 수밖에 없었다. 값이 있으면 프롬프트에 포함돼야 한다.
+    policy = _policy(required_documents="주민등록등본, 소득금액증명원", application_method="온라인 신청")
+    text = analysis._policy_text(policy)
+    assert "주민등록등본, 소득금액증명원" in text
+    assert "온라인 신청" in text
+
+
+def test_policy_text_omits_required_documents_and_application_method_when_absent():
+    # K패스처럼 실제로 해당 정보가 없는 정책은 있는 척 지어내지 않고 아예 프롬프트에서
+    # 빠져야(LLM이 "모른다"고 정직하게 답하도록) 한다.
+    policy = _policy(required_documents="", application_method="")
+    text = analysis._policy_text(policy)
+    assert "제출 서류" not in text
+    assert "신청 방법" not in text
+
+
 def test_generate_policy_report_calls_llm_once_via_tool_call(monkeypatch):
     fake = _FakeProvider(
         LLMResponse(

@@ -52,4 +52,9 @@ class CachedPolicy(Base):
     # matching.py의 JOB_STATUS_RULES/is_sme_only_policy 주석 참고.
     job_code = Column(String, nullable=False, server_default="")
     sbiz_code = Column(String, nullable=False, server_default="")
+    # 2026-09-04 추가: 온통청년 sbmsnDcmntCn(제출서류)/plcyAplyMthdCn(신청방법) —
+    # youth_center_client.py의 RawYouthPolicy 주석 참고. 정책별 챗봇/AI 분석
+    # 리포트가 "필요서류가 뭐야?" 질문에 진짜 데이터로 답할 수 있게 한다.
+    required_documents = Column(String, nullable=False, server_default="")
+    application_method = Column(String, nullable=False, server_default="")
     refreshed_at = Column(DateTime(timezone=True), nullable=False)

@@ -43,6 +43,8 @@ def refresh_policy_cache(db: Session) -> int:
         row.school_code = policy.school_code
         row.job_code = policy.job_code
         row.sbiz_code = policy.sbiz_code
+        row.required_documents = policy.required_documents
+        row.application_method = policy.application_method
         row.refreshed_at = now
         upserted += 1
 

@@ -68,9 +68,18 @@ def ensure_schema(engine: Engine) -> None:
 
     # --- 2026-09-03 추가: cached_policies의 신규 코드값 컬럼들 (matching.py의
     # is_likely_template_region_code / is_student_only_policy 주석 참고) ---
+    # --- 2026-09-04 추가: required_documents/application_method(youth_center_client.py
+    # 주석 참고 — "필요서류 모른다" 챗봇 답변 조사 중 발견) ---
     if "cached_policies" in table_names:
         policy_columns = {col["name"] for col in inspector.get_columns("cached_policies")}
-        for column in ("institution_group_code", "school_code", "job_code", "sbiz_code"):
+        for column in (
+            "institution_group_code",
+            "school_code",
+            "job_code",
+            "sbiz_code",
+            "required_documents",
+            "application_method",
+        ):
             if column not in policy_columns:
                 ddl.append(f"ALTER TABLE cached_policies ADD COLUMN {column} VARCHAR NOT NULL DEFAULT ''")
 

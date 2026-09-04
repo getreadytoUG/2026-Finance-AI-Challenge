@@ -68,6 +68,17 @@ def _policy_text(policy: CachedPolicy) -> str:
     # 아예 프롬프트에서 뺀다(안 넣는 게 이상한 코드를 노출하는 것보다 낫다).
     if policy.region_code:
         lines.append(f"지역 코드: {policy.region_code}")
+    # 2026-09-04 추가: 사용자가 "K패스 필요서류가 뭐야?"라고 물었을 때 챗봇이
+    # "모른다"고 답한 원인을 조사하다가 발견 — sbmsnDcmntCn(제출서류)/
+    # plcyAplyMthdCn(신청방법)은 온통청년 API에 실제로 존재하는 필드인데(라이브
+    # 조회 기준 각각 34%/55% 정책에 값이 채워져 있음) 이 필드 자체를 캐시하지
+    # 않고 있었다 — 그래서 실제 서류 정보가 있는 정책도 "모른다"고 답할 수밖에
+    # 없었다(K패스 자체는 우연히 진짜로 서류가 없는 경우였다). 값이 있을 때만
+    # 넣는다 — 없으면 이전처럼 LLM이 "정책 정보에 없다"고 정직하게 답한다.
+    if policy.required_documents:
+        lines.append(f"제출 서류: {policy.required_documents}")
+    if policy.application_method:
+        lines.append(f"신청 방법: {policy.application_method}")
     return "\n".join(lines)
 
 

@@ -76,6 +76,18 @@ def test_refresh_policy_cache_stores_job_and_sbiz_code(db_session, monkeypatch):
     assert row.sbiz_code == "0014001"
 
 
+def test_refresh_policy_cache_stores_required_documents_and_application_method(db_session, monkeypatch):
+    monkeypatch.setattr(
+        cache,
+        "fetch_all_policies",
+        lambda: [_policy(required_documents="주민등록등본", application_method="온라인 신청")],
+    )
+    cache.refresh_policy_cache(db_session)
+    row = db_session.query(CachedPolicy).one()
+    assert row.required_documents == "주민등록등본"
+    assert row.application_method == "온라인 신청"
+
+
 def test_refresh_policy_cache_falls_back_to_policy_name_when_id_blank(db_session, monkeypatch):
     monkeypatch.setattr(cache, "fetch_all_policies", lambda: [_policy(policy_id="", policy_name="이름만 있는 정책")])
     cache.refresh_policy_cache(db_session)

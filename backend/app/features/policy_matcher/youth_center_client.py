@@ -35,6 +35,15 @@ class RawYouthPolicy(BaseModel):
     # matching.py의 JOB_STATUS_RULES/is_sme_only_policy 주석 참고.
     job_code: str = ""
     sbiz_code: str = ""
+    # 2026-09-04 추가: sbmsnDcmntCn(제출서류)/plcyAplyMthdCn(신청방법) — 사용자가
+    # "K패스 필요서류가 뭐야?"라고 물었을 때 챗봇이 "모른다"고 답한 게 실제로
+    # 정책에 서류가 없어서인지(K패스는 실제로 그랬다) 우리가 안 가져와서인지
+    # 확인하다가 발견했다: 라이브 조회(2,747건) 기준 34%(936건)는 sbmsnDcmntCn이,
+    # 55%(1,512건)는 plcyAplyMthdCn이 실제로 채워져 있는데 이 필드들 자체를 아예
+    # 캐시하지 않고 있었다 — 그런 정책은 실제 정보가 있어도 챗봇이 "모른다"고
+    # 답할 수밖에 없었다. analysis.py의 _policy_text()가 프롬프트에 포함한다.
+    required_documents: str = ""
+    application_method: str = ""
 
 
 def fetch_policies(page_num: int = 1, page_size: int = 100) -> list[RawYouthPolicy]:
@@ -88,6 +97,8 @@ def _parse_youth_policy_json(payload: dict) -> list[RawYouthPolicy]:
                 school_code=item.get("schoolCd") or "",
                 job_code=item.get("jobCd") or "",
                 sbiz_code=item.get("sbizCd") or "",
+                required_documents=item.get("sbmsnDcmntCn") or "",
+                application_method=item.get("plcyAplyMthdCn") or "",
             )
         )
     return policies
