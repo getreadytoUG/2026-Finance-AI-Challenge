@@ -16,6 +16,7 @@ import {
   Heart,
   Home,
   LogOut,
+  Megaphone,
   Search,
   Settings,
   Tags,
@@ -43,6 +44,7 @@ const NAV_ITEMS = [
   { href: "/marriage", label: "혼인신고 계산기", icon: Heart },
   { href: "/finance-simulator", label: "정책금융 시뮬레이터", icon: Calculator },
   { href: "/recommendations", label: "정책 달력", icon: Bell },
+  { href: "/notices", label: "공지사항", icon: Megaphone },
 ];
 
 // "코드값" 탭(2026-09-03 추가): 온통청년 원본 코드값(혼인상태 mrgSttsCd/지역코드

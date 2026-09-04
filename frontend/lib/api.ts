@@ -689,3 +689,20 @@ export async function getAdminCodeValues(token: string): Promise<AdminCodeValues
   const res = await authedFetch("/admin/policies/code-values", token);
   return res.json();
 }
+
+export type Notice = {
+  id: number;
+  category: string;
+  title: string;
+  content: string;
+  created_at: string;
+};
+
+export type NoticeListResponse = {
+  notices: Notice[];
+};
+
+export async function getNotices(token: string): Promise<NoticeListResponse> {
+  const res = await authedFetch("/notices", token);
+  return res.json();
+}

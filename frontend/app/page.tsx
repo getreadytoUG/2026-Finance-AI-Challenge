@@ -61,10 +61,39 @@ const FEATURE_CARDS = [
 ] as const;
 
 const STEPS = [
-  { n: "01", title: "프로필 입력", body: "나이, 소득, 지역, 혼인 여부를 알려주면 내게 맞는 정책만 골라드려요." },
-  { n: "02", title: "AI가 정책 매칭 & 분석", body: "실제 정책 데이터를 기준으로 적합도·예상 혜택·유의사항을 리포트로 정리해요." },
-  { n: "03", title: "저축플랜에 반영", body: "정책 혜택을 목표에 반영해 내가 실제로 더 모아야 할 금액을 계산해요." },
+  {
+    n: "01",
+    title: "프로필 입력",
+    body: "나이, 소득, 지역, 혼인 여부를 알려주면\n내게 맞는 정책만 골라드려요.",
+  },
+  {
+    n: "02",
+    title: "AI가 정책 매칭 & 분석",
+    body: "실제 정책 데이터를 기준으로\n적합도·예상 혜택·유의사항을 리포트로 정리해요.",
+  },
+  {
+    n: "03",
+    title: "저축플랜에 반영",
+    body: "정책 혜택을 목표에 반영해 내가 실제로\n더 모아야 할 금액을 계산해요.",
+  },
 ];
+
+// 2026-09-04: 푸터 "서비스" 칸 — 좌측 사이드바(AppShell.tsx NAV_ITEMS)와 동일한
+// 항목·순서로 링크를 건다. 로그인 전 방문자가 눌러도 각 페이지의 인증 가드가
+// /login으로 보내주므로(과거엔 이게 "이상한 곳으로 튄다"는 혼동을 줘서 링크를
+// 없앴었는데, 이번엔 사용자가 명시적으로 사이드바 항목+링크 연결을 요청했다)
+// 별도의 loggedIn 분기 없이 실제 경로를 그대로 쓴다.
+const SERVICE_LINKS = [
+  { href: "/dashboard", label: "한눈에 보기" },
+  { href: "/policy", label: "내 맞춤 정책 보기" },
+  { href: "/marriage", label: "혼인신고 계산기" },
+  { href: "/finance-simulator", label: "정책금융 시뮬레이터" },
+  { href: "/recommendations", label: "정책 달력" },
+] as const;
+
+// 공지사항은 사이드바에서는 "서비스" 성격이지만, 방문자 입장에서는 안내/고지
+// 성격이 더 커서 푸터에서는 [고객지원] 밑에 둔다(사용자 요청, 2026-09-04).
+const SUPPORT_LINKS = [{ href: "/notices", label: "공지사항" }] as const;
 
 // 2026-09-02: 예전엔 로그인 상태면 이 랜딩 페이지를 건너뛰고 바로 /dashboard로
 // 리다이렉트했는데, 사용자 요청으로 이제 로그인 여부와 상관없이 누구나 이 페이지를
@@ -97,10 +126,15 @@ export default function Home() {
             <h1 className="max-w-[650px] text-[39px] font-extrabold leading-[1.15] tracking-[-0.07em] sm:text-[56px]">
               복잡한 청년·신혼부부 정책,
               <br />
-              <span className="text-[#9cc5ff]">내 저축 계획으로</span> 바로 연결합니다
+              <span className="text-[#9cc5ff]">
+                내 저축 계획으로
+                <br />
+              </span>{" "}
+              바로 연결합니다
             </h1>
             <p className="mt-6 max-w-[490px] text-[15px] leading-7 text-blue-100/85 sm:text-[16px]">
-              나이·소득·지역만 입력하면 지금 신청 가능한 정책을 찾아드리고, AI가 분석한 실제 혜택을 저축 목표에 반영해드려요.
+              나이·소득·지역만 입력하면 지금 신청 가능한 정책을 찾아드리고,
+              <br /> AI가 분석한 실제 혜택을 저축 목표에 반영해드려요.
             </p>
             <div className="mt-9 flex flex-wrap items-center gap-3">
               <Link
@@ -108,9 +142,16 @@ export default function Home() {
                 style={{ color: "#2457d6" }}
                 className="group inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3.5 text-[13px] font-extrabold shadow-[0_14px_30px_rgba(7,21,58,.28)] transition hover:-translate-y-1"
               >
-                {loggedIn ? "시작하기" : "내 맞춤 혜택 진단"} <ArrowRight size={16} className="transition group-hover:translate-x-1" />
+                {loggedIn ? "시작하기" : "내 맞춤 혜택 진단"}{" "}
+                <ArrowRight
+                  size={16}
+                  className="transition group-hover:translate-x-1"
+                />
               </Link>
-              <a href="#how" className="rounded-xl border border-white/25 px-5 py-3.5 text-[13px] font-bold text-white transition hover:bg-white/10">
+              <a
+                href="#how"
+                className="rounded-xl border border-white/25 px-5 py-3.5 text-[13px] font-bold text-white transition hover:bg-white/10"
+              >
                 어떻게 연결되나요?
               </a>
             </div>
@@ -127,8 +168,12 @@ export default function Home() {
             <div className="relative ml-auto max-w-[380px] rotate-[2deg] rounded-[26px] border border-white/15 bg-[#f8fbff]/95 p-5 text-ink shadow-[0_26px_70px_rgba(5,20,60,.35)] backdrop-blur-lg">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-[10px] font-extrabold uppercase tracking-[.16em] text-[#2457d6]">Your briefing</div>
-                  <div className="mt-1 text-[15px] font-extrabold">오늘의 추천 요약</div>
+                  <div className="text-[10px] font-extrabold uppercase tracking-[.16em] text-[#2457d6]">
+                    Your briefing
+                  </div>
+                  <div className="mt-1 text-[15px] font-extrabold">
+                    오늘의 추천 요약
+                  </div>
                 </div>
                 <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#e5efff] text-[#2457d6]">
                   <Sparkles size={17} />
@@ -142,16 +187,25 @@ export default function Home() {
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#dbe5f4]">
                   <div className="h-full w-[86%] rounded-full bg-[#2457d6]" />
                 </div>
-                <div className="mt-2 text-[12px] font-extrabold text-ink">프로필 입력 즉시 신청 가능한 정책만 골라요</div>
+                <div className="mt-2 text-[12px] font-extrabold text-ink">
+                  프로필 입력 즉시 신청 가능한 정책만 골라요
+                </div>
               </div>
               <div className="mt-4 grid gap-2.5">
                 {["AI 분석 리포트", "저축플랜 자동 반영"].map((item, i) => (
-                  <div key={item} className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white px-3 py-3">
-                    <span className={`grid h-8 w-8 place-items-center rounded-lg ${i ? "bg-[#e6f8f5] text-[#159c8d]" : "bg-[#e8f0ff] text-[#2457d6]"}`}>
+                  <div
+                    key={item}
+                    className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white px-3 py-3"
+                  >
+                    <span
+                      className={`grid h-8 w-8 place-items-center rounded-lg ${i ? "bg-[#e6f8f5] text-[#159c8d]" : "bg-[#e8f0ff] text-[#2457d6]"}`}
+                    >
                       {i ? <PiggyBank size={15} /> : <Sparkles size={15} />}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-[11px] font-extrabold">{item}</div>
+                      <div className="truncate text-[11px] font-extrabold">
+                        {item}
+                      </div>
                     </div>
                     <ArrowUpRight size={14} className="text-slate-300" />
                   </div>
@@ -163,56 +217,84 @@ export default function Home() {
         <div className="absolute bottom-0 left-0 right-0 h-20 bg-[#f7f9fc] [clip-path:polygon(0_45%,100%_0,100%_100%,0_100%)]" />
       </section>
 
-      <section id="service" className="mx-auto max-w-[1180px] px-5 pb-24 pt-28 lg:px-0">
+      <section
+        id="service"
+        className="mx-auto max-w-[1180px] px-5 pb-24 pt-28 lg:px-0"
+      >
         <div className="mb-10 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
             <div className="section-kicker">OUR SERVICE</div>
-            <h2 className="mt-2 text-[28px] font-extrabold tracking-[-.06em] sm:text-[36px]">정책과 저축을 하나로 연결합니다</h2>
+            <h2 className="mt-2 text-[28px] font-extrabold tracking-[-.06em] sm:text-[36px]">
+              정책과 저축을 하나로 연결합니다
+            </h2>
           </div>
           <p className="max-w-[310px] text-[13px] leading-6 text-slate-500">
             찾는 데서 끝나지 않도록,
-            <br />
-            내 삶의 다음 계획까지 이어드려요.
+            <br />내 삶의 다음 계획까지 이어드려요.
           </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {FEATURE_CARDS.map(({ title, detail, icon: Icon, loggedInPath, tone }) => (
-            <Link
-              key={title}
-              href={loggedIn ? loggedInPath : "/signup"}
-              className="group relative min-h-[190px] overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 transition hover:-translate-y-1 hover:border-[#cddafb] hover:shadow-[0_18px_42px_rgba(28,50,88,.1)]"
-            >
-              <span className={`service-icon ${tone}`}>
-                <Icon size={18} />
-              </span>
-              <div className="mt-8 text-[16px] font-extrabold tracking-[-.04em]">{title}</div>
-              <p className="mt-2 text-[12px] leading-5 text-slate-500">{detail}</p>
-              <ArrowUpRight
-                size={17}
-                className="absolute bottom-6 right-6 text-slate-300 transition group-hover:-translate-y-1 group-hover:translate-x-1 group-hover:text-[#2457d6]"
-              />
-            </Link>
-          ))}
+          {FEATURE_CARDS.map(
+            ({ title, detail, icon: Icon, loggedInPath, tone }) => (
+              <Link
+                key={title}
+                href={loggedIn ? loggedInPath : "/signup"}
+                className="group relative min-h-[190px] overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 transition hover:-translate-y-1 hover:border-[#cddafb] hover:shadow-[0_18px_42px_rgba(28,50,88,.1)]"
+              >
+                <span className={`service-icon ${tone}`}>
+                  <Icon size={18} />
+                </span>
+                <div className="mt-8 text-[16px] font-extrabold tracking-[-.04em]">
+                  {title}
+                </div>
+                <p className="mt-2 text-[12px] leading-5 text-slate-500">
+                  {detail}
+                </p>
+                <ArrowUpRight
+                  size={17}
+                  className="absolute bottom-6 right-6 text-slate-300 transition group-hover:-translate-y-1 group-hover:translate-x-1 group-hover:text-[#2457d6]"
+                />
+              </Link>
+            ),
+          )}
         </div>
       </section>
 
-      <section id="how" className="relative overflow-hidden bg-[#203f8c] text-white">
+      <section
+        id="how"
+        className="relative overflow-hidden bg-[#203f8c] text-white"
+      >
         <div className="absolute right-[-10%] top-[-25%] h-[520px] w-[520px] rounded-full border border-white/5" />
         <div className="relative mx-auto max-w-[1180px] px-5 py-24 lg:px-0">
           <div className="text-center">
-            <div className="text-[10px] font-extrabold uppercase tracking-[.22em] text-[#9cc5ff]">HOW IT WORKS</div>
-            <h2 className="mt-3 text-[30px] font-extrabold tracking-[-.06em]">어떻게 연결되나요?</h2>
-            <p className="mt-3 text-[13px] text-blue-100/75">가입부터 저축 계획까지 3단계로 간소화했어요.</p>
+            <div className="text-[10px] font-extrabold uppercase tracking-[.22em] text-[#9cc5ff]">
+              HOW IT WORKS
+            </div>
+            <h2 className="mt-3 text-[30px] font-extrabold tracking-[-.06em]">
+              어떻게 연결되나요?
+            </h2>
+            <p className="mt-3 text-[13px] text-blue-100/75">
+              가입부터 저축 계획까지 3단계로 간소화했어요.
+            </p>
           </div>
           <div className="mt-14 grid gap-4 lg:grid-cols-3">
             {STEPS.map((item) => (
-              <div key={item.n} className="relative rounded-2xl border border-white/15 bg-white/[.06] p-7 backdrop-blur-sm">
+              <div
+                key={item.n}
+                className="relative rounded-2xl border border-white/15 bg-white/[.06] p-7 backdrop-blur-sm"
+              >
                 <div className="flex items-center gap-4">
-                  <span className="text-[12px] font-extrabold text-[#8fbaff]">{item.n}</span>
+                  <span className="text-[12px] font-extrabold text-[#8fbaff]">
+                    {item.n}
+                  </span>
                   <div className="h-px flex-1 bg-white/15" />
                 </div>
-                <h3 className="mt-8 text-[18px] font-extrabold">{item.title}</h3>
-                <p className="mt-3 text-[13px] leading-6 text-blue-100/70">{item.body}</p>
+                <h3 className="mt-8 text-[18px] font-extrabold">
+                  {item.title}
+                </h3>
+                <p className="mt-3 whitespace-pre-line text-[13px] leading-6 text-blue-100/70">
+                  {item.body}
+                </p>
               </div>
             ))}
           </div>
@@ -222,15 +304,26 @@ export default function Home() {
       <section className="mx-auto max-w-[1180px] px-5 py-20 lg:px-0">
         <div className="flex flex-col items-start justify-between gap-7 rounded-[26px] bg-[linear-gradient(105deg,#2457d6,#453fe0)] px-7 py-9 text-white shadow-[0_22px_45px_rgba(36,87,214,.2)] sm:flex-row sm:items-center sm:px-10">
           <div>
-            <div className="text-[10px] font-extrabold uppercase tracking-[.18em] text-blue-100">START WITH YOUR PLAN</div>
-            <h2 className="mt-3 text-[23px] font-extrabold tracking-[-.05em] sm:text-[28px]">내가 받을 수 있는 정책 혜택은 얼마일까요?</h2>
-            <p className="mt-2 text-[13px] text-blue-100">가입하고 프로필만 입력하면 바로 맞춤 정책과 저축 계획을 확인할 수 있어요.</p>
+            <div className="text-[10px] font-extrabold uppercase tracking-[.18em] text-blue-100">
+              START WITH YOUR PLAN
+            </div>
+            <h2 className="mt-3 text-[23px] font-extrabold tracking-[-.05em] sm:text-[28px]">
+              내가 받을 수 있는 정책 혜택은 얼마일까요?
+            </h2>
+            <p className="mt-2 text-[13px] text-blue-100">
+              가입하고 프로필만 입력하면 바로 맞춤 정책과 저축 계획을 확인할 수
+              있어요.
+            </p>
           </div>
           <Link
             href={loggedIn ? "/dashboard" : "/signup"}
             className="group flex shrink-0 items-center gap-3 rounded-xl bg-white px-5 py-3.5 text-[13px] font-extrabold text-[#2457d6] transition hover:-translate-y-1"
           >
-            {loggedIn ? "시작하기" : "무료로 시작하기"} <ArrowRight size={16} className="transition group-hover:translate-x-1" />
+            {loggedIn ? "시작하기" : "무료로 시작하기"}{" "}
+            <ArrowRight
+              size={16}
+              className="transition group-hover:translate-x-1"
+            />
           </Link>
         </div>
       </section>
@@ -244,26 +337,39 @@ export default function Home() {
               <br />
               개인 맞춤 정책 매칭과 저축 계획을 제공합니다.
             </p>
-            <p className="mt-3 text-[12px] font-semibold text-slate-500">www.trinity2030.site</p>
+            <p className="mt-3 text-[12px] font-semibold text-slate-500">
+              www.trinity2030.site
+            </p>
           </div>
-          {/* 2026-09-02: "서비스" 칸이 로그인 여부에 따라 /signup·/login으로 튀는 게
-              사용자에게 "이상한 곳으로 간다"는 혼동을 줬다 — 눌러도 실제 그 기능
-              화면으로 안 가고 매번 가입/로그인부터 요구했기 때문. 여기는 순수 안내용
-              푸터라 링크를 없애고 기능명만 텍스트로 나열한다(고객지원 칸은 원래도
-              링크가 아니었음). */}
+          {/* 2026-09-04: 위 SERVICE_LINKS/SUPPORT_LINKS 주석 참고 — 사이드바 항목 +
+              실제 링크로 복원(사용자 요청). */}
           <div className="grid grid-cols-2 gap-12 text-[12px]">
             <div>
               <div className="mb-3 font-extrabold text-white">서비스</div>
               <div className="grid gap-2 text-slate-400">
-                <span>내 맞춤 정책 보기</span>
-                <span>저축플랜</span>
-                <span>정책 달력</span>
+                {SERVICE_LINKS.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="transition hover:text-white"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
               </div>
             </div>
             <div>
               <div className="mb-3 font-extrabold text-white">고객지원</div>
               <div className="grid gap-2 text-slate-400">
-                <span>공지사항 준비 중</span>
+                {SUPPORT_LINKS.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="transition hover:text-white"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
                 <span>자주 묻는 질문 준비 중</span>
               </div>
             </div>
