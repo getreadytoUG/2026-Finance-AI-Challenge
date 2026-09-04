@@ -5,10 +5,9 @@ from app.auth.models import User
 from app.auth.router import get_current_user
 from app.core.db import get_db
 from app.features.policy_matcher.categories import category_tags
-from app.features.policy_matcher.marriage_comparison import build_marriage_scenarios, compare_marriage_scenarios
+from app.features.policy_matcher.marriage_comparison import compare_housing_loan_scenarios
 from app.features.policy_matcher.matching import REGIONS, region_matches
 from app.features.policy_matcher.models import CachedPolicy, PolicyRecommendation
-from app.features.policy_matcher.ranking import rank_policies
 from app.features.policy_matcher.recommender import run_recommendation_batch_for_user
 from app.features.policy_matcher.schemas import (
     MarriageComparisonInput,
@@ -17,8 +16,6 @@ from app.features.policy_matcher.schemas import (
     PolicyBrowseResponse,
     PolicyCategoryItem,
     PolicyCategoryListResponse,
-    PolicyRankingInput,
-    PolicyRankingOutput,
     RecommendationListResponse,
     RecommendationOut,
     RefreshResponse,
@@ -232,38 +229,12 @@ def list_policy_categories(
 def compare_marriage_scenarios_endpoint(
     payload: MarriageComparisonInput,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
 ):
     # 저장된 프로필을 읽지 않는 1회성 계산기 — 프론트가 getMe()로 미리 채워주고
     # 사용자가 그 자리에서 값(특히 배우자 소득)을 바꿔볼 수 있게 한다.
+    # 2026-09-03 재작업 이후로는 CachedPolicy를 조회하지 않는다 — 고정 기준 상품
+    # 2개(버팀목/디딤돌)의 실제 계산 로직만 쓰므로 DB 접근이 필요 없다.
     try:
-        policies = db.query(CachedPolicy).all()
-        # 2026-09-03 사용자 발견: 폼에 없는 필드(장애인/보훈/직업/중소기업 재직)가
-        # 항상 None으로 넘어가 장애인 전용 정책이 일반 부부에게도 노출됐다 — 폼이
-        # 안 다루는 고정 프로필 속성은 저장된 값을 그대로 넘긴다.
-        unmarried_input, married_input = build_marriage_scenarios(
-            payload,
-            has_disability=current_user.has_disability,
-            is_veteran=current_user.is_veteran,
-            occupation=current_user.occupation,
-            is_sme_employee=current_user.is_sme_employee,
-        )
-        return compare_marriage_scenarios(policies, payload, unmarried_input, married_input, today_kst())
+        return MarriageComparisonOutput(housing_loan_comparisons=compare_housing_loan_scenarios(payload))
     except Exception as e:
         _raise_as_http_500("/policy_matcher/marriage_comparison", f" for user_id={current_user.id}", e)
-
-
-@router.post("/marriage_comparison/rank", response_model=PolicyRankingOutput)
-def rank_marriage_comparison_policies(
-    payload: PolicyRankingInput,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    # 카드마다 자동으로 순위를 매기면 LLM 호출이 계속 쌓이므로, 사용자가 버킷별
-    # "AI로 우선순위 정렬" 버튼을 눌렀을 때만 온디맨드로 그 버킷 전체를 한 번에 호출한다
-    # (policy_chat.analyze_ai_search_policy와 동일한 온디맨드 원칙).
-    try:
-        policies = db.query(CachedPolicy).filter(CachedPolicy.policy_key.in_(payload.policy_keys)).all()
-        return rank_policies(payload, policies)
-    except Exception as e:
-        _raise_as_http_500("/policy_matcher/marriage_comparison/rank", f" for user_id={current_user.id}", e)

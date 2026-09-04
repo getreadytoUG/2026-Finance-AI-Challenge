@@ -2,12 +2,9 @@ from datetime import datetime, timedelta, timezone
 
 from app.auth.service import create_user
 from app.core.security import create_access_token
-from app.features.policy_matcher import ranking as marriage_ranking
 from app.features.policy_matcher import recommender
-from app.features.policy_matcher.categories import FINANCIAL_LARGE_CATEGORY
 from app.features.policy_matcher.models import CachedPolicy
 from app.features.policy_matcher.status import today_kst
-from app.llm.base import LLMResponse, ToolCallRequest
 
 
 def _signup_login_with_profile(client, email="router-user@example.com"):
@@ -185,7 +182,7 @@ def test_list_recommendation_falls_back_when_cached_policy_missing(client, db_se
 
 
 def test_marriage_comparison_requires_auth(client):
-    response = client.post("/policy_matcher/marriage_comparison", json={"age": 29, "region": "서울", "annual_income_krw": 40_000_000})
+    response = client.post("/policy_matcher/marriage_comparison", json={"age": 29, "annual_income_krw": 40_000_000})
     assert response.status_code == 401
 
 
@@ -199,19 +196,17 @@ def test_marriage_comparison_rejects_missing_required_fields(client, db_session)
     assert response.status_code == 422
 
 
-def test_marriage_comparison_returns_three_buckets(client, db_session):
-    _seed_policy(
-        db_session,
-        policy_key="P500",
-        max_income_krw=50_000_000,
-        large_category=FINANCIAL_LARGE_CATEGORY,
-    )
+# 2026-09-03 재작업("혼인신고 계산기도 특정 정책 타겟팅해야 함"): CachedPolicy 전체
+# 스캔 방식(married_only/unmarried_only/both 버킷)과 그 위에 얹혀있던 AI 우선순위
+# 정렬(/marriage_comparison/rank)을 걷어내고, 고정 기준 상품 2개(버팀목/디딤돌)
+# 비교로 교체했다 — marriage_comparison.py/test_marriage_comparison.py에 그 계산
+# 로직 테스트가 있으므로, 여기서는 라우터가 실제로 그 결과를 돌려주는지만 본다.
+def test_marriage_comparison_returns_housing_loan_comparisons(client, db_session):
     token = _signup_login_with_profile(client)
     response = client.post(
         "/policy_matcher/marriage_comparison",
         json={
             "age": 29,
-            "region": "서울",
             "annual_income_krw": 40_000_000,
             "spouse_annual_income_krw": 20_000_000,
         },
@@ -219,64 +214,7 @@ def test_marriage_comparison_returns_three_buckets(client, db_session):
     )
     assert response.status_code == 200
     body = response.json()
-    assert {"married_only", "unmarried_only", "both"} <= body.keys()
-    assert [p["policy_key"] for p in body["unmarried_only"]] == ["P500"]
-
-
-def test_marriage_comparison_rank_requires_auth(client):
-    response = client.post(
-        "/policy_matcher/marriage_comparison/rank",
-        json={"age": 29, "region": "서울", "annual_income_krw": 40_000_000, "policy_keys": [], "context_label": "테스트"},
-    )
-    assert response.status_code == 401
-
-
-class _FakeLLMProvider:
-    def __init__(self, response: LLMResponse):
-        self._response = response
-
-    def chat(self, messages, tools):
-        return self._response
-
-
-def test_marriage_comparison_rank_reorders_by_llm_result(client, db_session, monkeypatch):
-    _seed_policy(db_session, policy_key="P600", policy_name="일반 정책")
-    _seed_policy(db_session, policy_key="P601", policy_name="신혼부부 특화 정책")
-    token = _signup_login_with_profile(client)
-
-    fake = _FakeLLMProvider(
-        LLMResponse(
-            content=None,
-            tool_calls=[
-                ToolCallRequest(
-                    name="policy_ranking_result",
-                    arguments={
-                        "ranked": [
-                            {"policy_key": "P601", "reason": "신혼부부 특화 정책이라 우선입니다."},
-                            {"policy_key": "P600", "reason": "일반 대상 정책입니다."},
-                        ]
-                    },
-                )
-            ],
-        )
-    )
-    monkeypatch.setattr(marriage_ranking, "get_provider", lambda: fake)
-
-    response = client.post(
-        "/policy_matcher/marriage_comparison/rank",
-        json={
-            "age": 29,
-            "region": "서울",
-            "annual_income_krw": 40_000_000,
-            "policy_keys": ["P600", "P601"],
-            "context_label": "혼인신고 후에만 자격되는 정책",
-        },
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert response.status_code == 200
-    body = response.json()
-    assert [item["policy_key"] for item in body["ranked"]] == ["P601", "P600"]
-    assert body["ranked"][0]["reason"] == "신혼부부 특화 정책이라 우선입니다."
+    assert [c["housing_type"] for c in body["housing_loan_comparisons"]] == ["jeonse", "purchase"]
 
 
 def test_mark_recommendation_read_rejects_other_users_recommendation(client, db_session):

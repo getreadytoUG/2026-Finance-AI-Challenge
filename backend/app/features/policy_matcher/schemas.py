@@ -129,29 +129,17 @@ class RegionListResponse(BaseModel):
 
 class MarriageComparisonInput(BaseModel):
     age: int
-    region: str
     annual_income_krw: int
-    spouse_age: int | None = None
     spouse_annual_income_krw: int | None = None
     # 2026-09-03 추가("혼인신고 계산기 타겟팅" 재작업): 버팀목/디딤돌 실제 대출조건
     # 비교(marriage_comparison.compare_housing_loan_scenarios)에 필요한 입력 —
     # LTV·대출한도 계산은 목표가/자기자본이 있어야 의미 있는 금액이 나온다.
     # savings_simulator/HousingLoanInput과 동일한 기본값(2.5억/5천만원)을 쓴다.
+    # region/spouse_age는 이 계산에 안 쓰여서(버팀목/디딤돌 조건은 전국 공통) 뺐다 —
+    # 예전엔 CachedPolicy 전체 스캔(region_matches)에 region이 필요했지만, 그 방식
+    # 자체를 걷어냈다(사용자 판단: "지역이 지금 필요한가 모르겠다").
     target_price_krw: int = 250_000_000
     self_capital_krw: int = 50_000_000
-
-
-class MarriagePolicyItem(BaseModel):
-    policy_key: str
-    policy_name: str
-    benefit_description: str
-    application_period: str
-    reference_url: str
-    is_newlywed_policy: bool = False
-    # 2026-09-03 추가: married_only/unmarried_only 버킷에 왜 그 정책이 속했는지
-    # (혼인상태 조건 자체 때문인지, 가구소득 합산 때문인지) 설명하는 한 줄 —
-    # marriage_comparison._change_reason 참고. both 버킷은 변화가 없으므로 None.
-    change_reason: str | None = None
 
 
 class HousingLoanScenario(BaseModel):
@@ -172,29 +160,9 @@ class HousingLoanMarriageComparison(BaseModel):
 
 class MarriageComparisonOutput(BaseModel):
     # 2026-09-03 재작업("혼인신고 계산기도 특정 정책 타겟팅해야 함", 사용자 요청):
-    # CachedPolicy 전체를 스캔해 자격 변화를 찾는 방식은 실제로 혼인상태를 조건으로
-    # 거는 정책이 2,750건 중 71건뿐이라 대부분 밋밋한 결과만 냈다. 실제로 미혼용/
-    # 기혼용 상품이 이름부터 따로 있고 조건도 다른 걸로 확인된 고정 기준 상품 2개
-    # (버팀목/디딤돌 전세·구입자금대출)를 항상 우선 비교해서 보여준다
-    # (marriage_comparison.compare_housing_loan_scenarios 참고).
+    # 예전엔 CachedPolicy 전체를 스캔해 married_only/unmarried_only/both 버킷으로
+    # "자격이 바뀌는 정책"을 찾았는데, 대부분 밋밋한 결과만 내서(사용자 판단: 그
+    # 섹션은 빼도 된다) 걷어냈다. 실제로 미혼용/기혼용이 이름부터 따로 있고 조건도
+    # 다른 걸로 확인된 고정 기준 상품 2개(버팀목/디딤돌 전세·구입자금대출)만
+    # 비교해서 보여준다(marriage_comparison.compare_housing_loan_scenarios 참고).
     housing_loan_comparisons: list[HousingLoanMarriageComparison]
-    married_only: list[MarriagePolicyItem]
-    unmarried_only: list[MarriagePolicyItem]
-    both: list[MarriagePolicyItem]
-
-
-class PolicyRankingInput(MarriageComparisonInput):
-    policy_keys: list[str]
-    # 프롬프트에 "이 목록이 어떤 버킷인지" 알려주기 위한 설명 텍스트(프론트가 고정된
-    # 문구 중 하나를 보냄, 사용자 자유 입력 아님) — 예: "혼인신고 후에만 자격되는 정책".
-    context_label: str
-
-
-class RankedPolicyItem(BaseModel):
-    policy_key: str
-    reason: str
-
-
-class PolicyRankingOutput(BaseModel):
-    # 배열 순서 자체가 우선순위(첫 번째가 가장 우선)다 — 별도 rank 정수 필드를 두지 않는다.
-    ranked: list[RankedPolicyItem]

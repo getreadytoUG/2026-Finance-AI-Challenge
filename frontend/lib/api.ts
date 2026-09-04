@@ -306,26 +306,13 @@ export async function getRegions(token: string): Promise<{ regions: string[] }> 
 
 export type MarriageComparisonInput = {
   age: number;
-  region: string;
   annual_income_krw: number;
-  spouse_age?: number | null;
   spouse_annual_income_krw?: number | null;
   // 2026-09-03 추가("혼인신고 계산기 타겟팅" 재작업): 버팀목/디딤돌 실제 대출조건
-  // 비교에 쓰인다. 안 보내면 백엔드 기본값(2.5억/5천만원)이 적용된다.
+  // 비교에 쓰인다. 안 보내면 백엔드 기본값(2.5억/5천만원)이 적용된다. region은
+  // 이 계산에 안 쓰여서(LTV/금리/소득상한 전부 전국 공통) 뺐다.
   target_price_krw?: number;
   self_capital_krw?: number;
-};
-
-export type MarriagePolicyItem = {
-  policy_key: string;
-  policy_name: string;
-  benefit_description: string;
-  application_period: string;
-  reference_url: string;
-  is_newlywed_policy: boolean;
-  // married_only/unmarried_only 버킷에 왜 그 정책이 속했는지(혼인상태 조건 자체 /
-  // 가구소득 합산) 설명하는 한 줄. both 버킷은 변화가 없으므로 null.
-  change_reason: string | null;
 };
 
 export type HousingLoanScenario = {
@@ -349,9 +336,6 @@ export type HousingLoanMarriageComparison = {
 
 export type MarriageComparisonOutput = {
   housing_loan_comparisons: HousingLoanMarriageComparison[];
-  married_only: MarriagePolicyItem[];
-  unmarried_only: MarriagePolicyItem[];
-  both: MarriagePolicyItem[];
 };
 
 export async function compareMarriageScenarios(
@@ -359,26 +343,6 @@ export async function compareMarriageScenarios(
   input: MarriageComparisonInput
 ): Promise<MarriageComparisonOutput> {
   const res = await authedFetch("/policy_matcher/marriage_comparison", token, {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
-  return res.json();
-}
-
-export type PolicyRankingInput = MarriageComparisonInput & {
-  policy_keys: string[];
-  context_label: string;
-};
-
-export type RankedPolicyItem = { policy_key: string; reason: string };
-
-export type PolicyRankingOutput = { ranked: RankedPolicyItem[] };
-
-export async function rankMarriagePolicies(
-  token: string,
-  input: PolicyRankingInput
-): Promise<PolicyRankingOutput> {
-  const res = await authedFetch("/policy_matcher/marriage_comparison/rank", token, {
     method: "POST",
     body: JSON.stringify(input),
   });
