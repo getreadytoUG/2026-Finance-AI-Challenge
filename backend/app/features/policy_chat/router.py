@@ -124,6 +124,17 @@ def send_chat_message(
         _raise_as_http_500("/policy_chat/message", f" for user_id={current_user.id}", e)
 
 
+def _target_group_default_filter(profile_value: bool | None) -> Literal["exclude", "only"] | None:
+    # 2026-09-05 추가(사용자 지적: "그냥 3단계 옵션만 만들면 어떡하냐, 기본으로
+    # 내가 장애인이 아니면 장애인 아님 필터를 자동으로 넣어줘야지") —
+    # policy_matcher(한눈에보기)가 비장애인/비보훈대상자 프로필에 자동으로
+    # 적용하는 fail-closed 제외를 정책달력 초기 필터에도 기본값으로 반영한다.
+    # 대상군 소속이면(True) "only"로 좁히지 않는다 — policy_matcher도 그 경우
+    # 일반 정책까지 같이 보여준다(TARGETING_RULES는 "제외"만 하지 "이것만
+    # 보여주기"는 안 한다). 미입력(None)이면 기존처럼 필터링하지 않는다.
+    return "exclude" if profile_value is False else None
+
+
 def _profile_default_filters(user: User) -> PolicyChatSearchInput:
     return PolicyChatSearchInput(
         age=user.age,
@@ -133,6 +144,8 @@ def _profile_default_filters(user: User) -> PolicyChatSearchInput:
         region=user.region,
         occupation=user.occupation,
         is_sme_employee=user.is_sme_employee,
+        disability_filter=_target_group_default_filter(user.has_disability),
+        veteran_filter=_target_group_default_filter(user.is_veteran),
     )
 
 

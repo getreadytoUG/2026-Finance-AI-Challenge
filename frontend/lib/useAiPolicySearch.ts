@@ -27,6 +27,15 @@ const WELCOME_MESSAGE: ChatTurn = {
 
 const SUGGESTED_QUESTIONS = ["서울 지역 정책만 보여줘", "미혼 대상 정책만 보여줘", "창업 지원 정책 찾아줘", "마감 임박한 것만 보여줘"];
 
+// 2026-09-05 추가(사용자 지적: "기본으로 내가 장애인이 아니면 장애인 아님 필터를
+// 넣어줘야지") — policy_matcher(한눈에보기)가 비장애인/비보훈대상자 프로필에
+// 자동으로 적용하는 fail-closed 제외를, 정책달력 초기 필터에도 기본값으로 반영한다
+// (router._target_group_default_filter와 동일한 로직). 대상군 소속이면(true) "only"로
+// 좁히지 않는다 — 일반 정책까지 같이 보여준다.
+function targetGroupDefaultFilter(value: boolean | null | undefined): "exclude" | "only" | null {
+  return value === false ? "exclude" : null;
+}
+
 function filterChips(filters: AiSearchFilters): { key: keyof AiSearchFilters; label: string }[] {
   const chips: { key: keyof AiSearchFilters; label: string }[] = [];
   if (filters.age != null) chips.push({ key: "age", label: `${filters.age}세` });
@@ -107,6 +116,8 @@ export function useAiPolicySearch(pageSize: number = 10, opts: { clientPaginate?
           region: profile.region,
           occupation: profile.occupation,
           is_sme_employee: profile.is_sme_employee,
+          disability_filter: targetGroupDefaultFilter(profile.has_disability),
+          veteran_filter: targetGroupDefaultFilter(profile.is_veteran),
         };
         setFilters(initial);
         return refetch(initial, 1, false);

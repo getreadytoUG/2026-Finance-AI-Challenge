@@ -101,6 +101,60 @@ def test_ai_search_message_first_turn_uses_profile_as_initial_filters(client, mo
     assert len(fake.calls) == 2
 
 
+def test_ai_search_message_defaults_target_group_filters_to_exclude_when_profile_says_not_targeted(
+    client, monkeypatch
+):
+    # 2026-09-05 추가(사용자 지적: "그냥 3단계 옵션만 만들면 어떡하냐, 기본으로 내가
+    # 장애인이 아니면 장애인 아님 필터를 자동으로 넣어줘야지") — policy_matcher
+    # (한눈에보기)가 비장애인/비보훈대상자 프로필에 자동으로 적용하는 fail-closed
+    # 제외를 정책달력 초기 필터에도 기본값으로 반영해야 두 화면 개수가 처음부터
+    # 맞는다.
+    token = _signup_login(client, email="target-default@example.com", has_disability=False, is_veteran=False)
+    fake = _FakeProvider(
+        [
+            LLMResponse(content="안녕하세요!", tool_calls=[]),
+            LLMResponse(content="안녕하세요! 무엇을 도와드릴까요?", tool_calls=[]),
+        ]
+    )
+    monkeypatch.setattr(policy_chat_router, "get_provider", lambda: fake)
+
+    response = client.post(
+        "/policy_chat/ai_search/message",
+        json={"messages": [{"role": "user", "content": "안녕"}], "filters": None},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["filters"]["disability_filter"] == "exclude"
+    assert body["filters"]["veteran_filter"] == "exclude"
+
+
+def test_ai_search_message_leaves_target_group_filters_unset_when_profile_says_targeted_or_unknown(
+    client, monkeypatch
+):
+    # has_disability=True(대상군 소속)면 "only"로 좁히지 않는다 — policy_matcher도
+    # 이 경우 일반 정책까지 같이 보여준다. is_veteran을 아예 안 밝혔으면(None)
+    # 기존처럼 필터링하지 않는다.
+    token = _signup_login(client, email="target-unknown@example.com", has_disability=True)
+    fake = _FakeProvider(
+        [
+            LLMResponse(content="안녕하세요!", tool_calls=[]),
+            LLMResponse(content="안녕하세요! 무엇을 도와드릴까요?", tool_calls=[]),
+        ]
+    )
+    monkeypatch.setattr(policy_chat_router, "get_provider", lambda: fake)
+
+    response = client.post(
+        "/policy_chat/ai_search/message",
+        json={"messages": [{"role": "user", "content": "안녕"}], "filters": None},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["filters"]["disability_filter"] is None
+    assert body["filters"]["veteran_filter"] is None
+
+
 def test_ai_search_message_merges_only_changed_fields(client, db_session, monkeypatch):
     _seed_policy(db_session, region_code="26110")  # 부산
     token = _signup_login(client)

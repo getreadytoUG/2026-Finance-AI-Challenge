@@ -155,10 +155,21 @@ OR로 보완하는 쪽이 안전해 보인다).
 백엔드가 받는 파라미터 자체가 없어 조용히 무시됐다. `PolicyChatSearchInput`에 두
 필드를 추가하고 `_matches()`에 `is_student_only_policy()` 등 동일한 predicate로
 필터를 걸고, `get_ai_search_results`/`_profile_default_filters`(router.py)가
-`User.occupation`/`is_sme_employee`를 채워 넣게 고쳤다. 장애인/보훈대상자
-(`disability_target`/`veteran_target`)는 이 두 화면이 의도적으로 다르게 동작한다
-— "한눈에보기"는 프로필 기준 fail-closed로 자동 제외하지만, "정책달력"은 명시적
-opt-in 열람 필터라 켜지 않으면 기본적으로 다 보여준다(그대로 둠).
+`User.occupation`/`is_sme_employee`를 채워 넣게 고쳤다.
+
+**장애인/보훈대상자 필터도 2026-09-05에 결국 통일됨**: 처음엔 "한눈에보기"는
+프로필 기준 fail-closed로 자동 제외, "정책달력"은 명시적 opt-in 열람 필터라 켜지
+않으면 기본적으로 다 보여주는 의도적 비대칭으로 남겨뒀는데, 사용자가 재차 지적
+("그냥 집어만 넣으면 어떻게 하냐, 기본으로 내가 장애인이 아니면 장애인 아님
+필터를 넣어줘야지") — 결국 두 화면 다 프로필 기준 기본값이 걸리는 쪽으로
+바꿨다. `disability_target`/`veteran_target`(bool, opt-in만 가능) →
+`disability_filter`/`veteran_filter`(`"exclude" | "only" | None` 3단계)로 스키마를
+바꾸고, `router._target_group_default_filter()`/`useAiPolicySearch.ts`의
+`targetGroupDefaultFilter()`가 `user.has_disability`/`is_veteran`이 `False`면
+`"exclude"`를 기본값으로 채운다(`True`면 `None` — 대상군 소속이면 policy_matcher도
+일반 정책까지 같이 보여주므로 "only"로 좁히지 않는다). 사용자가 필터바
+드롭다운으로 "전체"/"제외"/"만"을 언제든 명시적으로 바꿀 수 있다는 점에서 완전한
+opt-in도 유지된다 — 기본값만 policy_matcher와 맞춘 것.
 
 ## 코딩 컨벤션
 
