@@ -50,10 +50,12 @@ const FEATURE_CARDS = [
     tone: "violet",
   },
   {
-    title: "저축플랜",
-    detail: "목표까지 필요한 금액을 계산해요.",
+    // 2026-09-04: "저축플랜"(/savings) 탭이 "정책금융 시뮬레이터"(/finance-simulator)와
+    // 중복이라 삭제되고 실제 계산 로직이 그쪽으로 흡수됐다 — 이 카드도 같이 옮긴다.
+    title: "정책금융 시뮬레이터",
+    detail: "정책 저축·대출로 얼마를 모으고 빌릴 수 있는지 계산해요.",
     icon: PiggyBank,
-    loggedInPath: "/savings",
+    loggedInPath: "/finance-simulator",
     tone: "mint",
   },
 ] as const;

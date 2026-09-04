@@ -16,7 +16,6 @@ import {
   Heart,
   Home,
   LogOut,
-  PiggyBank,
   Search,
   Settings,
   Tags,
@@ -30,17 +29,18 @@ import { getMe, getRecommendations, isTokenExpired } from "@/lib/api";
 
 // 2026-09-01 UPGRADE.md 반영: "AI 분석 리포트"는 독립 탭이 아니라 "정책 달력" 안의
 // "AI 정책 검색" 기능으로 흡수됐다(RecommendationCalendar 옆 세 번째 서브탭 참고) —
-// 그래서 여기 더 이상 /ai-search 항목이 없다. "저축플랜"은 정책연계형 저축/주거
-// 시뮬레이터로 내용이 바뀌었을 뿐 탭 자체는 되살아났다. "정책 매칭"이라는 상위
-// 탭도 폐기되고, 그 아래 있던 두 기능이 각자 독립 탭으로 분리됐다(같은 날 사용자
-// 재지시) — "내 맞춤 정책 보기"(/policy)와 "혼인신고 계산기"(/marriage).
+// 그래서 여기 더 이상 /ai-search 항목이 없다. "정책 매칭"이라는 상위 탭도 폐기되고,
+// 그 아래 있던 두 기능이 각자 독립 탭으로 분리됐다(같은 날 사용자 재지시) — "내
+// 맞춤 정책 보기"(/policy)와 "혼인신고 계산기"(/marriage).
+// 2026-09-04: "저축플랜"(/savings)과 "정책금융 시뮬레이터"(/finance-simulator)가
+// 사실상 같은 기능(정책연계 저축/대출 시뮬레이터)을 중복으로 제공하고 있었다
+// (사용자 지적: "저축플랜이 정책금융 시뮬레이터랑 그냥 똑같은거 같은데") —
+// /finance-simulator의 3단계 마법사 UI로 실제 계산 로직을 옮기고 /savings는
+// 삭제했다.
 const NAV_ITEMS = [
   { href: "/dashboard", label: "한눈에 보기", icon: Home },
   { href: "/policy", label: "내 맞춤 정책 보기", icon: Search },
   { href: "/marriage", label: "혼인신고 계산기", icon: Heart },
-  { href: "/savings", label: "저축플랜", icon: PiggyBank },
-  // 2026-09-04: "저축플랜"(실계산)은 그대로 두고, 스크린샷 기준 3단계 마법사
-  // UI(정책연계 저축계좌상품 / 정책연계 대출)를 목업 탭으로 별도 추가했다.
   { href: "/finance-simulator", label: "정책금융 시뮬레이터", icon: Calculator },
   { href: "/recommendations", label: "정책 달력", icon: Bell },
 ];

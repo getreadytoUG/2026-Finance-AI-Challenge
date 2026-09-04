@@ -1,9 +1,10 @@
 "use client";
 
-// 정책금융 시뮬레이터(목업) 공용 UI 조각들. 이 탭은 백엔드를 호출하지 않고
-// 화면 설계용 예시 수치만 보여준다(스크린샷의 "화면 예시용 표본 수치" 문구) —
-// 실제 계산이 필요하면 /savings 탭의 YouthFutureSavingsSimulator /
-// HousingLoanSimulator가 백엔드(savings_simulator)를 그대로 쓴다.
+// 정책금융 시뮬레이터 공용 UI 조각들(스텝 마법사 레일, 슬라이더, 세그먼트 등).
+// 2026-09-03 재작업: 원래 화면 설계용 목업(가짜 예시 수치, 백엔드 미연동)이었던
+// 걸 실제 백엔드(savings_simulator)에 연결했다 — SavingsWizard.tsx/LoanWizard.tsx
+// 상단 주석 참고. 사이드바의 "저축플랜"(/savings, YouthFutureSavingsSimulator/
+// HousingLoanSimulator)은 이쪽으로 흡수돼 삭제됐다.
 
 import { Check } from "lucide-react";
 
@@ -162,7 +163,7 @@ export function NextButton({ label, onClick, disabled }: { label: string; onClic
   );
 }
 
-export function MockDisclaimer({ text }: { text: string }) {
+export function DisclaimerNote({ text }: { text: string }) {
   return <p className="mt-5 text-[11px] font-semibold leading-5 text-slate-400">{text}</p>;
 }
 

@@ -1,9 +1,12 @@
 "use client";
 
-// 정책금융 시뮬레이터 (목업) — 위쪽에 두 서비스 카드를 나란히 두고, 아래에
-// 선택된 서비스의 3단계 마법사(상품 선택 → 정보 입력 → 결과 확인)를 보여준다.
-// 두 시뮬레이터는 서로 독립이고, 백엔드를 호출하지 않는 화면 설계용 예시다.
-// 실제 계산이 붙은 버전은 사이드바 "저축플랜"(/savings) 탭에 그대로 있다.
+// 정책금융 시뮬레이터 — 위쪽에 두 서비스 카드를 나란히 두고, 아래에 선택된
+// 서비스의 마법사(상품 선택 → 정보 입력 → 결과 확인)를 보여준다. 두 시뮬레이터는
+// 서로 독립이며, 실제 백엔드(savings_simulator)를 호출한다. 2026-09-03 재작업:
+// 원래 화면 설계용 목업이었는데 사이드바 "저축플랜"(/savings)에 있던 실제 계산
+// 로직을 이쪽으로 흡수했다 — /savings는 삭제됐다(사용자 요청: "저축플랜이 정책금융
+// 시뮬레이터랑 그냥 똑같은거 같은데" → "실제 계산 로직을 finance-simulator로
+// 옮기고 싶다").
 
 import { useState } from "react";
 import { Landmark, PiggyBank } from "lucide-react";
@@ -17,7 +20,7 @@ const SERVICES = [
     key: "savings" as const,
     kicker: "저축 시뮬레이터",
     title: "얼마를 모을 수 있을까",
-    desc: "청년미래적금, 청년도약계좌 등 정책 저축상품의 만기 수령액을 확인합니다.",
+    desc: "청년미래적금 정책 저축상품의 만기 수령액을 실제 고시 수치로 확인합니다.",
     icon: PiggyBank,
     accent: "border-[#2f7a3f] bg-[#eef7ee]",
     accentIcon: "text-[#2f7a3f]",
@@ -26,7 +29,7 @@ const SERVICES = [
     key: "loan" as const,
     kicker: "대출 시뮬레이터",
     title: "얼마까지 빌릴 수 있을까",
-    desc: "청년주택드림 디딤돌대출 등 정책 주택담보대출의 한도와 상환액을 확인합니다.",
+    desc: "버팀목 전세자금대출·디딤돌대출의 한도와 상환액을 실제 고시 수치로 확인합니다.",
     icon: Landmark,
     accent: "border-[#b5623a] bg-[#fdf1ea]",
     accentIcon: "text-[#b5623a]",

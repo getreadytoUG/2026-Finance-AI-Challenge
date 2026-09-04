@@ -8,8 +8,8 @@ import { krwToManwon, manwonToKrw } from "@/lib/profileOptions";
 // 2026-09-03 재작업("혼인신고 계산기도 특정 정책 타겟팅해야 함" + "디자인도 정책
 // 시뮬레이터처럼 동적으로", 사용자 요청): 정책 DB 전체 스캔 대신, 실제로 미혼용/
 // 기혼용이 이름부터 따로 있는 고정 기준 2개(버팀목 전세자금대출/디딤돌대출)의 실제
-// 조건 차이를 보여준다. 디자인은 저축플랜의 HousingLoanSimulator/
-// YouthFutureSavingsSimulator와 동일한 다크 히어로 카드 패턴을 재사용했다.
+// 조건 차이를 보여준다. 디자인은 정책금융 시뮬레이터(/finance-simulator)와 동일한
+// 다크 히어로 카드 패턴을 재사용했다.
 function HousingComparisonCard({ comparison }: { comparison: HousingLoanMarriageComparison }) {
   const title = comparison.housing_type === "jeonse" ? "전세자금대출" : "구입자금대출(디딤돌)";
   const { unmarried, married } = comparison;
