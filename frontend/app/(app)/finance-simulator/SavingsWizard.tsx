@@ -228,7 +228,6 @@ export default function SavingsWizard() {
           <div className="grid gap-6 sm:grid-cols-2">
             <SliderField
               label="월 납입액"
-              valueLabel={manwon(monthly)}
               min={10}
               max={product.monthlyCapManwon}
               step={5}
@@ -237,7 +236,6 @@ export default function SavingsWizard() {
             />
             <SliderField
               label="본인 연소득"
-              valueLabel={manwon(income)}
               min={0}
               max={9000}
               step={100}

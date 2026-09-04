@@ -6,6 +6,7 @@
 // 상단 주석 참고. 사이드바의 "저축플랜"(/savings, YouthFutureSavingsSimulator/
 // HousingLoanSimulator)은 이쪽으로 흡수돼 삭제됐다.
 
+import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
 
 export type WizardStep = { label: string; sub: string };
@@ -71,24 +72,38 @@ export function Segmented<T extends string>({
   );
 }
 
-// 검정 트랙 슬라이더 + 값 라벨
+// 검정 트랙 슬라이더 + 직접 입력 가능한 값 텍스트(만원 단위)
 export function SliderField({
   label,
-  valueLabel,
   min,
   max,
   step,
   value,
   onChange,
+  unit = "만원",
 }: {
   label: string;
-  valueLabel: string;
   min: number;
   max: number;
   step: number;
   value: number;
   onChange: (v: number) => void;
+  unit?: string;
 }) {
+  const [draft, setDraft] = useState(() => Math.round(value).toLocaleString());
+  const [editing, setEditing] = useState(false);
+
+  useEffect(() => {
+    if (!editing) setDraft(Math.round(value).toLocaleString());
+  }, [value, editing]);
+
+  function commit(raw: string) {
+    const parsed = Number(raw.replace(/[^0-9.-]/g, ""));
+    const next = Number.isFinite(parsed) ? Math.min(max, Math.max(min, Math.round(parsed))) : value;
+    onChange(next);
+    setDraft(next.toLocaleString());
+  }
+
   return (
     <div>
       <div className="mb-2 text-[12px] font-extrabold text-slate-700">{label}</div>
@@ -101,7 +116,24 @@ export function SliderField({
         onChange={(e) => onChange(Number(e.target.value))}
         className="w-full accent-[#0d1b36]"
       />
-      <div className="mt-1 text-[13px] font-extrabold text-ink">{valueLabel}</div>
+      <div className="mt-1.5 flex items-center gap-1.5">
+        <input
+          type="text"
+          inputMode="numeric"
+          value={draft}
+          onFocus={() => setEditing(true)}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={(e) => {
+            setEditing(false);
+            commit(e.target.value);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.currentTarget.blur();
+          }}
+          className="w-28 rounded-lg border border-transparent bg-slate-100 px-2 py-1 text-[16px] font-extrabold text-ink outline-none transition hover:bg-slate-200 focus:border-[#0d1b36]/30 focus:bg-white"
+        />
+        <span className="text-[16px] font-extrabold text-ink">{unit}</span>
+      </div>
     </div>
   );
 }

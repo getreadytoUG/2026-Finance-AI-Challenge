@@ -69,6 +69,15 @@ export default function LoanWizard() {
       .catch(() => {});
   }, []);
 
+  // 자기자본은 목표 가격을 넘을 수 없다. 슬라이더의 max를 목표가격에 실시간
+  // 연동시키면(예전 방식) range가 계속 바뀌어서 손잡이 위치가 제멋대로 튀어
+  // 보였다 — 대신 max는 고정해두고, 실제로 초과했을 때만 값을 깎는다.
+  useEffect(() => {
+    setSelfCapital((prev) => Math.min(prev, priceManwon));
+  }, [priceManwon]);
+
+  const loanNeededManwon = Math.max(priceManwon - selfCapital, 0);
+
   async function handleSubmit() {
     if (!housingType) return;
     setError(null);
@@ -153,17 +162,22 @@ export default function LoanWizard() {
           }
         >
           <div className="grid gap-6 sm:grid-cols-2">
-            <SliderField label="부부 합산 연소득" valueLabel={manwon(income)} min={0} max={15000} step={100} value={income} onChange={setIncome} />
+            <SliderField label="부부 합산 연소득" min={0} max={15000} step={100} value={income} onChange={setIncome} />
             <SliderField
               label={housingType === "jeonse" ? "목표 보증금" : "목표 주택 가격"}
-              valueLabel={manwon(priceManwon)}
               min={1000}
               max={90000}
               step={1000}
               value={priceManwon}
               onChange={setPriceManwon}
             />
-            <SliderField label="보유 자기자본" valueLabel={manwon(selfCapital)} min={0} max={priceManwon} step={500} value={selfCapital} onChange={setSelfCapital} />
+            <div>
+              <SliderField label="보유 자기자본" min={0} max={90000} step={500} value={selfCapital} onChange={setSelfCapital} />
+              <p className="mt-1.5 text-[11px] font-semibold text-slate-400">
+                자기자본은 목표 {housingType === "jeonse" ? "보증금" : "가격"}을 넘을 수 없어요 · 필요 대출액{" "}
+                <span className="font-extrabold text-[#0d1b36]">{manwon(loanNeededManwon)}</span>
+              </p>
+            </div>
             {housingType === "purchase" ? (
               <div>
                 <div className="mb-2 text-[12px] font-extrabold text-slate-700">대출 기간</div>
