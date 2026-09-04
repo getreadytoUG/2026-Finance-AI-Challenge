@@ -14,6 +14,7 @@
 """
 
 from datetime import date
+from typing import TypeVar
 
 from app.features.policy_matcher.matching import is_eligible, is_savings_account_policy
 from app.features.policy_matcher.models import CachedPolicy
@@ -26,6 +27,8 @@ from app.features.savings_simulator.schemas import (
     YouthFutureSavingsInput,
     YouthFutureSavingsOutput,
 )
+
+T = TypeVar("T")
 
 # 은행/상품마다 다른 실제 예금·대출 금리를 대신하는 비교용 가정 금리 — 모든 금융
 # 계산기가 쓰는 방식과 동일하다(정부 고시가 아니라 "비교 기준선"이라는 뜻).
@@ -181,7 +184,8 @@ def match_real_savings_policies(
 
 # ---------------------------------------------------------------------------
 # 청년전용 버팀목 전세자금대출 — 부부합산 연소득 구간별 금리(2026-08-31 기준,
-# KB국민은행 대출가이드가 주택도시기금 고시를 그대로 게시 — 2026-09 조회).
+# KB국민은행 대출가이드가 주택도시기금 고시를 그대로 게시 — 2026-09 조회, 3개
+# 독립 출처로 교차검증됨).
 # 만 19~34세(병역필 시 최대 39세, 이 앱은 나이만 반영), 임차보증금 3억원 이하,
 # 전용면적 85㎡ 이하(수도권 기준) 대상. 지방 주택 0.2%p 인하, 기초생활수급자/
 # 한부모/다자녀 등 추가 우대금리(최대 -1.7%p)는 이 앱이 추적하지 않는 조건이라
@@ -190,10 +194,9 @@ _JEONSE_INCOME_BRACKETS: list[tuple[int, float]] = [
     (20_000_000, 0.022),
     (40_000_000, 0.025),
     (60_000_000, 0.029),
-    (75_000_000, 0.033),  # 신혼가구만 도달 가능(일반 소득상한은 5,000만원)
+    (75_000_000, 0.033),
 ]
 _JEONSE_INCOME_CAP_GENERAL_KRW = 50_000_000
-_JEONSE_INCOME_CAP_NEWLYWED_KRW = 75_000_000
 _JEONSE_LTV_RATE = 0.80
 _JEONSE_LOAN_CAP_KRW = 150_000_000
 _JEONSE_AGE_MIN, _JEONSE_AGE_MAX = 19, 34
@@ -206,21 +209,64 @@ def _jeonse_rate(income_krw: int) -> float:
     return _JEONSE_INCOME_BRACKETS[-1][1]
 
 
-def _simulate_jeonse(input: HousingLoanInput, *, is_married: bool | None, age: int | None) -> HousingLoanOutput:
-    # 2026-09-03: 혼인신고 계산기가 이 두 상품을 "고정 기준"으로 타겟팅하면서
-    # (marriage_comparison.compare_housing_loan_scenarios 참고) 미혼/기혼 상품명이
-    # 실제로도 다르다는 게 중요해졌다 — 같은 소득구간 표를 쓰지만 버팀목전세자금은
-    # 신혼부부 대상 상품이 별도 이름으로 존재한다.
-    product_name = "신혼부부전용 버팀목 전세자금대출" if is_married else "청년전용 버팀목 전세자금대출"
-    income = input.household_annual_income_krw
-    income_cap = _JEONSE_INCOME_CAP_NEWLYWED_KRW if is_married else _JEONSE_INCOME_CAP_GENERAL_KRW
-    age_ok = age is None or (_JEONSE_AGE_MIN <= age <= _JEONSE_AGE_MAX)
-    eligible = age_ok and income <= income_cap
+# 2026-09-03 사용자 지적("청년전용이랑 신혼부부용이랑 이자 똑같아?"): 처음엔 위
+# 청년전용 표를 상품명만 바꿔 기혼 시나리오에도 그대로 재사용했다 — 실제로는
+# "신혼가구 전용 버팀목 전세자금대출"이 완전히 별도 상품으로 존재하고, 청년전용
+# 보다 대체로 낮은 금리에(동일 소득구간 기준 -0.3%p), 소득뿐 아니라 임차보증금
+# 규모로도 한 번 더 갈리는 2차원 표를 쓴다는 걸 재조사로 확인했다(청년전용은
+# 소득 단일 기준). 소득상한(7,500만원)도 청년전용(5,000만원)보다 넓다. 나이 제한도
+# 없다(신혼부부전용은 "혼인기간 7년 이내"가 진짜 조건인데, 이 앱은 결혼 연차를
+# 입력받지 않아 반영하지 못했다 — 이 계산기가 없는 조건으로 잘못 거르는 것보다
+# fail-open이 안전하다고 판단했다). 출처: KB국민은행 대출가이드(2026-08-31 기준) +
+# 정부24 서비스 상세(www.gov.kr) 교차검증.
+_JEONSE_NEWLYWED_INCOME_CAP_KRW = 75_000_000
+_JEONSE_NEWLYWED_LOAN_CAP_KRW = 200_000_000  # 정부24: 수도권 3억원/기타지역 2억원 — 지역 미추적이라 보수적으로 낮은 쪽
+_JEONSE_NEWLYWED_RATE_TABLE: dict[int, dict[int, float]] = {
+    20_000_000: {50_000_000: 0.019, 100_000_000: 0.020, 150_000_000: 0.021, 999_999_999_999: 0.022},
+    40_000_000: {50_000_000: 0.022, 100_000_000: 0.023, 150_000_000: 0.024, 999_999_999_999: 0.025},
+    60_000_000: {50_000_000: 0.026, 100_000_000: 0.027, 150_000_000: 0.028, 999_999_999_999: 0.029},
+    75_000_000: {50_000_000: 0.030, 100_000_000: 0.031, 150_000_000: 0.032, 999_999_999_999: 0.033},
+}
 
-    policy_rate = _jeonse_rate(min(income, income_cap))
+
+def _tier_lookup(table: dict[int, T], value: int) -> T:
+    """구간 상한을 키로 하는 표에서 value가 속하는 구간의 값을 찾는다 — value가
+    표의 최고 구간을 넘으면(예: 소득이 최상위 구간보다도 높으면) 최고 구간 값으로
+    clamp한다(caller가 이미 eligibility 상한으로 income을 clamp해서 넘기므로
+    실제로는 항상 표 안에서 찾아진다). 소득 구간 표(dict[int, float])와 소득×보증금
+    2단 표(dict[int, dict[int, float]]) 양쪽에 재사용한다."""
+    for cap in sorted(table):
+        if value <= cap:
+            return table[cap]
+    return table[max(table)]
+
+
+def _jeonse_newlywed_rate(income_krw: int, deposit_krw: int) -> float:
+    row = _tier_lookup(_JEONSE_NEWLYWED_RATE_TABLE, income_krw)
+    return _tier_lookup(row, deposit_krw)
+
+
+def _simulate_jeonse(input: HousingLoanInput, *, is_married: bool | None, age: int | None) -> HousingLoanOutput:
+    income = input.household_annual_income_krw
+
+    if is_married:
+        product_name = "신혼부부전용 버팀목 전세자금대출"
+        income_cap = _JEONSE_NEWLYWED_INCOME_CAP_KRW
+        loan_cap = _JEONSE_NEWLYWED_LOAN_CAP_KRW
+        age_ok = True  # 신혼부부전용은 나이 제한이 없다(위 주석 참고)
+        eligible = income <= income_cap
+        policy_rate = _jeonse_newlywed_rate(min(income, income_cap), input.target_price_krw)
+    else:
+        product_name = "청년전용 버팀목 전세자금대출"
+        income_cap = _JEONSE_INCOME_CAP_GENERAL_KRW
+        loan_cap = _JEONSE_LOAN_CAP_KRW
+        age_ok = age is None or (_JEONSE_AGE_MIN <= age <= _JEONSE_AGE_MAX)
+        eligible = age_ok and income <= income_cap
+        policy_rate = _jeonse_rate(min(income, income_cap))
+
     max_ltv_amount = round(input.target_price_krw * _JEONSE_LTV_RATE)
     price_gap = max(0, input.target_price_krw - input.self_capital_krw)
-    loan_amount = min(max_ltv_amount, price_gap, _JEONSE_LOAN_CAP_KRW)
+    loan_amount = min(max_ltv_amount, price_gap, loan_cap)
 
     monthly_interest = round(loan_amount * policy_rate / 12)
     market_monthly_interest = round(loan_amount * _ASSUMED_JEONSE_MARKET_RATE / 12)

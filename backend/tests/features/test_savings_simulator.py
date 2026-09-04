@@ -270,8 +270,8 @@ def test_housing_loan_jeonse_within_newlywed_income_cap_is_eligible(client):
     body = response.json()
     assert body["eligible"] is True
     assert body["product_name"] == "신혼부부전용 버팀목 전세자금대출"
-    # min(250M*0.8=200M, 250M-50M=200M, 대출한도 150M) = 150M
-    assert body["loan_amount_krw"] == 150_000_000
+    # min(250M*0.8=200M, 250M-50M=200M, 신혼부부전용 대출한도 200M) = 200M
+    assert body["loan_amount_krw"] == 200_000_000
     assert body["monthly_saving_krw"] > 0
 
 
@@ -292,8 +292,30 @@ def test_housing_loan_jeonse_general_household_over_income_cap_is_ineligible(cli
     assert response.json()["eligible"] is False
 
 
-def test_housing_loan_jeonse_outside_age_range_is_ineligible(client):
-    token = _signup_login(client, email="jeonse-old@example.com", age=40, is_married=True)
+def test_housing_loan_jeonse_unmarried_outside_age_range_is_ineligible(client):
+    # 청년전용 버팀목은 만 19~34세 제한이 있다.
+    token = _signup_login(client, email="jeonse-old@example.com", age=40, is_married=False)
+    response = client.post(
+        "/savings_simulator/housing_loan",
+        json={
+            "housing_type": "jeonse",
+            "target_price_krw": 250_000_000,
+            "self_capital_krw": 50_000_000,
+            "household_annual_income_krw": 40_000_000,
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["eligible"] is False
+    assert "19~34세" in body["summary"]
+
+
+def test_housing_loan_jeonse_married_has_no_age_limit(client):
+    # 2026-09-03 사용자 지적으로 재조사한 결과, 신혼부부전용 버팀목은 나이 제한이
+    # 없다(실제 조건은 "혼인기간 7년 이내"인데 이 앱은 결혼 연차를 안 받아서 반영
+    # 못 함) — 청년전용과 달리 40세 신혼부부도 나이로는 걸러지면 안 된다.
+    token = _signup_login(client, email="jeonse-married-old@example.com", age=40, is_married=True)
     response = client.post(
         "/savings_simulator/housing_loan",
         json={
@@ -305,9 +327,54 @@ def test_housing_loan_jeonse_outside_age_range_is_ineligible(client):
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200
-    body = response.json()
-    assert body["eligible"] is False
-    assert "19~34세" in body["summary"]
+    assert response.json()["eligible"] is True
+
+
+def test_housing_loan_jeonse_newlywed_rate_is_lower_than_youth_at_same_income(client):
+    # 2026-09-03 사용자 지적("청년전용이랑 신혼부부용이랑 이자 똑같아? 그럼 굳이
+    # 비교해야해?"): 처음엔 상품명만 바꾸고 청년전용 표를 그대로 재사용해서 실제로
+    # 두 금리가 같았다 — 재조사 결과 신혼부부전용이 별도의(대체로 더 낮은) 표를
+    # 쓰는 걸 확인해서 고쳤다. 같은 소득/보증금 조건에서 신혼부부전용이 더
+    # 낮아야 한다(청년전용 2~4천만원 구간 2.5% vs 신혼부부전용 2.2%).
+    youth_token = _signup_login(client, email="rate-compare-youth@example.com", age=29, is_married=False)
+    married_token = _signup_login(client, email="rate-compare-married@example.com", age=29, is_married=True)
+    payload = {
+        "housing_type": "jeonse",
+        "target_price_krw": 40_000_000,  # 보증금 5천만원 이하 구간(신혼부부전용 최저 금리대)
+        "self_capital_krw": 10_000_000,
+        "household_annual_income_krw": 30_000_000,
+    }
+    youth = client.post(
+        "/savings_simulator/housing_loan", json=payload, headers={"Authorization": f"Bearer {youth_token}"}
+    ).json()
+    married = client.post(
+        "/savings_simulator/housing_loan", json=payload, headers={"Authorization": f"Bearer {married_token}"}
+    ).json()
+    assert youth["policy_rate"] == 0.025
+    assert married["policy_rate"] == 0.022
+    assert married["policy_rate"] < youth["policy_rate"]
+
+
+def test_housing_loan_jeonse_newlywed_rate_varies_by_deposit_size():
+    # 신혼부부전용은 청년전용과 달리 임차보증금 규모로도 한 번 더 갈린다(2차원 표).
+    from app.features.savings_simulator.schemas import HousingLoanInput
+    from app.features.savings_simulator.simulator import simulate_housing_loan
+
+    low_deposit = simulate_housing_loan(
+        HousingLoanInput(
+            housing_type="jeonse", target_price_krw=40_000_000, self_capital_krw=0, household_annual_income_krw=30_000_000
+        ),
+        is_married=True,
+    )
+    high_deposit = simulate_housing_loan(
+        HousingLoanInput(
+            housing_type="jeonse", target_price_krw=150_000_000, self_capital_krw=0, household_annual_income_krw=30_000_000
+        ),
+        is_married=True,
+    )
+    assert low_deposit.policy_rate == 0.022  # 5천만원 이하 구간
+    assert high_deposit.policy_rate == 0.024  # 1억~1.5억 구간
+    assert low_deposit.policy_rate < high_deposit.policy_rate
 
 
 def test_housing_loan_purchase_over_income_cap_is_ineligible(client):
