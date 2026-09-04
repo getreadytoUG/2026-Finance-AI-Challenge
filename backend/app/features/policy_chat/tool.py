@@ -72,9 +72,13 @@ def _matches(policy: CachedPolicy, input: PolicyChatSearchInput) -> bool:
         haystack = policy.policy_name + policy.description
         if not _keyword_matches(input.keyword, haystack):
             return False
-    if input.disability_target and not is_disability_targeted_policy(policy):
+    if input.disability_filter == "only" and not is_disability_targeted_policy(policy):
         return False
-    if input.veteran_target and not is_veteran_targeted_policy(policy):
+    if input.disability_filter == "exclude" and is_disability_targeted_policy(policy):
+        return False
+    if input.veteran_filter == "only" and not is_veteran_targeted_policy(policy):
+        return False
+    if input.veteran_filter == "exclude" and is_veteran_targeted_policy(policy):
         return False
     # 2026-09-04 추가: matching.is_eligible()의 TARGETING_RULES와 동일한 "직업 전용
     # 정책 자동 제외"를 여기도 적용한다 — occupation이 아직 안 밝혀졌으면(None)

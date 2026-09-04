@@ -25,14 +25,17 @@ class PolicyChatSearchInput(BaseModel):
     # 동작에 영향이 없다 — ai_search.py에서만 실제로 채워진다.
     category: PolicyCategoryTag | None = None
     status: PolicyStatusLabel | None = None
-    # 2026-09-02 추가: "장애인 대상만"/"보훈대상자 대상만" 좁혀보기 필터. 다른
+    # 2026-09-02 추가, 2026-09-05 3단계로 확장(사용자 요청: "전체/해당 없음/해당
+    # 있음으로 다 걸게 해줘") — "장애인 대상"/"보훈대상자 대상" 좁혀보기 필터. 다른
     # 필드들(age/is_married/...)과 달리 사용자 자신의 프로필 값(has_disability/
-    # is_veteran)으로 자동 채우지 않는다 — 이건 "나에게 맞는 정책만" 조건이 아니라
-    # "이 대상군 정책만 보고 싶다"는 명시적 열람 선택이라, 비장애인도 켤 수 있어야
-    # 한다(router._profile_default_filters 참고). True일 때만 좁히고, None/False는
-    # 전체를 그대로 보여준다(tool.py._matches 참고).
-    disability_target: bool | None = None
-    veteran_target: bool | None = None
+    # is_veteran)으로 자동 채우지 않는다(router._profile_default_filters 참고) —
+    # "나에게 맞는 정책만"이 아니라 "이 대상군을 어떻게 보고 싶은지" 명시적 열람
+    # 선택이다. None(기본값)은 전체(필터링 안 함), "only"는 그 대상군 전용 정책만,
+    # "exclude"는 그 대상군 전용 정책을 뺀 나머지만(policy_matcher.is_eligible이
+    # 비장애인/비보훈대상자에게 자동으로 적용하는 것과 같은 결과를 여기서도 명시적
+    # 으로 고를 수 있게 한다) 보여준다(tool.py._matches 참고).
+    disability_filter: Literal["exclude", "only"] | None = None
+    veteran_filter: Literal["exclude", "only"] | None = None
     # 2026-09-04 추가(사용자 지적: "정책달력 맞춤검색결과랑 한눈에보기 신청가능
     # 정책 개수가 왜 달라?") — policy_matcher.is_eligible()의 TARGETING_RULES는
     # 재학생/재직자/자영업자/미취업자/중소기업재직 "전용" 정책을 프로필이 안 맞으면
@@ -52,8 +55,8 @@ FilterFieldName = Literal[
     "keyword",
     "category",
     "status",
-    "disability_target",
-    "veteran_target",
+    "disability_filter",
+    "veteran_filter",
     "occupation",
     "is_sme_employee",
 ]

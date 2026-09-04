@@ -1,5 +1,6 @@
 import json
 import logging
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import ValidationError
@@ -153,10 +154,14 @@ def _describe_filters(filters: PolicyChatSearchInput) -> str:
         lines.append(f"키워드: {filters.keyword}")
     if filters.status is not None:
         lines.append(f"신청 상태: {filters.status}")
-    if filters.disability_target:
+    if filters.disability_filter == "only":
         lines.append("장애인 대상 정책만")
-    if filters.veteran_target:
+    elif filters.disability_filter == "exclude":
+        lines.append("장애인 대상 정책 제외")
+    if filters.veteran_filter == "only":
         lines.append("국가보훈대상자 대상 정책만")
+    elif filters.veteran_filter == "exclude":
+        lines.append("국가보훈대상자 대상 정책 제외")
     return "\n".join(lines) if lines else "(적용된 조건 없음 — 전체 정책 대상)"
 
 
@@ -168,9 +173,12 @@ def _build_ai_search_system_prompt(filters: PolicyChatSearchInput) -> str:
         "이번 턴에 바뀐 필드만 담아 넘기세요 — 언급하지 않은 필드는 생략하세요(생략하면 "
         "아래 현재 조건이 그대로 유지됩니다). 조건 변경 요청이 아니라 단순 질문이면 도구를 "
         "호출하지 말고 바로 답하세요.\n\n"
-        "region/category/status는 반드시 도구 스키마에 정의된 목록 중 하나여야 합니다 — 목록에 "
-        "없는 값을 만들어내지 마세요. 특히 '마감 임박', '곧 마감' 같은 표현은 keyword가 아니라 "
-        "status='임박'으로, '마감된 것도/지난 것도 보여줘'는 status='만료'로 담으세요.\n\n"
+        "region/category/status/disability_filter/veteran_filter는 반드시 도구 스키마에 정의된 목록 "
+        "중 하나여야 합니다 — 목록에 없는 값을 만들어내지 마세요. 특히 '마감 임박', '곧 마감' 같은 "
+        "표현은 keyword가 아니라 status='임박'으로, '마감된 것도/지난 것도 보여줘'는 status='만료'로 "
+        "담으세요. disability_filter/veteran_filter는 '장애인/보훈대상자 정책만 보여줘'처럼 그 대상군만 "
+        "보고 싶어하면 'only', '장애인/보훈대상자 정책은 빼줘'처럼 그 대상군 전용 정책을 제외하고 싶어 "
+        "하면 'exclude'로 담으세요.\n\n"
         "keyword는 '지금 사용자가 찾고 있는 검색어 하나'를 뜻합니다 — 사용자가 이전과 다른 "
         "대상/단어를 새로 언급하면 이전 keyword에 더하지 말고 새 값으로 완전히 교체해서 "
         "호출하세요. 옛 keyword가 그대로 남아있으면 새 검색어와 AND로 겹쳐져서 결과가 계속 "
@@ -262,8 +270,8 @@ def get_ai_search_results(
     category: PolicyCategoryTag | None = None,
     keyword: str | None = None,
     status: PolicyStatusLabel | None = None,
-    disability_target: bool | None = None,
-    veteran_target: bool | None = None,
+    disability_filter: Literal["exclude", "only"] | None = None,
+    veteran_filter: Literal["exclude", "only"] | None = None,
     occupation: OccupationType | None = None,
     is_sme_employee: bool | None = None,
     include_closed: bool = False,
@@ -282,8 +290,8 @@ def get_ai_search_results(
             category=category,
             keyword=keyword,
             status=status,
-            disability_target=disability_target,
-            veteran_target=veteran_target,
+            disability_filter=disability_filter,
+            veteran_filter=veteran_filter,
             occupation=occupation,
             is_sme_employee=is_sme_employee,
         )

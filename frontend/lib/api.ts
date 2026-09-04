@@ -391,12 +391,13 @@ export type AiSearchFilters = {
   // 쓴다. occupation과 마찬가지로 프로필 값(profile.is_sme_employee)으로 자동
   // 채워진다(useAiPolicySearch.ts 참고).
   is_sme_employee?: boolean | null;
-  // 2026-09-02 추가: "장애인 대상만"/"보훈대상자 대상만" 좁혀보기 필터. 다른
-  // 필드와 달리 프로필 값으로 자동 채우지 않는다(useAiPolicySearch.ts 참고) —
-  // "나에게 맞는 조건"이 아니라 "이 대상군 정책만 보고 싶다"는 명시적 선택이라
-  // 비장애인/비보훈대상자도 켤 수 있어야 한다.
-  disability_target?: boolean | null;
-  veteran_target?: boolean | null;
+  // 2026-09-02 추가, 2026-09-05 3단계로 확장(사용자 요청): "장애인"/"보훈대상자"
+  // 좁혀보기 필터. 다른 필드와 달리 프로필 값으로 자동 채우지 않는다
+  // (useAiPolicySearch.ts 참고) — "나에게 맞는 조건"이 아니라 "이 대상군을 어떻게
+  // 보고 싶은지" 명시적 선택이다. null/undefined=전체, "only"=그 대상군 정책만,
+  // "exclude"=그 대상군 정책 제외.
+  disability_filter?: "exclude" | "only" | null;
+  veteran_filter?: "exclude" | "only" | null;
 };
 
 export type AiSearchMessageResult = {
@@ -449,8 +450,8 @@ export async function fetchAiSearchResults(
   if (filters.status) search.set("status", filters.status);
   if (filters.occupation) search.set("occupation", filters.occupation);
   if (filters.is_sme_employee != null) search.set("is_sme_employee", String(filters.is_sme_employee));
-  if (filters.disability_target) search.set("disability_target", "true");
-  if (filters.veteran_target) search.set("veteran_target", "true");
+  if (filters.disability_filter) search.set("disability_filter", filters.disability_filter);
+  if (filters.veteran_filter) search.set("veteran_filter", filters.veteran_filter);
   if (includeClosed) search.set("include_closed", "true");
   search.set("page", String(page));
   search.set("page_size", String(pageSize));

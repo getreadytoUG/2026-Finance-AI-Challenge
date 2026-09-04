@@ -96,17 +96,23 @@ export default function AiSearchFilterBar({ state, compact = false }: { state: A
         compact={compact}
       />
       <FilterSelect
-        value={filters.disability_target ? "true" : ""}
+        value={filters.disability_filter ?? ""}
         placeholder="장애인 대상 전체"
-        options={[{ value: "true", label: "장애인 대상만" }]}
-        onChange={(v) => handleSetFilters({ disability_target: v === "true" ? true : null })}
+        options={[
+          { value: "only", label: "장애인 대상만" },
+          { value: "exclude", label: "장애인 대상 제외" },
+        ]}
+        onChange={(v) => handleSetFilters({ disability_filter: (v || null) as "exclude" | "only" | null })}
         compact={compact}
       />
       <FilterSelect
-        value={filters.veteran_target ? "true" : ""}
+        value={filters.veteran_filter ?? ""}
         placeholder="보훈대상자 대상 전체"
-        options={[{ value: "true", label: "보훈대상자 대상만" }]}
-        onChange={(v) => handleSetFilters({ veteran_target: v === "true" ? true : null })}
+        options={[
+          { value: "only", label: "보훈대상자 대상만" },
+          { value: "exclude", label: "보훈대상자 대상 제외" },
+        ]}
+        onChange={(v) => handleSetFilters({ veteran_filter: (v || null) as "exclude" | "only" | null })}
         compact={compact}
       />
     </div>

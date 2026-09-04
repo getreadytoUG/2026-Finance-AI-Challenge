@@ -258,8 +258,8 @@ def test_ai_search_message_without_tool_call_keeps_filters_unchanged(client, db_
         "category": None,
         "keyword": None,
         "status": None,
-        "disability_target": None,
-        "veteran_target": None,
+        "disability_filter": None,
+        "veteran_filter": None,
         "occupation": None,
         "is_sme_employee": None,
     }
@@ -290,14 +290,14 @@ def test_ai_search_results_filters_by_query_params(client, db_session):
     assert body["items"][0]["policy_name"] == "서울 정책"
 
 
-def test_ai_search_results_filters_by_disability_target(client, db_session):
+def test_ai_search_results_filters_by_disability_filter_only(client, db_session):
     _seed_policy(db_session, policy_name="장애인 취업 지원 사업")
     _seed_policy(db_session, policy_name="일반 청년 취업 지원")
     token = _signup_login(client)
 
     response = client.get(
         "/policy_chat/ai_search/results",
-        params={"disability_target": "true"},
+        params={"disability_filter": "only"},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200
@@ -306,20 +306,55 @@ def test_ai_search_results_filters_by_disability_target(client, db_session):
     assert body["items"][0]["policy_name"] == "장애인 취업 지원 사업"
 
 
-def test_ai_search_results_filters_by_veteran_target(client, db_session):
+def test_ai_search_results_filters_by_disability_filter_exclude(client, db_session):
+    # 2026-09-05 추가(사용자 요청: "전체/해당 없음/해당 있음으로 다 걸게 해줘") —
+    # policy_matcher(한눈에보기)가 비장애인 프로필에 자동으로 적용하는 것과 같은
+    # 결과를 정책달력에서도 명시적으로 고를 수 있어야 한다.
+    _seed_policy(db_session, policy_name="장애인 취업 지원 사업")
+    _seed_policy(db_session, policy_name="일반 청년 취업 지원")
+    token = _signup_login(client)
+
+    response = client.get(
+        "/policy_chat/ai_search/results",
+        params={"disability_filter": "exclude"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == 1
+    assert body["items"][0]["policy_name"] == "일반 청년 취업 지원"
+
+
+def test_ai_search_results_filters_by_veteran_filter_only(client, db_session):
     _seed_policy(db_session, policy_name="제대군인 직업능력 개발훈련")
     _seed_policy(db_session, policy_name="일반 청년 취업 지원")
     token = _signup_login(client)
 
     response = client.get(
         "/policy_chat/ai_search/results",
-        params={"veteran_target": "true"},
+        params={"veteran_filter": "only"},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200
     body = response.json()
     assert body["total"] == 1
     assert body["items"][0]["policy_name"] == "제대군인 직업능력 개발훈련"
+
+
+def test_ai_search_results_filters_by_veteran_filter_exclude(client, db_session):
+    _seed_policy(db_session, policy_name="제대군인 직업능력 개발훈련")
+    _seed_policy(db_session, policy_name="일반 청년 취업 지원")
+    token = _signup_login(client)
+
+    response = client.get(
+        "/policy_chat/ai_search/results",
+        params={"veteran_filter": "exclude"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == 1
+    assert body["items"][0]["policy_name"] == "일반 청년 취업 지원"
 
 
 def test_ai_search_results_filters_out_job_targeted_policy_not_matching_occupation(client, db_session):

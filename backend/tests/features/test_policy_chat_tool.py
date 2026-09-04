@@ -156,18 +156,21 @@ def test_run_includes_status_and_emoji_on_options(db_session):
     assert result.options[0].status_emoji == "🟢"
 
 
-def test_run_filters_by_disability_target_only_when_true(db_session):
+def test_run_filters_by_disability_filter_only_and_exclude(db_session):
+    # 2026-09-05 3단계로 확장(사용자 요청: "전체/해당 없음/해당 있음으로 다 걸게
+    # 해줘") — None(생략)=전체, "only"=그 대상군만, "exclude"=그 대상군 제외.
     _seed_policy(db_session, policy_name="장애인 취업 지원 사업")
     _seed_policy(db_session, policy_name="일반 청년 취업 지원")
-    assert len(run(PolicyChatSearchInput(disability_target=True), _ctx(db_session)).options) == 1
-    assert len(run(PolicyChatSearchInput(), _ctx(db_session)).options) == 2  # 안 켜면 전체 다 나온다
-    assert len(run(PolicyChatSearchInput(disability_target=False), _ctx(db_session)).options) == 2  # False도 전체
+    assert len(run(PolicyChatSearchInput(disability_filter="only"), _ctx(db_session)).options) == 1
+    assert len(run(PolicyChatSearchInput(disability_filter="exclude"), _ctx(db_session)).options) == 1
+    assert len(run(PolicyChatSearchInput(), _ctx(db_session)).options) == 2  # 안 주면 전체 다 나온다
 
 
-def test_run_filters_by_veteran_target_only_when_true(db_session):
+def test_run_filters_by_veteran_filter_only_and_exclude(db_session):
     _seed_policy(db_session, policy_name="제대군인 직업능력 개발훈련")
     _seed_policy(db_session, policy_name="일반 청년 취업 지원")
-    assert len(run(PolicyChatSearchInput(veteran_target=True), _ctx(db_session)).options) == 1
+    assert len(run(PolicyChatSearchInput(veteran_filter="only"), _ctx(db_session)).options) == 1
+    assert len(run(PolicyChatSearchInput(veteran_filter="exclude"), _ctx(db_session)).options) == 1
 
 
 def test_run_filters_job_targeted_policy_by_occupation_only_when_given(db_session):

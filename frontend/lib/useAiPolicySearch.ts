@@ -36,8 +36,18 @@ function filterChips(filters: AiSearchFilters): { key: keyof AiSearchFilters; la
   if (filters.category) chips.push({ key: "category", label: filters.category });
   if (filters.keyword) chips.push({ key: "keyword", label: `"${filters.keyword}"` });
   if (filters.status) chips.push({ key: "status", label: filters.status });
-  if (filters.disability_target) chips.push({ key: "disability_target", label: "장애인 대상" });
-  if (filters.veteran_target) chips.push({ key: "veteran_target", label: "보훈대상자 대상" });
+  if (filters.disability_filter) {
+    chips.push({
+      key: "disability_filter",
+      label: filters.disability_filter === "only" ? "장애인 대상만" : "장애인 대상 제외",
+    });
+  }
+  if (filters.veteran_filter) {
+    chips.push({
+      key: "veteran_filter",
+      label: filters.veteran_filter === "only" ? "보훈대상자 대상만" : "보훈대상자 대상 제외",
+    });
+  }
   return chips;
 }
 
