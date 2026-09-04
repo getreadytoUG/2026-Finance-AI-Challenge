@@ -4,7 +4,14 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
-import { getMe, updateProfile, refreshRecommendations, isTokenExpired, type ProfileInput, type UserProfile } from "@/lib/api";
+import {
+  getMe,
+  updateProfile,
+  refreshRecommendations,
+  isTokenExpired,
+  type ProfileInput,
+  type UserProfile,
+} from "@/lib/api";
 import ProfileFieldsForm from "@/components/ProfileFieldsForm";
 import { BrandMark } from "@/components/BrandMark";
 
@@ -62,14 +69,19 @@ export default function OnboardingPage() {
           <Link href="/">
             <BrandMark size="sm" />
           </Link>
-          <span className="text-[13px] font-bold text-slate-400">{profile?.email}</span>
+          <span className="text-[13px] font-bold text-slate-400">
+            {profile?.email}
+          </span>
         </div>
       </header>
       <main className="mx-auto max-w-[560px] px-5 py-14">
         <div className="section-kicker">ALMOST THERE</div>
-        <h1 className="mt-3 text-[30px] font-extrabold tracking-[-.06em]">프로필만 채우면 끝나요</h1>
+        <h1 className="mt-3 text-[30px] font-extrabold tracking-[-.06em]">
+          프로필만 채우면 끝나요
+        </h1>
         <p className="mt-3 text-[13px] text-slate-500">
-          입력한 정보는 정책 매칭·저축플랜 계산에만 쓰이고, 언제든 내 정보 화면에서 수정할 수 있어요.
+          입력한 정보는 정책 매칭·정책금융 시뮬레이터에만 쓰이고, 언제든 내 정보
+          화면에서 수정할 수 있어요.
         </p>
         <div className="mt-8 rounded-[26px] border border-slate-200/80 bg-white p-6 shadow-[0_20px_55px_rgba(22,45,84,.08)] sm:p-9">
           <ProfileFieldsForm

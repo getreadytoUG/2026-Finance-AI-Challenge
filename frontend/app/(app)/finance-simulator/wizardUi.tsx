@@ -211,7 +211,7 @@ export function ResetButton({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="h-11 rounded-xl border border-slate-200 px-4 text-[13px] font-extrabold text-slate-400 transition hover:text-slate-600"
+      className="h-11 rounded-xl  px-4 text-[13px] font-extrabold text-slate-400 transition hover:text-slate-600"
     >
       초기화
     </button>
@@ -241,7 +241,7 @@ export function NextButton({
 
 export function DisclaimerNote({ text }: { text: string }) {
   return (
-    <p className="mt-5 text-[11px] font-semibold leading-5 text-slate-400">
+    <p className="mt-5 whitespace-pre-line text-[11px] font-semibold leading-5 text-slate-400">
       {text}
     </p>
   );

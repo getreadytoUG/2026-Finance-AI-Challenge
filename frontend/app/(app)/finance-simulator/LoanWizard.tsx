@@ -16,11 +16,26 @@ import { getMe, simulateHousingLoan, type HousingLoanOutput } from "@/lib/api";
 import { krwToManwon, manwonToKrw } from "@/lib/profileOptions";
 import { formatApplicationPeriod } from "@/lib/policyFormat";
 import PolicyDetailLink from "@/components/PolicyDetailLink";
-import { BackButton, DisclaimerNote, NextButton, ResetButton, SliderField, StepRail, WizardFrame, manwon, type WizardStep } from "./wizardUi";
+import {
+  BackButton,
+  DisclaimerNote,
+  NextButton,
+  ResetButton,
+  SliderField,
+  StepRail,
+  WizardFrame,
+  manwon,
+  type WizardStep,
+} from "./wizardUi";
 
 type HousingType = "jeonse" | "purchase";
 
-const HOUSING_TYPE_OPTIONS: { value: HousingType; name: string; desc: string; meta: string }[] = [
+const HOUSING_TYPE_OPTIONS: {
+  value: HousingType;
+  name: string;
+  desc: string;
+  meta: string;
+}[] = [
   {
     value: "jeonse",
     name: "버팀목 전세자금대출",
@@ -45,7 +60,7 @@ const STEPS: WizardStep[] = [
 
 const DISCLAIMER =
   "LTV·소득구간·금리는 2026년 8월 고시 기준 실제 수치예요. 다만 생애최초 주택구입자 우대, 지방 주택 인하, " +
-  "자녀 수 등 이 계산기가 반영하지 못한 조건이 있고 시중 비교 금리는 은행마다 달라 가정치예요 — 정확한 조건은 " +
+  "자녀 수 등 이 계산기가 반영하지 못한 조건이 있고 시중 비교 금리는 은행마다 달라 가정치예요\n 정확한 조건은 " +
   "주택도시기금 공고를 확인하세요.";
 
 export default function LoanWizard() {
@@ -63,7 +78,8 @@ export default function LoanWizard() {
     const token = localStorage.getItem("token") ?? "";
     getMe(token)
       .then((me) => {
-        const household = (me.annual_income_krw ?? 0) + (me.spouse_annual_income_krw ?? 0);
+        const household =
+          (me.annual_income_krw ?? 0) + (me.spouse_annual_income_krw ?? 0);
         if (household > 0) setIncome(krwToManwon(household));
       })
       .catch(() => {});
@@ -100,7 +116,8 @@ export default function LoanWizard() {
     }
   }
 
-  const selectedProduct = HOUSING_TYPE_OPTIONS.find((o) => o.value === housingType) ?? null;
+  const selectedProduct =
+    HOUSING_TYPE_OPTIONS.find((o) => o.value === housingType) ?? null;
 
   return (
     <div className="grid gap-8 lg:grid-cols-[180px_1fr]">
@@ -115,7 +132,11 @@ export default function LoanWizard() {
           footer={
             <>
               <span />
-              <NextButton label="다음" onClick={() => setStep(1)} disabled={!housingType} />
+              <NextButton
+                label="다음"
+                onClick={() => setStep(1)}
+                disabled={!housingType}
+              />
             </>
           }
         >
@@ -128,17 +149,27 @@ export default function LoanWizard() {
                   type="button"
                   onClick={() => setHousingType(o.value)}
                   className={`flex items-center justify-between gap-4 rounded-2xl border p-5 text-left transition ${
-                    selected ? "border-[#b5623a] bg-[#fdf1ea]" : "border-slate-200 bg-white hover:border-slate-300"
+                    selected
+                      ? "border-[#b5623a] bg-[#fdf1ea]"
+                      : "border-slate-200 bg-white hover:border-slate-300"
                   }`}
                 >
                   <div>
-                    <div className="text-[14px] font-extrabold text-ink">{o.name}</div>
-                    <p className="mt-1 text-[12px] leading-5 text-slate-500">{o.desc}</p>
-                    <div className="mt-1.5 text-[11px] font-semibold text-slate-400">{o.meta}</div>
+                    <div className="text-[14px] font-extrabold text-ink">
+                      {o.name}
+                    </div>
+                    <p className="mt-1 text-[12px] leading-5 text-slate-500">
+                      {o.desc}
+                    </p>
+                    <div className="mt-1.5 text-[11px] font-semibold text-slate-400">
+                      {o.meta}
+                    </div>
                   </div>
                   <span
                     className={`shrink-0 rounded-full border px-4 py-1.5 text-[12px] font-extrabold ${
-                      selected ? "border-[#b5623a] text-[#b5623a]" : "border-slate-300 text-slate-400"
+                      selected
+                        ? "border-[#b5623a] text-[#b5623a]"
+                        : "border-slate-300 text-slate-400"
                     }`}
                   >
                     {selected ? "선택됨" : "선택"}
@@ -157,14 +188,27 @@ export default function LoanWizard() {
           footer={
             <>
               <BackButton onClick={() => setStep(0)} />
-              <NextButton label={loading ? "계산 중..." : "결과 보기"} onClick={handleSubmit} disabled={loading} />
+              <NextButton
+                label={loading ? "계산 중..." : "결과 보기"}
+                onClick={handleSubmit}
+                disabled={loading}
+              />
             </>
           }
         >
           <div className="grid gap-6 sm:grid-cols-2">
-            <SliderField label="부부 합산 연소득" min={0} max={15000} step={100} value={income} onChange={setIncome} />
             <SliderField
-              label={housingType === "jeonse" ? "목표 보증금" : "목표 주택 가격"}
+              label="부부 합산 연소득"
+              min={0}
+              max={15000}
+              step={100}
+              value={income}
+              onChange={setIncome}
+            />
+            <SliderField
+              label={
+                housingType === "jeonse" ? "목표 보증금" : "목표 주택 가격"
+              }
               min={1000}
               max={90000}
               step={1000}
@@ -172,15 +216,27 @@ export default function LoanWizard() {
               onChange={setPriceManwon}
             />
             <div>
-              <SliderField label="보유 자기자본" min={0} max={90000} step={500} value={selfCapital} onChange={setSelfCapital} />
+              <SliderField
+                label="보유 자기자본"
+                min={0}
+                max={90000}
+                step={500}
+                value={selfCapital}
+                onChange={setSelfCapital}
+              />
               <p className="mt-1.5 text-[11px] font-semibold text-slate-400">
-                자기자본은 목표 {housingType === "jeonse" ? "보증금" : "가격"}을 넘을 수 없어요 · 필요 대출액{" "}
-                <span className="font-extrabold text-[#0d1b36]">{manwon(loanNeededManwon)}</span>
+                자기자본은 목표 {housingType === "jeonse" ? "보증금" : "가격"}을
+                넘을 수 없어요 · 필요 대출액{" "}
+                <span className="font-extrabold text-[#0d1b36]">
+                  {manwon(loanNeededManwon)}
+                </span>
               </p>
             </div>
             {housingType === "purchase" ? (
               <div>
-                <div className="mb-2 text-[12px] font-extrabold text-slate-700">대출 기간</div>
+                <div className="mb-2 text-[12px] font-extrabold text-slate-700">
+                  대출 기간
+                </div>
                 <div className="grid grid-cols-4 gap-2">
                   {LOAN_TERM_OPTIONS.map((y) => (
                     <button
@@ -188,7 +244,9 @@ export default function LoanWizard() {
                       type="button"
                       onClick={() => setLoanTermYears(y)}
                       className={`h-12 rounded-xl border text-[12px] font-extrabold transition ${
-                        loanTermYears === y ? "border-[#0d1b36] bg-white text-[#0d1b36]" : "border-slate-200 bg-white text-slate-400"
+                        loanTermYears === y
+                          ? "border-[#0d1b36] bg-white text-[#0d1b36]"
+                          : "border-slate-200 bg-white text-slate-400"
                       }`}
                     >
                       {y}년
@@ -200,7 +258,9 @@ export default function LoanWizard() {
               <div />
             )}
           </div>
-          {error && <p className="mt-4 text-[13px] font-bold text-rose-500">{error}</p>}
+          {error && (
+            <p className="mt-4 text-[13px] font-bold text-rose-500">{error}</p>
+          )}
         </WizardFrame>
       )}
 
@@ -222,15 +282,25 @@ export default function LoanWizard() {
             <div className="flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[.18em] text-[#9cc5ff]">
               <Home size={13} /> {result.product_name}
             </div>
-            <h3 className="mt-3 text-[20px] font-extrabold tracking-[-.04em] sm:text-[24px]">{result.summary}</h3>
+            <h3 className="mt-3 text-[20px] font-extrabold tracking-[-.04em] sm:text-[24px]">
+              {result.summary}
+            </h3>
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               <div className="rounded-xl bg-white/10 p-3.5">
-                <div className="text-[10px] font-bold text-blue-100/60">정책 대출 가능액 (LTV {(result.ltv_rate * 100).toFixed(0)}%)</div>
-                <div className="mt-2 text-[15px] font-extrabold">{result.loan_amount_krw.toLocaleString()}원</div>
+                <div className="text-[10px] font-bold text-blue-100/60">
+                  정책 대출 가능액 (LTV {(result.ltv_rate * 100).toFixed(0)}%)
+                </div>
+                <div className="mt-2 text-[15px] font-extrabold">
+                  {result.loan_amount_krw.toLocaleString()}원
+                </div>
               </div>
               <div className="rounded-xl bg-white/10 p-3.5">
-                <div className="text-[10px] font-bold text-blue-100/60">정책 금리 연 {(result.policy_rate * 100).toFixed(2)}%</div>
-                <div className="mt-2 text-[15px] font-extrabold">월 {result.monthly_interest_krw.toLocaleString()}원</div>
+                <div className="text-[10px] font-bold text-blue-100/60">
+                  정책 금리 연 {(result.policy_rate * 100).toFixed(2)}%
+                </div>
+                <div className="mt-2 text-[15px] font-extrabold">
+                  월 {result.monthly_interest_krw.toLocaleString()}원
+                </div>
               </div>
             </div>
           </div>
@@ -241,18 +311,31 @@ export default function LoanWizard() {
                 <TrendingDown size={17} />
               </span>
               <div>
-                <div className="text-[10px] font-extrabold uppercase tracking-[.18em] text-[#1eb8a6]">SAVINGS</div>
-                <div className="text-[14px] font-extrabold tracking-[-.03em] text-ink">시중 대비 절감</div>
+                <div className="text-[10px] font-extrabold uppercase tracking-[.18em] text-[#1eb8a6]">
+                  SAVINGS
+                </div>
+                <div className="text-[14px] font-extrabold tracking-[-.03em] text-ink">
+                  시중 대비 절감
+                </div>
               </div>
             </div>
             <div className="mt-4 grid gap-3">
               <div className="rounded-xl bg-[#f7f9fc] px-4 py-3.5">
-                <div className="text-[11px] font-bold text-slate-500">시중 상품 월 이자 (연 {(result.market_rate * 100).toFixed(1)}%)</div>
-                <div className="mt-1 text-[14px] font-extrabold text-ink">{result.market_monthly_interest_krw.toLocaleString()}원</div>
+                <div className="text-[11px] font-bold text-slate-500">
+                  시중 상품 월 이자 (연 {(result.market_rate * 100).toFixed(1)}
+                  %)
+                </div>
+                <div className="mt-1 text-[14px] font-extrabold text-ink">
+                  {result.market_monthly_interest_krw.toLocaleString()}원
+                </div>
               </div>
               <div className="rounded-xl bg-[#e6f8f5] px-4 py-3.5">
-                <div className="text-[11px] font-bold text-[#159c8d]">월 이자 절감액</div>
-                <div className="mt-1 text-[17px] font-extrabold text-[#159c8d]">{result.monthly_saving_krw.toLocaleString()}원</div>
+                <div className="text-[11px] font-bold text-[#159c8d]">
+                  월 이자 절감액
+                </div>
+                <div className="mt-1 text-[17px] font-extrabold text-[#159c8d]">
+                  {result.monthly_saving_krw.toLocaleString()}원
+                </div>
               </div>
             </div>
           </div>
@@ -262,14 +345,28 @@ export default function LoanWizard() {
               <div className="flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[.18em] text-[#2457d6]">
                 <Landmark size={12} /> 실제 정책 매칭
               </div>
-              <div className="mt-1 text-[14px] font-extrabold tracking-[-.03em] text-ink">지금 내 조건으로 신청 가능한 대출이자 지원 정책</div>
+              <div className="mt-1 text-[14px] font-extrabold tracking-[-.03em] text-ink">
+                지금 내 조건으로 신청 가능한 대출이자 지원 정책
+              </div>
               <div className="mt-4 grid gap-3">
                 {result.matched_policies.map((p) => (
-                  <div key={p.policy_key} className="rounded-xl border border-slate-200/80 bg-[#f7f9fc] p-4">
-                    <div className="text-[13px] font-extrabold text-ink">{p.policy_name}</div>
-                    <p className="mt-1.5 text-[12px] leading-5 text-slate-500">{p.benefit_description}</p>
-                    <div className="mt-1.5 text-[11px] font-semibold text-slate-400">신청 기간 {formatApplicationPeriod(p.application_period)}</div>
-                    <PolicyDetailLink url={p.reference_url} className="mt-1.5" />
+                  <div
+                    key={p.policy_key}
+                    className="rounded-xl border border-slate-200/80 bg-[#f7f9fc] p-4"
+                  >
+                    <div className="text-[13px] font-extrabold text-ink">
+                      {p.policy_name}
+                    </div>
+                    <p className="mt-1.5 text-[12px] leading-5 text-slate-500">
+                      {p.benefit_description}
+                    </p>
+                    <div className="mt-1.5 text-[11px] font-semibold text-slate-400">
+                      신청 기간 {formatApplicationPeriod(p.application_period)}
+                    </div>
+                    <PolicyDetailLink
+                      url={p.reference_url}
+                      className="mt-1.5"
+                    />
                   </div>
                 ))}
               </div>
