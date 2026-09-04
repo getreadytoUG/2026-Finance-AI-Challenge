@@ -193,6 +193,19 @@ MARITAL_STATUS_LABELS: dict[str, str] = {
 }
 
 
+# 2026-09-05 추가: OccupationType(policy_matcher.schemas)을 사람이 읽는 한국어로
+# 보여줘야 하는 곳(정책달력 챗봇의 "지금 적용된 조건" 설명, AI 분석 리포트/정책별
+# 챗봇의 사용자 프로필)이 여럿이라 한 곳에 모은다 — frontend/lib/profileOptions.ts의
+# OCCUPATION_OPTIONS 라벨과 반드시 같은 값을 유지할 것.
+OCCUPATION_LABELS: dict[str, str] = {
+    "student": "학생",
+    "employee": "직장인",
+    "self_employed": "자영업자",
+    "unemployed": "무직/구직중",
+    "other": "기타",
+}
+
+
 def is_married_only_policy(policy: CachedPolicy) -> bool:
     return policy.marital_status == MARITAL_STATUS_CODE_MARRIED
 

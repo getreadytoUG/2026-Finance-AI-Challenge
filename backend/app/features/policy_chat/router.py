@@ -25,7 +25,7 @@ from app.features.policy_chat.schemas import (
 )
 from app.features.policy_chat.tool import TOOL_SPEC
 from app.features.policy_matcher.categories import PolicyCategoryTag
-from app.features.policy_matcher.matching import PolicyRegion
+from app.features.policy_matcher.matching import OCCUPATION_LABELS, PolicyRegion
 from app.features.policy_matcher.models import CachedPolicy
 from app.features.policy_matcher.schemas import OccupationType
 from app.features.policy_matcher.status import PolicyStatusLabel
@@ -150,6 +150,12 @@ def _profile_default_filters(user: User) -> PolicyChatSearchInput:
 
 
 def _describe_filters(filters: PolicyChatSearchInput) -> str:
+    # 2026-09-05 감사(사용자 요청: "다른 부분들도 제대로 들어가고 있는지 확인해봐")
+    # 중 발견 — occupation/is_sme_employee는 실제로 _matches()에서 검색 결과를
+    # 거르는 데 쓰이는데(2026-09-04 수정), 챗봇이 "지금 적용된 조건"을 설명할 때
+    # 쓰는 이 함수엔 안 들어가 있었다. 결과는 맞게 걸러지지만 챗봇이 사용자에게
+    # "지금 무슨 조건으로 찾고 있어?"라고 물으면 직업 조건을 빼먹고 설명하는
+    # 불일치가 있었다.
     lines = []
     if filters.age is not None:
         lines.append(f"나이: {filters.age}세")
@@ -167,6 +173,10 @@ def _describe_filters(filters: PolicyChatSearchInput) -> str:
         lines.append(f"키워드: {filters.keyword}")
     if filters.status is not None:
         lines.append(f"신청 상태: {filters.status}")
+    if filters.occupation is not None:
+        lines.append(f"직업: {OCCUPATION_LABELS.get(filters.occupation, filters.occupation)}")
+    if filters.is_sme_employee is not None:
+        lines.append(f"중소기업 재직 여부: {'재직' if filters.is_sme_employee else '비재직'}")
     if filters.disability_filter == "only":
         lines.append("장애인 대상 정책만")
     elif filters.disability_filter == "exclude":
@@ -186,8 +196,8 @@ def _build_ai_search_system_prompt(filters: PolicyChatSearchInput) -> str:
         "이번 턴에 바뀐 필드만 담아 넘기세요 — 언급하지 않은 필드는 생략하세요(생략하면 "
         "아래 현재 조건이 그대로 유지됩니다). 조건 변경 요청이 아니라 단순 질문이면 도구를 "
         "호출하지 말고 바로 답하세요.\n\n"
-        "region/category/status/disability_filter/veteran_filter는 반드시 도구 스키마에 정의된 목록 "
-        "중 하나여야 합니다 — 목록에 없는 값을 만들어내지 마세요. 특히 '마감 임박', '곧 마감' 같은 "
+        "region/category/status/occupation/disability_filter/veteran_filter는 반드시 도구 스키마에 정의된 "
+        "목록 중 하나여야 합니다 — 목록에 없는 값을 만들어내지 마세요. 특히 '마감 임박', '곧 마감' 같은 "
         "표현은 keyword가 아니라 status='임박'으로, '마감된 것도/지난 것도 보여줘'는 status='만료'로 "
         "담으세요. disability_filter/veteran_filter는 '장애인/보훈대상자 정책만 보여줘'처럼 그 대상군만 "
         "보고 싶어하면 'only', '장애인/보훈대상자 정책은 빼줘'처럼 그 대상군 전용 정책을 제외하고 싶어 "

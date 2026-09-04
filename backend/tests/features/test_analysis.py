@@ -64,6 +64,57 @@ def test_policy_text_omits_raw_marital_status_code():
     assert "혼인 조건 코드" not in text
 
 
+def test_profile_text_includes_occupation_sme_disability_veteran_when_present():
+    # 2026-09-05 감사(사용자 요청: "다른 부분들도 제대로 들어가고 있는지 확인해봐")
+    # 중 발견 — matching.py의 TARGETING_RULES는 이 필드들로 정책 목록을 거르는데,
+    # 개별 정책 AI 분석 리포트/정책별 챗봇의 프로필 요약엔 안 들어가고 있었다.
+    user = _user(occupation="employee", is_sme_employee=True, has_disability=False, is_veteran=True)
+    text = analysis._profile_text(user)
+    assert "직장인" in text
+    assert "중소기업" in text and "재직" in text
+    assert "장애인" in text and "해당 없음" in text
+    assert "국가보훈대상자" in text
+
+
+def test_profile_text_omits_occupation_sme_disability_veteran_when_absent():
+    user = _user()
+    text = analysis._profile_text(user)
+    assert "직업" not in text
+    assert "중소기업" not in text
+    assert "장애인" not in text
+    assert "국가보훈대상자" not in text
+
+
+def test_policy_text_summarizes_region_code_as_readable_region_names():
+    # 2026-09-05 사용자 지적("AI 분석 리포트가 자꾸 지역으로 부적합이라고 나와") —
+    # region_code는 콤마로 구분된 원본 법정동코드라 사람이 못 읽는다. 프롬프트에
+    # 그대로 덤프하면(예전 코드) LLM이 해석을 못 해 "애매하면 부적합" 지침을 따라
+    # 지역 때문에 부적합 처리해버렸다 — 읽을 수 있는 지역명으로 요약해야 한다.
+    policy = _policy(region_code="11110,11140,26110")
+    text = analysis._policy_text(policy)
+    assert "서울" in text
+    assert "부산" in text
+    assert "11110" not in text
+
+
+def test_policy_text_summarizes_wide_region_code_as_nationwide():
+    # K패스처럼 진짜 전국 상품은 region_code에 법정동코드가 187개나 나열돼 있다 —
+    # 그걸 다 지역명으로 늘어놓지 않고 "전국"으로 요약해야 사람도 LLM도 읽을 수 있다.
+    codes = ",".join(
+        f"{p}110" for p in ("11", "26", "27", "28", "29", "30", "31", "36", "41", "51", "43", "44", "52", "46", "47")
+    )  # 17개 시도 중 15개
+    policy = _policy(region_code=codes)
+    text = analysis._policy_text(policy)
+    assert "전국" in text
+    assert "11110" not in text
+
+
+def test_policy_text_omits_region_condition_when_region_code_absent():
+    policy = _policy(region_code="")
+    text = analysis._policy_text(policy)
+    assert "지역 조건" not in text
+
+
 def test_policy_text_includes_required_documents_and_application_method_when_present():
     # 2026-09-04 사용자 지적("K패스 필요서류 모른다는데 실제로 없어서 그런거야,
     # 아니면 못찾아오는거야?") 조사 중 발견 — sbmsnDcmntCn/plcyAplyMthdCn은 실제

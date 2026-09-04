@@ -61,6 +61,26 @@ class _FakeProvider:
         return self._responses[len(self.calls) - 1]
 
 
+def test_describe_filters_includes_occupation_and_sme_employee():
+    # 2026-09-05 감사(사용자 요청: "다른 부분들도 제대로 들어가고 있는지 확인해봐")
+    # 중 발견 — occupation/is_sme_employee는 실제 검색 결과 필터링(_matches)에는
+    # 쓰이는데, 챗봇이 "지금 적용된 조건"을 설명할 때 쓰는 _describe_filters엔
+    # 빠져 있었다.
+    from app.features.policy_chat.router import _describe_filters
+    from app.features.policy_chat.schemas import PolicyChatSearchInput
+
+    text = _describe_filters(PolicyChatSearchInput(occupation="employee", is_sme_employee=True))
+    assert "직장인" in text
+    assert "재직" in text
+
+
+def test_describe_filters_says_no_conditions_when_all_none():
+    from app.features.policy_chat.router import _describe_filters
+    from app.features.policy_chat.schemas import PolicyChatSearchInput
+
+    assert _describe_filters(PolicyChatSearchInput()) == "(적용된 조건 없음 — 전체 정책 대상)"
+
+
 def test_ai_search_message_requires_auth(client):
     response = client.post("/policy_chat/ai_search/message", json={"messages": [{"role": "user", "content": "안녕"}]})
     assert response.status_code == 401

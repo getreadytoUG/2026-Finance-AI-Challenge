@@ -4,6 +4,7 @@ from pydantic import BaseModel, ValidationError
 
 from app.auth.models import User
 from app.features.policy_matcher.categories import category_tags
+from app.features.policy_matcher.matching import OCCUPATION_LABELS, REGIONS, region_names_for_prefix
 from app.features.policy_matcher.models import CachedPolicy
 from app.features.policy_matcher.status import compute_policy_status, today_kst
 from app.llm.base import Message
@@ -40,7 +41,45 @@ def _profile_text(user: User) -> str:
         lines.append(f"배우자 연소득: {user.spouse_annual_income_krw:,}원")
     if user.region is not None:
         lines.append(f"거주 지역: {user.region}")
+    # 2026-09-05 감사(사용자 요청: "다른 부분들도 제대로 들어가고 있는지 확인해봐")
+    # 중 발견 — occupation/is_sme_employee/has_disability/is_veteran은 matching.py의
+    # TARGETING_RULES가 정책 목록을 거르는 데 실제로 쓰는데, 개별 정책의 AI 분석
+    # 리포트/정책별 챗봇(_profile_text를 같이 씀)엔 이 정보가 아예 안 들어가고
+    # 있었다 — 재직자 전용 정책을 학생이 봐도 "적합"으로 오판할 수 있는 정보 공백.
+    if user.occupation is not None:
+        lines.append(f"직업: {OCCUPATION_LABELS.get(user.occupation, user.occupation)}")
+    if user.is_sme_employee is not None:
+        lines.append(f"중소기업 재직 여부: {'재직' if user.is_sme_employee else '비재직'}")
+    if user.has_disability is not None:
+        lines.append(f"장애인 여부: {'해당' if user.has_disability else '해당 없음'}")
+    if user.is_veteran is not None:
+        lines.append(f"국가보훈대상자 여부: {'해당' if user.is_veteran else '해당 없음'}")
     return "\n".join(lines) if lines else "(등록된 정보 없음)"
+
+
+# 2026-09-05 발견(사용자 지적: "지역 매핑이 안 되고 있나? AI 분석 리포트가 자꾸
+# 지역으로 부적합이라고 나와, K패스도") — K패스처럼 진짜 전국 상품인 정책도
+# region_code엔 법정동코드 187개가 콤마로 나열돼 있다(youth_center_client.py가
+# 원본 API를 그대로 캐시하기 때문). 이걸 프롬프트에 그대로 덤프하면(예전 코드)
+# LLM이 이 숫자 뭉치를 해석 못 하고, 시스템 프롬프트의 "애매하면 보수적으로
+# 부적합"을 그대로 따라 지역 때문에 부적합 처리해버렸다 — marital_status 원본
+# 코드값을 프롬프트에서 뺀 것과 같은 종류의 버그다. 사람이 읽을 수 있는 지역명
+# 목록(또는 대부분 전국이면 "전국")으로 요약해서 넣는다.
+_NATIONWIDE_SUMMARY_THRESHOLD = 15  # matching._NATIONWIDE_TEMPLATE_PROVINCE_THRESHOLD와 동일 기준
+
+
+def _region_summary(policy: CachedPolicy) -> str | None:
+    if not policy.region_code:
+        return None
+    prefixes = {code.strip()[:2] for code in policy.region_code.split(",") if code.strip()}
+    matched_names: set[str] = set()
+    for prefix in prefixes:
+        matched_names.update(region_names_for_prefix(prefix))
+    if not matched_names:
+        return None
+    if len(matched_names) >= _NATIONWIDE_SUMMARY_THRESHOLD:
+        return "전국 (지역 제한 없음)"
+    return ", ".join(name for name in REGIONS if name in matched_names)
 
 
 def _policy_text(policy: CachedPolicy) -> str:
@@ -66,8 +105,9 @@ def _policy_text(policy: CachedPolicy) -> str:
     # 그대로 넣으면 LLM이 의미를 모른 채 "혼인 조건 코드: 0055003"이라고 그대로
     # 사용자에게 되읽어주는 게 실제로 확인됐다 — 의미 있는 값으로 바꿀 수 없으니
     # 아예 프롬프트에서 뺀다(안 넣는 게 이상한 코드를 노출하는 것보다 낫다).
-    if policy.region_code:
-        lines.append(f"지역 코드: {policy.region_code}")
+    region_summary = _region_summary(policy)
+    if region_summary:
+        lines.append(f"지역 조건: {region_summary}")
     # 2026-09-04 추가: 사용자가 "K패스 필요서류가 뭐야?"라고 물었을 때 챗봇이
     # "모른다"고 답한 원인을 조사하다가 발견 — sbmsnDcmntCn(제출서류)/
     # plcyAplyMthdCn(신청방법)은 온통청년 API에 실제로 존재하는 필드인데(라이브
@@ -86,8 +126,10 @@ _SYSTEM_PROMPT = (
     "당신은 청년/신혼부부를 위한 정책 분석 도우미입니다. 아래 사용자 프로필과 정책 정보를 "
     "바탕으로 이 사용자에게 이 정책이 적합한지 분석해 반드시 policy_analysis_result 도구를 "
     "호출해 결과를 반환하세요.\n\n"
-    "- fit: 프로필 조건(나이/소득/혼인/지역)과 정책 조건을 대조해 '적합' 또는 '부적합' 중 하나로만 "
-    "판단하세요. 애매하면 보수적으로 '부적합'으로 판단하세요.\n"
+    "- fit: 프로필 조건(나이/소득/혼인/지역/직업/중소기업 재직/장애인 및 국가보훈대상자 해당 여부)과 "
+    "정책 조건을 대조해 '적합' 또는 '부적합' 중 하나로만 판단하세요. 프로필에 없는(안 밝혀진) 조건은 "
+    "대조하지 말고 무시하세요 — 없는 정보로 부적합 판단을 내리지 마세요. 애매하면 보수적으로 "
+    "'부적합'으로 판단하세요.\n"
     "- concerns: fit이 '적합'이면 비워두세요. fit이 '부적합'이면 어떤 조건이 왜 우려되는지 한두 "
     "문장으로만 적으세요 — 적합한 이유는 설명하지 마세요.\n"
     "- benefit_summary: 이 정책이 제공하는 예상 혜택을 간결하게 요약하세요.\n"
