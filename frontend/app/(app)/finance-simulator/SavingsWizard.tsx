@@ -40,6 +40,8 @@ type SavingsProduct = {
   meta: string;
   termMonths: number;
   monthlyCapManwon: number;
+  monthlyMinManwon: number;
+  incomeCapManwon: number; // 자격 예비판정에 쓰는 개인 연소득 상한(만원)
   matchGeneral: number; // 일반형 정부매칭 비율 (0이면 금리형 상품)
   matchPreferential: number; // 우대형(중소기업 재직) 매칭 비율
   savingsRate: number; // 예시 적용 금리 (비과세)
@@ -54,6 +56,8 @@ const PRODUCTS: SavingsProduct[] = [
     meta: "3년 만기 · 2026.08 기준 · 실제 계산",
     termMonths: 36,
     monthlyCapManwon: 50,
+    monthlyMinManwon: 10,
+    incomeCapManwon: 7500,
     matchGeneral: 0.06,
     matchPreferential: 0.12,
     savingsRate: 0.045,
@@ -62,10 +66,12 @@ const PRODUCTS: SavingsProduct[] = [
   {
     id: "leap",
     name: "청년도약계좌 (기존 가입자)",
-    desc: "2025년 신규가입 종료, 기존 가입자는 만기까지 기여금·비과세 유지",
+    desc: "2025년 12월 신규가입 종료, 기존 가입자는 월 최대 70만원 납입 · 5년 만기까지 기여금·비과세 유지 (혼인해도 자동 해지되지 않음)",
     meta: "5년 만기 · 2026.08 기준 · 예시 수치",
     termMonths: 60,
     monthlyCapManwon: 70,
+    monthlyMinManwon: 10,
+    incomeCapManwon: 7500,
     matchGeneral: 0.033,
     matchPreferential: 0.06,
     savingsRate: 0.045,
@@ -74,10 +80,12 @@ const PRODUCTS: SavingsProduct[] = [
   {
     id: "dream",
     name: "청년주택드림 청약통장",
-    desc: "최고 연 4.5% 금리 + 이자소득 비과세, 청약 당첨 시 대출 연계",
+    desc: "만 19~34세, 연소득 5천만원 이하 무주택자 대상, 월 2만~100만원 납입 · 최고 연 4.5% 금리 + 이자소득 비과세, 청약 당첨 시 청년주택드림대출 연계",
     meta: "수시입출 · 2026.08 기준 · 예시 수치",
     termMonths: 24,
     monthlyCapManwon: 100,
+    monthlyMinManwon: 2,
+    incomeCapManwon: 5000,
     matchGeneral: 0,
     matchPreferential: 0,
     savingsRate: 0.045,
@@ -154,7 +162,7 @@ export default function SavingsWizard() {
 
   function selectProduct(p: SavingsProduct) {
     setProductId(p.id);
-    setMonthly((m) => Math.min(m, p.monthlyCapManwon));
+    setMonthly((m) => Math.min(Math.max(m, p.monthlyMinManwon), p.monthlyCapManwon));
   }
 
   async function handleShowResult() {
@@ -261,7 +269,7 @@ export default function SavingsWizard() {
           <div className="grid gap-6 sm:grid-cols-2">
             <SliderField
               label="월 납입액"
-              min={10}
+              min={product.monthlyMinManwon}
               max={product.monthlyCapManwon}
               step={5}
               value={monthly}
@@ -314,9 +322,12 @@ export default function SavingsWizard() {
             </div>
             <PrelimRow label="나이 조건 (만 19~34세)" ok />
             <PrelimRow
-              label="소득 조건 (총급여 7,500만원 이하)"
-              ok={income <= 7500}
+              label={`소득 조건 (${product.id === "dream" ? "연소득" : "총급여"} ${product.incomeCapManwon.toLocaleString()}만원 이하)`}
+              ok={income <= product.incomeCapManwon}
             />
+            {product.id === "dream" && (
+              <PrelimRow label="무주택자 (자가 소유 없음)" ok />
+            )}
           </div>
           {error && (
             <p className="mt-4 text-[13px] font-bold text-rose-500">{error}</p>
