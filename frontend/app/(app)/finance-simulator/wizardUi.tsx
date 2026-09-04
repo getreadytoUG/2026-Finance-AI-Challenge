@@ -12,7 +12,13 @@ import { Check } from "lucide-react";
 export type WizardStep = { label: string; sub: string };
 
 // 왼쪽 세로 스텝 레일 (1 상품 선택 → 2 정보 입력 → 3 결과 확인)
-export function StepRail({ steps, current }: { steps: WizardStep[]; current: number }) {
+export function StepRail({
+  steps,
+  current,
+}: {
+  steps: WizardStep[];
+  current: number;
+}) {
   return (
     <ol className="grid gap-6">
       {steps.map((step, i) => {
@@ -32,8 +38,14 @@ export function StepRail({ steps, current }: { steps: WizardStep[]; current: num
               {done ? <Check size={12} strokeWidth={3} /> : i + 1}
             </span>
             <div>
-              <div className={`text-[13px] font-extrabold ${active ? "text-ink" : "text-slate-400"}`}>{step.label}</div>
-              <div className="mt-0.5 text-[11px] font-semibold text-slate-400">{step.sub}</div>
+              <div
+                className={`text-[13px] font-extrabold ${active ? "text-ink" : "text-slate-400"}`}
+              >
+                {step.label}
+              </div>
+              <div className="mt-0.5 text-[11px] font-semibold text-slate-400">
+                {step.sub}
+              </div>
             </div>
           </li>
         );
@@ -99,14 +111,18 @@ export function SliderField({
 
   function commit(raw: string) {
     const parsed = Number(raw.replace(/[^0-9.-]/g, ""));
-    const next = Number.isFinite(parsed) ? Math.min(max, Math.max(min, Math.round(parsed))) : value;
+    const next = Number.isFinite(parsed)
+      ? Math.min(max, Math.max(min, Math.round(parsed)))
+      : value;
     onChange(next);
     setDraft(next.toLocaleString());
   }
 
   return (
     <div>
-      <div className="mb-2 text-[12px] font-extrabold text-slate-700">{label}</div>
+      <div className="mb-2 text-[12px] font-extrabold text-slate-700">
+        {label}
+      </div>
       <input
         type="range"
         min={min}
@@ -143,7 +159,11 @@ export function PrelimRow({ label, ok }: { label: string; ok: boolean }) {
   return (
     <div className="flex items-center justify-between border-t border-slate-100 py-3 text-[12px] first:border-t-0">
       <span className="font-semibold text-slate-600">{label}</span>
-      <span className={`font-extrabold ${ok ? "text-[#159c8d]" : "text-rose-500"}`}>{ok ? "충족" : "미충족"}</span>
+      <span
+        className={`font-extrabold ${ok ? "text-[#159c8d]" : "text-rose-500"}`}
+      >
+        {ok ? "충족" : "미충족"}
+      </span>
     </div>
   );
 }
@@ -162,8 +182,12 @@ export function WizardFrame({
 }) {
   return (
     <div>
-      <div className="text-[11px] font-extrabold uppercase tracking-[.18em] text-slate-400">{eyebrow}</div>
-      <h2 className="mt-1.5 text-[20px] font-extrabold tracking-[-.04em] text-ink">{title}</h2>
+      <div className="text-[11px] font-extrabold uppercase tracking-[.18em] text-slate-400">
+        {eyebrow}
+      </div>
+      <h2 className="mt-1.5 text-[20px] font-extrabold tracking-[-.04em] text-ink">
+        {title}
+      </h2>
       <div className="mt-6">{children}</div>
       <div className="mt-8 flex items-center justify-between">{footer}</div>
     </div>
@@ -187,14 +211,22 @@ export function ResetButton({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="h-11 rounded-xl px-4 text-[13px] font-extrabold text-slate-400 transition hover:text-slate-600"
+      className="h-11 rounded-xl border border-slate-200 px-4 text-[13px] font-extrabold text-slate-400 transition hover:text-slate-600"
     >
       초기화
     </button>
   );
 }
 
-export function NextButton({ label, onClick, disabled }: { label: string; onClick: () => void; disabled?: boolean }) {
+export function NextButton({
+  label,
+  onClick,
+  disabled,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
   return (
     <button
       type="button"
@@ -208,7 +240,11 @@ export function NextButton({ label, onClick, disabled }: { label: string; onClic
 }
 
 export function DisclaimerNote({ text }: { text: string }) {
-  return <p className="mt-5 text-[11px] font-semibold leading-5 text-slate-400">{text}</p>;
+  return (
+    <p className="mt-5 text-[11px] font-semibold leading-5 text-slate-400">
+      {text}
+    </p>
+  );
 }
 
 // ── 숫자 포맷 ──────────────────────────────────────────────────────────
