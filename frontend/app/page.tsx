@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   Sparkles,
   WalletCards,
+  Calculator,
 } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { BrandMark } from "@/components/BrandMark";
@@ -54,7 +55,7 @@ const FEATURE_CARDS = [
     // 중복이라 삭제되고 실제 계산 로직이 그쪽으로 흡수됐다 — 이 카드도 같이 옮긴다.
     title: "정책금융 시뮬레이터",
     detail: "정책 저축·대출로 얼마를 모으고 빌릴 수 있는지 계산해요.",
-    icon: PiggyBank,
+    icon: Calculator,
     loggedInPath: "/finance-simulator",
     tone: "mint",
   },
@@ -192,7 +193,7 @@ export default function Home() {
                 </div>
               </div>
               <div className="mt-4 grid gap-2.5">
-                {["AI 분석 리포트", "저축플랜 자동 반영"].map((item, i) => (
+                {["AI 분석 리포트", "정책금융 시뮬레이터"].map((item, i) => (
                   <div
                     key={item}
                     className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white px-3 py-3"
@@ -200,7 +201,7 @@ export default function Home() {
                     <span
                       className={`grid h-8 w-8 place-items-center rounded-lg ${i ? "bg-[#e6f8f5] text-[#159c8d]" : "bg-[#e8f0ff] text-[#2457d6]"}`}
                     >
-                      {i ? <PiggyBank size={15} /> : <Sparkles size={15} />}
+                      {i ? <Calculator size={15} /> : <Sparkles size={15} />}
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[11px] font-extrabold">
