@@ -5,10 +5,13 @@
 // 디딤돌대출"/"신생아 특례" 등 이 앱에 계산 로직이 없는 상품 3개 선택지)이었는데,
 // 실제 백엔드(savings_simulator/simulate_housing_loan)에 연결했다 — /savings 탭
 // (HousingLoanSimulator)에 있던 것과 같은 실제 계산이다. 실제로 지원하는 건
-// "전세(버팀목)"/"매매(디딤돌)" 둘뿐이라 상품 선택을 그 기준으로 바꿨다. 혼인
-// 여부/지역/생애최초 토글도 뺐다 — simulate_housing_loan은 이 토글값을 안 받고
-// 항상 로그인한 유저의 저장된 프로필(is_married/age)을 그대로 쓰므로, 토글을
-// 남겨두면 결과에 반영 안 되는데 반영되는 것처럼 보이는 거짓 UI가 된다.
+// "전세(버팀목)"/"매매(디딤돌)" 둘뿐이라 상품 선택을 그 기준으로 바꿨다.
+// 지역/생애최초 토글은 여전히 뺐다(백엔드가 안 받는다) — 나이도 저장된 프로필
+// 값을 그대로 쓴다.
+// 2026-09-06: 미혼/기혼 토글은 다시 넣었다. 이번엔 HousingLoanInput.is_married로
+// 실제 백엔드까지 전달돼서 청년전용/신혼부부전용 상품 분기와 소득 집계(미혼=본인 /
+// 기혼=부부합산)를 실제로 바꾼다 — 예전처럼 "결과에 반영 안 되는 거짓 토글"이
+// 아니다. 값을 안 보내면 백엔드가 저장된 프로필 is_married로 폴백한다.
 
 import { useEffect, useState } from "react";
 import { Home, Landmark, TrendingDown } from "lucide-react";
@@ -21,6 +24,7 @@ import {
   DisclaimerNote,
   NextButton,
   ResetButton,
+  Segmented,
   SliderField,
   StepRail,
   WizardFrame,
@@ -29,6 +33,7 @@ import {
 } from "./wizardUi";
 
 type HousingType = "jeonse" | "purchase";
+type MaritalStatus = "single" | "married";
 
 const HOUSING_TYPE_OPTIONS: {
   value: HousingType;
@@ -66,7 +71,12 @@ const DISCLAIMER =
 export default function LoanWizard() {
   const [step, setStep] = useState(0);
   const [housingType, setHousingType] = useState<HousingType | null>(null);
-  const [income, setIncome] = useState(6000); // 만원, 부부합산
+  const [maritalStatus, setMaritalStatus] = useState<MaritalStatus>("single");
+  // 프로필에서 읽어온 본인/배우자 연소득(만원) — 미혼/기혼 토글을 바꿀 때 소득
+  // 슬라이더를 다시 채우는 기준값으로 쓴다.
+  const [profileSelfIncome, setProfileSelfIncome] = useState(0);
+  const [profileSpouseIncome, setProfileSpouseIncome] = useState(0);
+  const [income, setIncome] = useState(6000); // 만원 — 미혼이면 본인, 기혼이면 부부합산
   const [priceManwon, setPriceManwon] = useState(25000); // 만원
   const [selfCapital, setSelfCapital] = useState(5000); // 만원
   const [loanTermYears, setLoanTermYears] = useState<10 | 15 | 20 | 30>(30);
@@ -78,12 +88,30 @@ export default function LoanWizard() {
     const token = localStorage.getItem("token") ?? "";
     getMe(token)
       .then((me) => {
-        const household =
-          (me.annual_income_krw ?? 0) + (me.spouse_annual_income_krw ?? 0);
-        if (household > 0) setIncome(krwToManwon(household));
+        const self = me.annual_income_krw ? krwToManwon(me.annual_income_krw) : 0;
+        const spouse = me.spouse_annual_income_krw
+          ? krwToManwon(me.spouse_annual_income_krw)
+          : 0;
+        setProfileSelfIncome(self);
+        setProfileSpouseIncome(spouse);
+        const married = !!me.is_married;
+        setMaritalStatus(married ? "married" : "single");
+        const seed = married ? self + spouse : self;
+        if (seed > 0) setIncome(seed);
       })
       .catch(() => {});
   }, []);
+
+  // 미혼/기혼을 바꾸면 소득 슬라이더가 뜻하는 값(본인 vs 부부합산)이 달라지므로
+  // 프로필 기준값으로 다시 채운다.
+  function handleMaritalChange(next: MaritalStatus) {
+    setMaritalStatus(next);
+    setIncome(
+      next === "married"
+        ? profileSelfIncome + profileSpouseIncome
+        : profileSelfIncome,
+    );
+  }
 
   // 자기자본은 목표 가격을 넘을 수 없다. 슬라이더의 max를 목표가격에 실시간
   // 연동시키면(예전 방식) range가 계속 바뀌어서 손잡이 위치가 제멋대로 튀어
@@ -106,6 +134,7 @@ export default function LoanWizard() {
         self_capital_krw: manwonToKrw(selfCapital),
         household_annual_income_krw: manwonToKrw(income),
         loan_term_years: loanTermYears,
+        is_married: maritalStatus === "married",
       });
       setResult(output);
       setStep(2);
@@ -196,9 +225,28 @@ export default function LoanWizard() {
             </>
           }
         >
+          <div className="mb-6">
+            <div className="mb-2 text-[12px] font-extrabold text-slate-700">
+              혼인 여부
+            </div>
+            <Segmented
+              options={[
+                { value: "single", label: "미혼" },
+                { value: "married", label: "기혼" },
+              ]}
+              value={maritalStatus}
+              onChange={handleMaritalChange}
+            />
+            <p className="mt-1.5 text-[11px] font-semibold text-slate-400">
+              미혼은 본인 소득만, 기혼은 부부 합산 소득으로 계산해요 · 청년전용 /
+              신혼부부전용 상품도 이 선택으로 갈려요
+            </p>
+          </div>
           <div className="grid gap-6 sm:grid-cols-2">
             <SliderField
-              label="부부 합산 연소득"
+              label={
+                maritalStatus === "married" ? "부부 합산 연소득" : "본인 연소득"
+              }
               min={0}
               max={15000}
               step={100}

@@ -415,6 +415,77 @@ def test_housing_loan_purchase_uses_newlywed_table_when_married(client):
     assert body["policy_rate"] == 0.0350  # 신혼가구 4천~7천만원 구간, 30년
 
 
+def test_housing_loan_payload_is_married_overrides_profile(client):
+    # 2026-09-06: 시뮬레이터 폼의 미혼/기혼 토글(payload.is_married)이 저장된
+    # 프로필보다 우선한다 — 미혼으로 가입한 유저가 "기혼"을 골라 신혼부부전용
+    # 상품을 확인해볼 수 있어야 한다(그 반대도).
+    token = _signup_login(client, email="marital-override@example.com", is_married=False)
+    base = {
+        "housing_type": "jeonse",
+        "target_price_krw": 250_000_000,
+        "self_capital_krw": 50_000_000,
+        "household_annual_income_krw": 40_000_000,
+    }
+    as_married = client.post(
+        "/savings_simulator/housing_loan",
+        json={**base, "is_married": True},
+        headers={"Authorization": f"Bearer {token}"},
+    ).json()
+    as_single = client.post(
+        "/savings_simulator/housing_loan",
+        json={**base, "is_married": False},
+        headers={"Authorization": f"Bearer {token}"},
+    ).json()
+    assert as_married["product_name"] == "신혼부부전용 버팀목 전세자금대출"
+    assert as_single["product_name"] == "청년전용 버팀목 전세자금대출"
+
+
+def test_housing_loan_falls_back_to_profile_when_is_married_omitted(client):
+    # payload에 is_married가 없으면(기존 호출) 예전처럼 저장된 프로필 값을 쓴다.
+    token = _signup_login(client, email="marital-fallback@example.com", is_married=True)
+    body = client.post(
+        "/savings_simulator/housing_loan",
+        json={
+            "housing_type": "jeonse",
+            "target_price_krw": 250_000_000,
+            "self_capital_krw": 50_000_000,
+            "household_annual_income_krw": 40_000_000,
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    ).json()
+    assert body["product_name"] == "신혼부부전용 버팀목 전세자금대출"
+
+
+def test_youth_future_savings_accepts_is_married_without_double_counting_spouse(client, db_session):
+    # 기혼이면 프론트가 annual_income_krw에 이미 부부 합산을 넣어 보내므로, 실제
+    # 정책 매칭(_match_input)이 배우자 소득을 또 더하면 안 된다 — 소득상한이
+    # 4,000만원인 정책에 "본인 3,000만 + 배우자 3,000만 = 이미 합산 6,000만"을
+    # 보내면 상한 초과로 매칭에서 빠져야 한다.
+    _seed_policy(
+        db_session,
+        policy_name="청년 우대 적금",
+        max_income_krw=40_000_000,
+    )
+    token = _signup_login(
+        client,
+        email="yfs-married@example.com",
+        age=29,
+        region="서울",
+        is_married=True,
+        spouse_annual_income_krw=30_000_000,
+    )
+    body = client.post(
+        "/savings_simulator/youth_future_savings",
+        json={
+            "monthly_amount_krw": 300_000,
+            "annual_income_krw": 60_000_000,  # 이미 부부 합산
+            "is_married": True,
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    ).json()
+    assert [p["policy_name"] for p in body["matched_policies"]] == []
+
+
 def test_housing_loan_purchase_rate_varies_by_loan_term(client):
     token = _signup_login(client, email="purchase-term@example.com")
     base = {

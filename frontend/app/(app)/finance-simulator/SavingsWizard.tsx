@@ -140,7 +140,14 @@ export default function SavingsWizard() {
   const [step, setStep] = useState(0);
   const [productId, setProductId] = useState<string | null>(null);
   const [monthly, setMonthly] = useState(50);
-  const [income, setIncome] = useState(3500);
+  const [maritalStatus, setMaritalStatus] = useState<"single" | "married">(
+    "single",
+  );
+  // 프로필에서 읽어온 본인/배우자 연소득(만원) — 미혼/기혼 토글을 바꿀 때 소득
+  // 슬라이더를 다시 채우는 기준값.
+  const [profileSelfIncome, setProfileSelfIncome] = useState(0);
+  const [profileSpouseIncome, setProfileSpouseIncome] = useState(0);
+  const [income, setIncome] = useState(3500); // 만원 — 미혼이면 본인, 기혼이면 부부합산
   const [sme, setSme] = useState<"yes" | "no">("no");
   const [realResult, setRealResult] = useState<YouthFutureSavingsOutput | null>(
     null,
@@ -152,12 +159,30 @@ export default function SavingsWizard() {
     const token = localStorage.getItem("token") ?? "";
     getMe(token)
       .then((me) => {
-        if (me.annual_income_krw != null)
-          setIncome(krwToManwon(me.annual_income_krw));
+        const self = me.annual_income_krw ? krwToManwon(me.annual_income_krw) : 0;
+        const spouse = me.spouse_annual_income_krw
+          ? krwToManwon(me.spouse_annual_income_krw)
+          : 0;
+        setProfileSelfIncome(self);
+        setProfileSpouseIncome(spouse);
+        const married = !!me.is_married;
+        setMaritalStatus(married ? "married" : "single");
+        const seed = married ? self + spouse : self;
+        if (seed > 0) setIncome(seed);
       })
       .catch(() => {});
   }, []);
 
+  function handleMaritalChange(next: "single" | "married") {
+    setMaritalStatus(next);
+    setIncome(
+      next === "married"
+        ? profileSelfIncome + profileSpouseIncome
+        : profileSelfIncome,
+    );
+  }
+
+  const incomeMax = maritalStatus === "married" ? 15000 : 9000;
   const product = PRODUCTS.find((p) => p.id === productId) ?? null;
 
   function selectProduct(p: SavingsProduct) {
@@ -179,6 +204,7 @@ export default function SavingsWizard() {
         monthly_amount_krw: manwonToKrw(monthly),
         annual_income_krw: manwonToKrw(income),
         seed_money_krw: 0,
+        is_married: maritalStatus === "married",
       });
       setRealResult(output);
       setStep(2);
@@ -266,6 +292,22 @@ export default function SavingsWizard() {
             </>
           }
         >
+          <div className="mb-6">
+            <div className="mb-2 text-[12px] font-extrabold text-slate-700">
+              혼인 여부
+            </div>
+            <Segmented
+              options={[
+                { value: "single", label: "미혼" },
+                { value: "married", label: "기혼" },
+              ]}
+              value={maritalStatus}
+              onChange={handleMaritalChange}
+            />
+            <p className="mt-1.5 text-[11px] font-semibold text-slate-400">
+              미혼은 본인 소득만, 기혼은 부부 합산 소득 기준으로 봐요
+            </p>
+          </div>
           <div className="grid gap-6 sm:grid-cols-2">
             <SliderField
               label="월 납입액"
@@ -276,9 +318,11 @@ export default function SavingsWizard() {
               onChange={setMonthly}
             />
             <SliderField
-              label="본인 연소득"
+              label={
+                maritalStatus === "married" ? "부부 합산 연소득" : "본인 연소득"
+              }
               min={0}
-              max={9000}
+              max={incomeMax}
               step={100}
               value={income}
               onChange={setIncome}
@@ -322,7 +366,7 @@ export default function SavingsWizard() {
             </div>
             <PrelimRow label="나이 조건 (만 19~34세)" ok />
             <PrelimRow
-              label={`소득 조건 (${product.id === "dream" ? "연소득" : "총급여"} ${product.incomeCapManwon.toLocaleString()}만원 이하)`}
+              label={`소득 조건 (${maritalStatus === "married" ? "부부 합산 " : ""}${product.id === "dream" ? "연소득" : "총급여"} ${product.incomeCapManwon.toLocaleString()}만원 이하)`}
               ok={income <= product.incomeCapManwon}
             />
             {product.id === "dream" && (

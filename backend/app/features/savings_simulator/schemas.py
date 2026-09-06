@@ -12,6 +12,11 @@ class YouthFutureSavingsInput(BaseModel):
     seed_money_krw: int = 0
     # 만기가 3년으로 고정된 상품이라(청년도약계좌처럼 3/5년 선택지가 없다) 더는
     # 입력받지 않는다 — simulator.py가 36개월로 고정 계산한다.
+    # 2026-09-06: 시뮬레이터 폼에 미혼/기혼 토글을 붙이면서 추가했다. 미혼이면
+    # annual_income_krw는 본인 소득, 기혼이면 이미 부부 합산 소득이다(프론트가
+    # 합산해서 넘긴다). None이면(폼 외 호출/기존 테스트) 저장된 프로필의
+    # is_married로 폴백한다 — router.py 참고.
+    is_married: bool | None = None
 
 
 class MatchedSavingsPolicy(BaseModel):
@@ -47,9 +52,12 @@ class HousingLoanInput(BaseModel):
     # (simulator.py의 _PURCHASE_*_RATE_TABLE 참고) — 정확한 계산을 하려면 필요해서
     # 추가했다. jeonse(버팀목)에는 이런 기간별 금리 구조가 없어 무시된다.
     loan_term_years: Literal[10, 15, 20, 30] = 30
-    # marriage_years 필드는 프론트 폼에 없었고 계산에도 안 쓰이던 죽은 필드라
-    # 제거했다(2026-09-03) — 신혼가구 여부는 router.py가 로그인한 유저의 저장된
-    # is_married 프로필 값을 simulate_housing_loan()에 직접 넘겨준다.
+    # 2026-09-06: 시뮬레이터 폼에 미혼/기혼 토글을 붙이면서 추가했다 — 이 값이
+    # 청년전용/신혼부부전용 상품 분기(소득상한·LTV·한도·금리표가 갈린다)를
+    # 결정한다. None이면(폼 외 호출/기존 테스트) 저장된 프로필의 is_married로
+    # 폴백한다(router.py 참고). household_annual_income_krw는 미혼이면 본인 소득,
+    # 기혼이면 이미 부부 합산 값이다(프론트가 합산해서 넘긴다).
+    is_married: bool | None = None
 
 
 class HousingLoanOutput(BaseModel):

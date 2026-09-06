@@ -502,6 +502,8 @@ export type YouthFutureSavingsInput = {
   monthly_amount_krw: number;
   annual_income_krw: number;
   seed_money_krw?: number;
+  // 미혼이면 annual_income_krw는 본인 소득, 기혼이면 부부 합산 소득(프론트가 합산).
+  is_married?: boolean;
 };
 
 // 2026-09-02 추가: 위 계산과 별개로, 이 목록은 DB에 실제로 있는 저축/자산형성
@@ -541,9 +543,12 @@ export type HousingLoanInput = {
   housing_type: "jeonse" | "purchase";
   target_price_krw: number;
   self_capital_krw: number;
+  // 미혼이면 본인 소득, 기혼이면 부부 합산 소득(프론트가 합산해서 넘긴다).
   household_annual_income_krw: number;
   // 2026-09-03 추가: 디딤돌대출은 대출기간(10/15/20/30년)마다 금리가 다르다.
   loan_term_years?: 10 | 15 | 20 | 30;
+  // 2026-09-06 추가: 청년전용/신혼부부전용 상품 분기를 폼의 미혼/기혼 토글로 결정.
+  is_married?: boolean;
 };
 
 export type HousingLoanOutput = {
