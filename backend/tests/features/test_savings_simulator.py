@@ -486,6 +486,45 @@ def test_youth_future_savings_accepts_is_married_without_double_counting_spouse(
     assert [p["policy_name"] for p in body["matched_policies"]] == []
 
 
+def test_housing_loan_ineligible_summary_says_본인_연소득_for_single(client):
+    # 2026-09-06 사용자 지적: 미혼으로 돌렸는데 결과 문구가 "부부합산 연소득이…"로
+    # 나왔다 — 미혼이면 "본인 연소득"이라고 해야 한다.
+    token = _signup_login(client, email="purchase-single-wording@example.com", is_married=False)
+    body = client.post(
+        "/savings_simulator/housing_loan",
+        json={
+            "housing_type": "purchase",
+            "target_price_krw": 300_000_000,
+            "self_capital_krw": 100_000_000,
+            "household_annual_income_krw": 62_000_000,  # 일반 6,000만원 초과
+            "is_married": False,
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    ).json()
+    assert body["eligible"] is False
+    assert body["summary"].startswith("본인 연소득이 기준(60,000,000원)")
+    # 6,000만~7,000만원 사이면 생애최초 안내가 붙는다.
+    assert "생애최초" in body["summary"]
+
+
+def test_housing_loan_ineligible_summary_says_부부합산_for_married(client):
+    token = _signup_login(client, email="purchase-married-wording@example.com", is_married=True)
+    body = client.post(
+        "/savings_simulator/housing_loan",
+        json={
+            "housing_type": "purchase",
+            "target_price_krw": 300_000_000,
+            "self_capital_krw": 100_000_000,
+            "household_annual_income_krw": 90_000_000,  # 신혼 8,500만원 초과
+            "is_married": True,
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    ).json()
+    assert body["eligible"] is False
+    assert body["summary"].startswith("부부합산 연소득이 기준(85,000,000원)")
+    assert "생애최초" not in body["summary"]
+
+
 def test_housing_loan_purchase_rate_varies_by_loan_term(client):
     token = _signup_login(client, email="purchase-term@example.com")
     base = {

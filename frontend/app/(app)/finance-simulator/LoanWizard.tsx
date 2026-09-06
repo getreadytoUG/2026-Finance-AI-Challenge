@@ -330,7 +330,7 @@ export default function LoanWizard() {
             <div className="flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[.18em] text-[#9cc5ff]">
               <Home size={13} /> {result.product_name}
             </div>
-            <h3 className="mt-3 text-[20px] font-extrabold tracking-[-.04em] sm:text-[24px]">
+            <h3 className="mt-3 whitespace-pre-line text-[20px] font-extrabold tracking-[-.04em] sm:text-[24px]">
               {result.summary}
             </h3>
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
