@@ -170,6 +170,42 @@ def test_youth_future_savings_high_income_gets_tax_benefit_only_no_match(client)
     assert body["policy_total_krw"] > body["market_total_krw"]
 
 
+def test_youth_future_savings_note_says_개인소득_for_single(client):
+    token = _signup_login(client, email="yfs-note-single@example.com", is_married=False)
+    body = client.post(
+        "/savings_simulator/youth_future_savings",
+        json={"monthly_amount_krw": 400_000, "annual_income_krw": 65_000_000, "is_married": False},
+        headers={"Authorization": f"Bearer {token}"},
+    ).json()
+    assert body["matching_rate"] == 0.0
+    assert body["eligibility_note"].startswith("개인소득이 6,000만원을 초과")
+
+
+def test_youth_future_savings_note_says_부부합산_소득_for_married(client):
+    # 2026-09-06 사용자 지적: 기혼으로 돌렸는데 안내 문구가 "개인소득이 6,000만원을
+    # 초과..."로 나왔다 — 기혼이면 프론트가 부부 합산을 넘기므로 "부부 합산 소득"이라
+    # 해야 한다.
+    token = _signup_login(client, email="yfs-note-married@example.com", is_married=True)
+    body = client.post(
+        "/savings_simulator/youth_future_savings",
+        json={"monthly_amount_krw": 400_000, "annual_income_krw": 65_000_000, "is_married": True},
+        headers={"Authorization": f"Bearer {token}"},
+    ).json()
+    assert body["matching_rate"] == 0.0
+    assert body["eligibility_note"].startswith("부부 합산 소득이 6,000만원을 초과")
+
+
+def test_youth_future_savings_over_cap_note_matches_marital_status(client):
+    token = _signup_login(client, email="yfs-cap-married@example.com", is_married=True)
+    body = client.post(
+        "/savings_simulator/youth_future_savings",
+        json={"monthly_amount_krw": 400_000, "annual_income_krw": 100_000_000, "is_married": True},
+        headers={"Authorization": f"Bearer {token}"},
+    ).json()
+    assert body["eligible"] is False
+    assert body["eligibility_note"].startswith("부부 합산 소득이 가입 기준(7,500만원)")
+
+
 def test_youth_future_savings_over_income_cap_is_ineligible(client):
     token = _signup_login(client, email="high-income@example.com")
     response = client.post(

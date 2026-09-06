@@ -74,6 +74,11 @@ def simulate_youth_future_savings(
     is_sme_employee: bool | None = None,
 ) -> YouthFutureSavingsOutput:
   months = _YFS_TERM_MONTHS
+  # 미혼이면 annual_income_krw는 본인 소득, 기혼이면 프론트가 이미 부부 합산을
+  # 넘긴다(SavingsWizard) — 안내 문구도 맞춘다. 청년미래적금의 기혼 소득기준은
+  # 실제로 가구 중위소득이지만 이 앱은 그 데이터가 없어 단순 합산으로 근사한다
+  # (프론트 결과 카드의 disclaimer에 명시).
+  income_label = "부부 합산 소득" if input.is_married else "개인소득"
 
   if age is not None and not (_YFS_AGE_MIN <= age <= _YFS_AGE_MAX):
     total = _market_only_total(input.monthly_amount_krw, input.seed_money_krw)
@@ -92,7 +97,7 @@ def simulate_youth_future_savings(
     return YouthFutureSavingsOutput(
         eligible=False,
         matching_rate=0.0,
-        eligibility_note=f"개인소득이 가입 기준(총급여 {_YFS_MAX_INCOME_KRW // 10_000:,}만원)을 초과해 가입할 수 없어요.",
+        eligibility_note=f"{income_label}이 가입 기준({_YFS_MAX_INCOME_KRW // 10_000:,}만원)을 초과해 가입할 수 없어요.",
         policy_total_krw=total,
         market_total_krw=total,
         benefit_diff_krw=0,
@@ -103,7 +108,7 @@ def simulate_youth_future_savings(
 
   if input.annual_income_krw > _YFS_GENERAL_INCOME_CAP_KRW:
     matching_rate = 0.0
-    note = "개인소득이 6,000만원을 초과해 정부기여금 매칭은 없지만, 이자소득 비과세 혜택은 그대로 적용돼요."
+    note = f"{income_label}이 6,000만원을 초과해 정부기여금 매칭은 없지만, 이자소득 비과세 혜택은 그대로 적용돼요."
   elif input.annual_income_krw <= _YFS_PREFERENTIAL_INCOME_CAP_KRW and is_sme_employee:
     matching_rate = _YFS_PREFERENTIAL_MATCH_RATE
     note = f"우대형 대상(중소기업 재직 청년)이라 납입액(월 최대 {_YFS_MONTHLY_CAP_KRW // 10_000}만원분)의 {matching_rate * 100:.0f}%를 정부가 더해줘요."
